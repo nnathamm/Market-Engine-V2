@@ -47,6 +47,7 @@ function UiDropdown({
   options,
   onChange,
   searchPlaceholder = "Search options...",
+  allowCustomDuration = false,
 }: {
   label: React.ReactNode;
   required?: boolean;
@@ -54,22 +55,47 @@ function UiDropdown({
   options: DropdownOption[];
   onChange: (value: string) => void;
   searchPlaceholder?: string;
+  allowCustomDuration?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customDays, setCustomDays] = useState("");
+  const [customHours, setCustomHours] = useState("");
+  const [customMinutes, setCustomMinutes] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
   const listId = useId();
-  const selected = options.find((option) => option.value === value) ?? options[0];
+  const selected = options.find((option) => option.value === value);
+  const selectedCustomParts = value.startsWith("custom:") ? value.slice(7).split(":").map(Number) : [];
+  const selectedCustomLabel = selectedCustomParts.length === 3
+    ? [
+      selectedCustomParts[0] > 0 ? `${selectedCustomParts[0]}d` : "",
+      selectedCustomParts[1] > 0 ? `${selectedCustomParts[1]}h` : "",
+      selectedCustomParts[2] > 0 ? `${selectedCustomParts[2]}m` : "",
+    ].filter(Boolean).join(" ")
+    : "";
+  const selectedLabel = selected?.label ?? (selectedCustomLabel ? `Custom — ${selectedCustomLabel}` : options[0].label);
   const searchable = options.length > 4;
   const normalizedQuery = query.trim().toLowerCase();
   const filteredOptions = normalizedQuery
     ? options.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(normalizedQuery))
     : options;
+  const customDayValue = Math.max(0, Number.parseInt(customDays, 10) || 0);
+  const customHourValue = Math.max(0, Number.parseInt(customHours, 10) || 0);
+  const customMinuteValue = Math.max(0, Number.parseInt(customMinutes, 10) || 0);
+  const hasCustomDuration = customDayValue + customHourValue + customMinuteValue > 0;
 
   function closeMenu() {
     setOpen(false);
     setQuery("");
+    setCustomOpen(false);
+  }
+
+  function applyCustomDuration() {
+    if (!hasCustomDuration) return;
+    onChange(`custom:${customDayValue}:${customHourValue}:${customMinuteValue}`);
+    closeMenu();
   }
 
   useEffect(() => {
@@ -94,10 +120,10 @@ function UiDropdown({
         onClick={() => open ? closeMenu() : setOpen(true)}
         onKeyDown={(event) => event.key === "Escape" && closeMenu()}
       >
-        <span>{selected.label}</span><i aria-hidden="true">⌄</i>
+        <span>{selectedLabel}</span><i aria-hidden="true">⌄</i>
       </button>
       {open && (
-        <div className="ui-dropdown-menu">
+        <div className="ui-dropdown-menu" id={listId}>
           {searchable && (
             <label className="ui-dropdown-search">
               <span aria-hidden="true">⌕</span>
@@ -111,31 +137,46 @@ function UiDropdown({
               />
             </label>
           )}
-          <div
-            className={`ui-dropdown-options ${searchable ? "scrollable" : ""}`}
-            id={listId}
-            role="listbox"
-            aria-labelledby={labelId}
-            tabIndex={0}
-            onKeyDown={(event) => event.key === "Escape" && closeMenu()}
-          >
-            {filteredOptions.map((option) => (
-              <button
-                className={`ui-dropdown-option ${option.value === value ? "selected" : ""}`}
-                type="button"
-                role="option"
-                aria-selected={option.value === value}
-                key={option.value}
-                onClick={() => {
-                  onChange(option.value);
-                  closeMenu();
-                }}
-              >
-                <span>{option.label}</span><b aria-hidden="true">✓</b>
-              </button>
-            ))}
-            {filteredOptions.length === 0 && <div className="ui-dropdown-empty" role="status">No matching options</div>}
-          </div>
+          {allowCustomDuration && (
+            <button className={`ui-custom-duration-toggle ${customOpen ? "open" : ""}`} type="button" onClick={() => setCustomOpen((current) => !current)}>
+              <span><b>＋ Custom cooldown</b><small>Enter days, hours, and/or minutes</small></span><i aria-hidden="true">⌄</i>
+            </button>
+          )}
+          {customOpen ? (
+            <div className="ui-custom-duration-panel">
+              <div className="ui-custom-duration-fields">
+                <label><span>Days</span><input type="number" min="0" step="1" inputMode="numeric" value={customDays} onChange={(event) => setCustomDays(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
+                <label><span>Hours</span><input type="number" min="0" step="1" inputMode="numeric" value={customHours} onChange={(event) => setCustomHours(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
+                <label><span>Minutes</span><input type="number" min="0" step="1" inputMode="numeric" value={customMinutes} onChange={(event) => setCustomMinutes(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
+              </div>
+              <button className="ui-custom-duration-apply" type="button" disabled={!hasCustomDuration} onClick={applyCustomDuration}>Use cooldown</button>
+            </div>
+          ) : (
+            <div
+              className={`ui-dropdown-options ${searchable ? "scrollable" : ""}`}
+              role="listbox"
+              aria-labelledby={labelId}
+              tabIndex={0}
+              onKeyDown={(event) => event.key === "Escape" && closeMenu()}
+            >
+              {filteredOptions.map((option) => (
+                <button
+                  className={`ui-dropdown-option ${option.value === value ? "selected" : ""}`}
+                  type="button"
+                  role="option"
+                  aria-selected={option.value === value}
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    closeMenu();
+                  }}
+                >
+                  <span>{option.label}</span><b aria-hidden="true">✓</b>
+                </button>
+              ))}
+              {filteredOptions.length === 0 && <div className="ui-dropdown-empty" role="status">No matching options</div>}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -267,7 +308,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
             <h2>3. Additional Settings</h2>
             <p>Configure how often this signal can trigger and other optional behaviors.</p>
             <div className="settings-fields">
-              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={COOLDOWN_OPTIONS} onChange={setCooldown} searchPlaceholder="Search cooldown..." />
+              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={COOLDOWN_OPTIONS} onChange={setCooldown} searchPlaceholder="Search cooldown..." allowCustomDuration />
               <UiDropdown label={<>Trigger Frequency (Optional) <small>?</small></>} value={frequency} options={FREQUENCY_OPTIONS} onChange={setFrequency} />
               <label className="notification-field">
                 <span>Notifications (Optional) <small>?</small></span>
