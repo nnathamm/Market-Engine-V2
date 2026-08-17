@@ -191,7 +191,7 @@ button { color: inherit; }
 .empty-list-icon i { position: relative; width: 25px; height: 4px; margin: 3px 0; border-radius: 5px; background: #9c48eb; transform: translateX(5px); }
 .empty-list-icon i::before { content: ""; position: absolute; left: -9px; width: 4px; height: 4px; border-radius: 50%; background: #9c48eb; }
 .settings-section { min-height: 258px; }
-.settings-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 34px; margin-top: 20px; }
+.settings-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; margin-top: 20px; }
 .form-field small, .notification-field small { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 5px; border: 1px solid #9fa9b9; border-radius: 50%; font-size: 10px; }
 .notification-field { display: grid; gap: 10px; color: #d6dce6; font-size: 16px; }
 .toggle-row { height: 46px; display: flex; align-items: center; gap: 10px; white-space: nowrap; }

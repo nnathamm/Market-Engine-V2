@@ -48,6 +48,7 @@ test("keeps the application UI-only", async () => {
   assert.match(page, /const TIMEFRAME_OPTIONS:[\s\S]*value: "1s"[\s\S]*value: "3h"[\s\S]*value: "5d"[\s\S]*value: "14d"[\s\S]*value: "15d"[\s\S]*value: "1Y"/);
   assert.match(page, /const searchable = options\.length > 4/);
   assert.doesNotMatch(page, /COOLDOWN_OPTIONS|Search cooldown|allowCustomDuration/);
+  assert.doesNotMatch(page, /FREQUENCY_OPTIONS|Trigger Frequency|frequency controls/i);
   assert.match(page, /function CooldownChooser[\s\S]*Days[\s\S]*Hours[\s\S]*Minutes[\s\S]*Use cooldown/);
   assert.match(page, /onChange\(`custom:\$\{dayValue\}:\$\{hourValue\}:\$\{minuteValue\}`\)/);
   assert.match(page, /useState\("custom:0:0:5"\)/);

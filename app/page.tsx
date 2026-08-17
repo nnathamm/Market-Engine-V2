@@ -32,10 +32,6 @@ const TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1Y", label: "1 Year (1Y)" },
 ];
 
-const FREQUENCY_OPTIONS: DropdownOption[] = [
-  { value: "close", label: "Once per bar close" },
-];
-
 const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
 
 function cooldownSummaryLabel(value: string) {
@@ -306,7 +302,6 @@ function SummaryIcon({ children, tone = "purple" }: { children: React.ReactNode;
 function CreateView({ setView, openCondition }: { setView: (view: View) => void; openCondition: () => void }) {
   const [timeFrame, setTimeFrame] = useState("15m");
   const [cooldown, setCooldown] = useState("custom:0:0:5");
-  const [frequency, setFrequency] = useState("close");
 
   return (
     <div className="screen inner-screen create-screen">
@@ -359,16 +354,15 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
 
           <section className="surface settings-section">
             <h2>3. Additional Settings</h2>
-            <p>Configure how often this signal can trigger and other optional behaviors.</p>
+            <p>Configure the cooldown and optional notifications for this signal.</p>
             <div className="settings-fields">
               <CooldownChooser value={cooldown} onChange={setCooldown} />
-              <UiDropdown label={<>Trigger Frequency (Optional) <small>?</small></>} value={frequency} options={FREQUENCY_OPTIONS} onChange={setFrequency} />
               <label className="notification-field">
                 <span>Notifications (Optional) <small>?</small></span>
                 <span className="toggle-row"><input type="checkbox" defaultChecked /> <em>Enable notifications when triggered</em></span>
               </label>
             </div>
-            <div className="info-strip"><span>ⓘ</span> Cooldown prevents repeated signals. Frequency controls how often the conditions are evaluated.</div>
+            <div className="info-strip"><span>ⓘ</span> Cooldown prevents the same signal from triggering repeatedly too quickly.</div>
           </section>
         </div>
 
@@ -382,7 +376,6 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
           <div className="summary-divider" />
           <div className="summary-row"><SummaryIcon tone="green">●</SummaryIcon><span>Status</span><b>Active</b></div>
           <div className="summary-row"><SummaryIcon tone="amber">◴</SummaryIcon><span>Cooldown Period</span><b>{cooldownSummaryLabel(cooldown)}</b></div>
-          <div className="summary-row"><SummaryIcon tone="cyan">≋</SummaryIcon><span>Trigger Frequency</span><b>Once per bar close</b></div>
           <div className="summary-row"><SummaryIcon>♧</SummaryIcon><span>Notifications</span><b>Enabled</b></div>
           <div className="summary-note"><span>ⓘ</span><p>Your signal will be evaluated on every new bar<br />close based on the selected time frame.</p></div>
         </aside>
