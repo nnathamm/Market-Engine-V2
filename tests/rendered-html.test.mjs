@@ -29,8 +29,9 @@ test("server-renders the Signal Control single page", async () => {
 });
 
 test("keeps the application UI-only", async () => {
-  const [page, hosting, packageJson] = await Promise.all([
+  const [page, styles, hosting, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
@@ -42,4 +43,6 @@ test("keeps the application UI-only", async () => {
   assert.equal(hostingConfig.r2, null);
   assert.match(hostingConfig.project_id, /^appgprj_/);
   assert.doesNotMatch(packageJson, /drizzle|sqlite|postgres|supabase|firebase/i);
+  assert.match(styles, /\.condition-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)/s);
+  assert.doesNotMatch(styles, /\.modal-backdrop\s*\{[^}]*padding-top:\s*133px/s);
 });
