@@ -46,6 +46,8 @@ test("keeps the application UI-only", async () => {
   assert.match(styles, /\.condition-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)/s);
   assert.doesNotMatch(styles, /\.modal-backdrop\s*\{[^}]*padding-top:\s*133px/s);
   assert.match(page, /const TIMEFRAME_OPTIONS:[\s\S]*value: "1s"[\s\S]*value: "3h"[\s\S]*value: "14d"[\s\S]*value: "15d"[\s\S]*value: "1Y"/);
-  assert.match(page, /options\.length > 4 \? "scrollable"/);
-  assert.match(styles, /\.ui-dropdown-menu\.scrollable\s*\{[^}]*max-height:\s*186px;[^}]*overflow-y:\s*scroll/s);
+  assert.match(page, /const searchable = options\.length > 4/);
+  assert.match(page, /options=\{TIMEFRAME_OPTIONS\} onChange=\{setCooldown\} searchPlaceholder="Search cooldown\.\.\."/);
+  assert.match(page, /placeholder=\{searchPlaceholder\}/);
+  assert.match(styles, /\.ui-dropdown-options\.scrollable\s*\{[^}]*max-height:\s*186px;[^}]*overflow-y:\s*scroll/s);
 });

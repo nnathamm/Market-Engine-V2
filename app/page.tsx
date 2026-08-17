@@ -31,10 +31,6 @@ const TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1Y", label: "1 Year (1Y)" },
 ];
 
-const COOLDOWN_OPTIONS: DropdownOption[] = [
-  { value: "5", label: "5 minutes" },
-];
-
 const FREQUENCY_OPTIONS: DropdownOption[] = [
   { value: "close", label: "Once per bar close" },
 ];
@@ -47,23 +43,36 @@ function UiDropdown({
   value,
   options,
   onChange,
+  searchPlaceholder = "Search options...",
 }: {
   label: React.ReactNode;
   required?: boolean;
   value: string;
   options: DropdownOption[];
   onChange: (value: string) => void;
+  searchPlaceholder?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
   const listId = useId();
   const selected = options.find((option) => option.value === value) ?? options[0];
+  const searchable = options.length > 4;
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredOptions = normalizedQuery
+    ? options.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(normalizedQuery))
+    : options;
+
+  function closeMenu() {
+    setOpen(false);
+    setQuery("");
+  }
 
   useEffect(() => {
     if (!open) return;
     const closeOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) closeMenu();
     };
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
@@ -79,35 +88,51 @@ function UiDropdown({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        onClick={() => setOpen((current) => !current)}
-        onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
+        onClick={() => open ? closeMenu() : setOpen(true)}
+        onKeyDown={(event) => event.key === "Escape" && closeMenu()}
       >
         <span>{selected.label}</span><i aria-hidden="true">⌄</i>
       </button>
       {open && (
-        <div
-          className={`ui-dropdown-menu ${options.length > 4 ? "scrollable" : ""}`}
-          id={listId}
-          role="listbox"
-          aria-labelledby={labelId}
-          tabIndex={0}
-          onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
-        >
-          {options.map((option) => (
-            <button
-              className={option.value === value ? "selected" : ""}
-              type="button"
-              role="option"
-              aria-selected={option.value === value}
-              key={option.value}
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
-            >
-              <span>{option.label}</span><b aria-hidden="true">✓</b>
-            </button>
-          ))}
+        <div className="ui-dropdown-menu">
+          {searchable && (
+            <label className="ui-dropdown-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={query}
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => event.key === "Escape" && closeMenu()}
+              />
+            </label>
+          )}
+          <div
+            className={`ui-dropdown-options ${searchable ? "scrollable" : ""}`}
+            id={listId}
+            role="listbox"
+            aria-labelledby={labelId}
+            tabIndex={0}
+            onKeyDown={(event) => event.key === "Escape" && closeMenu()}
+          >
+            {filteredOptions.map((option) => (
+              <button
+                className={`ui-dropdown-option ${option.value === value ? "selected" : ""}`}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                key={option.value}
+                onClick={() => {
+                  onChange(option.value);
+                  closeMenu();
+                }}
+              >
+                <span>{option.label}</span><b aria-hidden="true">✓</b>
+              </button>
+            ))}
+            {filteredOptions.length === 0 && <div className="ui-dropdown-empty" role="status">No matching options</div>}
+          </div>
         </div>
       )}
     </div>
@@ -183,7 +208,7 @@ function SummaryIcon({ children, tone = "purple" }: { children: React.ReactNode;
 
 function CreateView({ setView, openCondition }: { setView: (view: View) => void; openCondition: () => void }) {
   const [timeFrame, setTimeFrame] = useState("15m");
-  const [cooldown, setCooldown] = useState("5");
+  const [cooldown, setCooldown] = useState("5m");
   const [frequency, setFrequency] = useState("close");
 
   return (
@@ -213,7 +238,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
                 <span>Signal Name <b>*</b></span>
                 <input type="text" placeholder="e.g., Bollinger Squeeze 15 Minute" />
               </label>
-              <UiDropdown label="Time Frame" required value={timeFrame} options={TIMEFRAME_OPTIONS} onChange={setTimeFrame} />
+              <UiDropdown label="Time Frame" required value={timeFrame} options={TIMEFRAME_OPTIONS} onChange={setTimeFrame} searchPlaceholder="Search timeframes..." />
             </div>
             <div className="info-strip"><span>ⓘ</span> Choose a name and time frame for your signal.</div>
           </section>
@@ -239,7 +264,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
             <h2>3. Additional Settings</h2>
             <p>Configure how often this signal can trigger and other optional behaviors.</p>
             <div className="settings-fields">
-              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={COOLDOWN_OPTIONS} onChange={setCooldown} />
+              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={TIMEFRAME_OPTIONS} onChange={setCooldown} searchPlaceholder="Search cooldown..." />
               <UiDropdown label={<>Trigger Frequency (Optional) <small>?</small></>} value={frequency} options={FREQUENCY_OPTIONS} onChange={setFrequency} />
               <label className="notification-field">
                 <span>Notifications (Optional) <small>?</small></span>
