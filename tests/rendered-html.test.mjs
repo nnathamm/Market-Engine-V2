@@ -48,11 +48,14 @@ test("keeps the application UI-only", async () => {
   assert.match(page, /const TIMEFRAME_OPTIONS:[\s\S]*value: "1s"[\s\S]*value: "3h"[\s\S]*value: "5d"[\s\S]*value: "14d"[\s\S]*value: "15d"[\s\S]*value: "1Y"/);
   assert.match(page, /const searchable = options\.length > 4/);
   assert.match(page, /const COOLDOWN_OPTIONS = TIMEFRAME_OPTIONS\.filter\(\(option\) => option\.value !== "1Y"\)/);
-  assert.match(page, /options=\{COOLDOWN_OPTIONS\} onChange=\{setCooldown\} searchPlaceholder="Search cooldown\.\.\." allowCustomDuration/);
+  assert.match(page, /options=\{COOLDOWN_OPTIONS\} onChange=\{setCooldown\} searchPlaceholder="Search cooldown\.\.\." allowCustomDuration menuPlacement="above" wideMenu/);
   assert.doesNotMatch(page, /label="Time Frame"[^\n]*allowCustomDuration/);
   assert.match(page, /Custom cooldown[\s\S]*Days[\s\S]*Hours[\s\S]*Minutes[\s\S]*Use cooldown/);
   assert.match(page, /onChange\(`custom:\$\{customDayValue\}:\$\{customHourValue\}:\$\{customMinuteValue\}`\)/);
+  assert.match(page, /cooldownSummaryLabel\(cooldown\)/);
   assert.match(page, /placeholder=\{searchPlaceholder\}/);
   assert.match(styles, /\.ui-dropdown-options\.scrollable\s*\{[^}]*max-height:\s*186px;[^}]*overflow-y:\s*scroll/s);
   assert.match(styles, /\.ui-custom-duration-fields\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s);
+  assert.match(styles, /\.ui-dropdown-menu\.align-above\s*\{[^}]*top:\s*auto;[^}]*bottom:\s*52px/s);
+  assert.match(styles, /\.ui-dropdown-menu\.wide\s*\{[^}]*width:\s*360px;[^}]*max-width:\s*calc\(100vw - 40px\)/s);
 });

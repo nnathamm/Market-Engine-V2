@@ -40,6 +40,19 @@ const FREQUENCY_OPTIONS: DropdownOption[] = [
 
 const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
 
+function cooldownSummaryLabel(value: string) {
+  const preset = COOLDOWN_OPTIONS.find((option) => option.value === value);
+  if (preset) return preset.label.replace(/\s*\([^)]*\)$/, "").toLowerCase();
+  if (!value.startsWith("custom:")) return "not set";
+
+  const [days, hours, minutes] = value.slice(7).split(":").map(Number);
+  return [
+    days > 0 ? `${days} ${days === 1 ? "day" : "days"}` : "",
+    hours > 0 ? `${hours} ${hours === 1 ? "hour" : "hours"}` : "",
+    minutes > 0 ? `${minutes} ${minutes === 1 ? "minute" : "minutes"}` : "",
+  ].filter(Boolean).join(" ") || "not set";
+}
+
 function UiDropdown({
   label,
   required = false,
@@ -48,6 +61,8 @@ function UiDropdown({
   onChange,
   searchPlaceholder = "Search options...",
   allowCustomDuration = false,
+  menuPlacement = "below",
+  wideMenu = false,
 }: {
   label: React.ReactNode;
   required?: boolean;
@@ -56,6 +71,8 @@ function UiDropdown({
   onChange: (value: string) => void;
   searchPlaceholder?: string;
   allowCustomDuration?: boolean;
+  menuPlacement?: "above" | "below";
+  wideMenu?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -123,7 +140,7 @@ function UiDropdown({
         <span>{selectedLabel}</span><i aria-hidden="true">⌄</i>
       </button>
       {open && (
-        <div className="ui-dropdown-menu" id={listId}>
+        <div className={`ui-dropdown-menu ${menuPlacement === "above" ? "align-above" : ""} ${wideMenu ? "wide" : ""}`} id={listId}>
           {searchable && (
             <label className="ui-dropdown-search">
               <span aria-hidden="true">⌕</span>
@@ -139,15 +156,16 @@ function UiDropdown({
           )}
           {allowCustomDuration && (
             <button className={`ui-custom-duration-toggle ${customOpen ? "open" : ""}`} type="button" onClick={() => setCustomOpen((current) => !current)}>
-              <span><b>＋ Custom cooldown</b><small>Enter days, hours, and/or minutes</small></span><i aria-hidden="true">⌄</i>
+              <span><b>＋ Custom cooldown</b><em>Type days, hours, and/or minutes</em></span><i aria-hidden="true">⌄</i>
             </button>
           )}
           {customOpen ? (
             <div className="ui-custom-duration-panel">
+              <p>Set the exact wait before this signal can trigger again.</p>
               <div className="ui-custom-duration-fields">
-                <label><span>Days</span><input type="number" min="0" step="1" inputMode="numeric" value={customDays} onChange={(event) => setCustomDays(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
-                <label><span>Hours</span><input type="number" min="0" step="1" inputMode="numeric" value={customHours} onChange={(event) => setCustomHours(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
-                <label><span>Minutes</span><input type="number" min="0" step="1" inputMode="numeric" value={customMinutes} onChange={(event) => setCustomMinutes(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
+                <label><span>Days</span><input type="number" min="0" step="1" inputMode="numeric" placeholder="0" value={customDays} onChange={(event) => setCustomDays(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
+                <label><span>Hours</span><input type="number" min="0" step="1" inputMode="numeric" placeholder="0" value={customHours} onChange={(event) => setCustomHours(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
+                <label><span>Minutes</span><input type="number" min="0" step="1" inputMode="numeric" placeholder="0" value={customMinutes} onChange={(event) => setCustomMinutes(event.target.value)} onKeyDown={(event) => event.key === "Escape" && closeMenu()} /></label>
               </div>
               <button className="ui-custom-duration-apply" type="button" disabled={!hasCustomDuration} onClick={applyCustomDuration}>Use cooldown</button>
             </div>
@@ -308,7 +326,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
             <h2>3. Additional Settings</h2>
             <p>Configure how often this signal can trigger and other optional behaviors.</p>
             <div className="settings-fields">
-              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={COOLDOWN_OPTIONS} onChange={setCooldown} searchPlaceholder="Search cooldown..." allowCustomDuration />
+              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={COOLDOWN_OPTIONS} onChange={setCooldown} searchPlaceholder="Search cooldown..." allowCustomDuration menuPlacement="above" wideMenu />
               <UiDropdown label={<>Trigger Frequency (Optional) <small>?</small></>} value={frequency} options={FREQUENCY_OPTIONS} onChange={setFrequency} />
               <label className="notification-field">
                 <span>Notifications (Optional) <small>?</small></span>
@@ -328,7 +346,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
           <div className="summary-row align-top"><SummaryIcon>☷</SummaryIcon><span>Conditions (0)<small>No conditions added<br />This signal will trigger when conditions are added.</small></span></div>
           <div className="summary-divider" />
           <div className="summary-row"><SummaryIcon tone="green">●</SummaryIcon><span>Status</span><b>Active</b></div>
-          <div className="summary-row"><SummaryIcon tone="amber">◴</SummaryIcon><span>Cooldown Period</span><b>5 minutes</b></div>
+          <div className="summary-row"><SummaryIcon tone="amber">◴</SummaryIcon><span>Cooldown Period</span><b>{cooldownSummaryLabel(cooldown)}</b></div>
           <div className="summary-row"><SummaryIcon tone="cyan">≋</SummaryIcon><span>Trigger Frequency</span><b>Once per bar close</b></div>
           <div className="summary-row"><SummaryIcon>♧</SummaryIcon><span>Notifications</span><b>Enabled</b></div>
           <div className="summary-note"><span>ⓘ</span><p>Your signal will be evaluated on every new bar<br />close based on the selected time frame.</p></div>
