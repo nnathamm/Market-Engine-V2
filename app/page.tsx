@@ -1,8 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 type View = "home" | "create" | "signals";
+type DropdownOption = { value: string; label: string };
+
+const TIMEFRAME_OPTIONS: DropdownOption[] = [
+  { value: "1s", label: "1 Second (1s)" },
+  { value: "1m", label: "1 Minute (1m)" },
+  { value: "3m", label: "3 Minutes (3m)" },
+  { value: "5m", label: "5 Minutes (5m)" },
+  { value: "15m", label: "15 Minutes (15m)" },
+  { value: "30m", label: "30 Minutes (30m)" },
+  { value: "1h", label: "1 Hour (1h)" },
+  { value: "2h", label: "2 Hours (2h)" },
+  { value: "3h", label: "3 Hours (3h)" },
+  { value: "4h", label: "4 Hours (4h)" },
+  { value: "6h", label: "6 Hours (6h)" },
+  { value: "8h", label: "8 Hours (8h)" },
+  { value: "12h", label: "12 Hours (12h)" },
+  { value: "1d", label: "1 Day (1d)" },
+  { value: "2d", label: "2 Days (2d)" },
+  { value: "3d", label: "3 Days (3d)" },
+  { value: "1w", label: "1 Week (1w)" },
+  { value: "14d", label: "14 Days (14d)" },
+  { value: "15d", label: "15 Days (15d)" },
+  { value: "1M", label: "1 Month (1M)" },
+  { value: "3M", label: "3 Months (3M)" },
+  { value: "6M", label: "6 Months (6M)" },
+  { value: "1Y", label: "1 Year (1Y)" },
+];
+
+const COOLDOWN_OPTIONS: DropdownOption[] = [
+  { value: "5", label: "5 minutes" },
+];
+
+const FREQUENCY_OPTIONS: DropdownOption[] = [
+  { value: "close", label: "Once per bar close" },
+];
+
+const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
+
+function UiDropdown({
+  label,
+  required = false,
+  value,
+  options,
+  onChange,
+}: {
+  label: React.ReactNode;
+  required?: boolean;
+  value: string;
+  options: DropdownOption[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const labelId = useId();
+  const listId = useId();
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
+
+  return (
+    <div className="form-field dropdown-field" ref={rootRef}>
+      <span id={labelId}>{label} {required && <b>*</b>}</span>
+      <button
+        className={`ui-dropdown-button ${open ? "open" : ""}`}
+        type="button"
+        aria-labelledby={labelId}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
+      >
+        <span>{selected.label}</span><i aria-hidden="true">⌄</i>
+      </button>
+      {open && (
+        <div
+          className={`ui-dropdown-menu ${options.length > 4 ? "scrollable" : ""}`}
+          id={listId}
+          role="listbox"
+          aria-labelledby={labelId}
+          tabIndex={0}
+          onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
+        >
+          {options.map((option) => (
+            <button
+              className={option.value === value ? "selected" : ""}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              key={option.value}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              <span>{option.label}</span><b aria-hidden="true">✓</b>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SignalMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -72,6 +182,10 @@ function SummaryIcon({ children, tone = "purple" }: { children: React.ReactNode;
 }
 
 function CreateView({ setView, openCondition }: { setView: (view: View) => void; openCondition: () => void }) {
+  const [timeFrame, setTimeFrame] = useState("15m");
+  const [cooldown, setCooldown] = useState("5");
+  const [frequency, setFrequency] = useState("close");
+
   return (
     <div className="screen inner-screen create-screen">
       <BackButton onClick={() => setView("home")} />
@@ -99,14 +213,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
                 <span>Signal Name <b>*</b></span>
                 <input type="text" placeholder="e.g., Bollinger Squeeze 15 Minute" />
               </label>
-              <label className="form-field">
-                <span>Time Frame <b>*</b></span>
-                <select defaultValue="15m" aria-label="Time Frame">
-                  <option value="15m">15 Minutes (15m)</option>
-                  <option value="30m">30 Minutes (30m)</option>
-                  <option value="1h">1 Hour (1h)</option>
-                </select>
-              </label>
+              <UiDropdown label="Time Frame" required value={timeFrame} options={TIMEFRAME_OPTIONS} onChange={setTimeFrame} />
             </div>
             <div className="info-strip"><span>ⓘ</span> Choose a name and time frame for your signal.</div>
           </section>
@@ -132,14 +239,8 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
             <h2>3. Additional Settings</h2>
             <p>Configure how often this signal can trigger and other optional behaviors.</p>
             <div className="settings-fields">
-              <label className="form-field">
-                <span>Cooldown Period (Optional) <small>?</small></span>
-                <select defaultValue="5"><option value="5">5 minutes</option></select>
-              </label>
-              <label className="form-field">
-                <span>Trigger Frequency (Optional) <small>?</small></span>
-                <select defaultValue="close"><option value="close">Once per bar close</option></select>
-              </label>
+              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={COOLDOWN_OPTIONS} onChange={setCooldown} />
+              <UiDropdown label={<>Trigger Frequency (Optional) <small>?</small></>} value={frequency} options={FREQUENCY_OPTIONS} onChange={setFrequency} />
               <label className="notification-field">
                 <span>Notifications (Optional) <small>?</small></span>
                 <span className="toggle-row"><input type="checkbox" defaultChecked /> <em>Enable notifications when triggered</em></span>
@@ -233,11 +334,15 @@ function ConditionModal({ close }: { close: () => void }) {
       <section className="condition-dialog" role="dialog" aria-modal="true" aria-labelledby="condition-title">
         <div className="dialog-header"><h2 id="condition-title">Add Condition</h2><button type="button" onClick={close} aria-label="Close">×</button></div>
         <label className="dialog-field"><span>Name <b>*</b></span><input type="text" placeholder="e.g., Bollinger Squeeze Condition 1" /><small>Give this condition a unique name.</small></label>
-        <label className="dialog-field"><span>Condition Type</span><button className="select-face" type="button"><i className="bollinger-glyph">⌁</i><strong>Bollinger</strong><em>⌄</em></button></label>
+        <div className="dialog-field"><span>Condition Type</span><button className="select-face" type="button"><i className="bollinger-glyph">⌁</i><strong>Bollinger</strong><em>⌄</em></button></div>
         <div className="dialog-field trigger-field"><span>Trigger</span><button className={`select-face ${triggerOpen ? "selected" : ""}`} type="button" onClick={() => setTriggerOpen(!triggerOpen)}><i className="bollinger-glyph">⌁</i><strong>{trigger}</strong><em>⌄</em></button>
-          {triggerOpen && <div className="trigger-menu">
-            <button className={trigger === "Bollinger Squeeze" ? "active" : ""} type="button" onClick={() => chooseTrigger("Bollinger Squeeze")}><i className="bollinger-glyph">⌁</i><span>Bollinger Squeeze</span><b>✓</b></button>
-            <button className={trigger === "Bollinger Touch" ? "active" : ""} type="button" onClick={() => chooseTrigger("Bollinger Touch")}><i className="touch-glyph">♧</i><span>Bollinger Touch</span><b>✓</b></button>
+          {triggerOpen && <div className={`trigger-menu ${TRIGGER_OPTIONS.length > 4 ? "scrollable" : ""}`}>
+            {TRIGGER_OPTIONS.map((option) => (
+              <button className={trigger === option ? "active" : ""} type="button" onClick={() => chooseTrigger(option)} key={option}>
+                <i className={option === "Bollinger Squeeze" ? "bollinger-glyph" : "touch-glyph"}>{option === "Bollinger Squeeze" ? "⌁" : "♧"}</i>
+                <span>{option}</span><b>✓</b>
+              </button>
+            ))}
           </div>}
         </div>
         <label className="dialog-field squeeze-field"><span>Squeeze Value</span><input type="number" defaultValue="1.5" step="0.1" /><small>Enter a numeric value (e.g., 1.5)</small></label>
