@@ -22,6 +22,7 @@ const TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1d", label: "1 Day (1d)" },
   { value: "2d", label: "2 Days (2d)" },
   { value: "3d", label: "3 Days (3d)" },
+  { value: "5d", label: "5 Days (5d)" },
   { value: "1w", label: "1 Week (1w)" },
   { value: "14d", label: "14 Days (14d)" },
   { value: "15d", label: "15 Days (15d)" },
