@@ -31,6 +31,8 @@ const TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1Y", label: "1 Year (1Y)" },
 ];
 
+const COOLDOWN_OPTIONS = TIMEFRAME_OPTIONS.filter((option) => option.value !== "1Y");
+
 const FREQUENCY_OPTIONS: DropdownOption[] = [
   { value: "close", label: "Once per bar close" },
 ];
@@ -264,7 +266,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
             <h2>3. Additional Settings</h2>
             <p>Configure how often this signal can trigger and other optional behaviors.</p>
             <div className="settings-fields">
-              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={TIMEFRAME_OPTIONS} onChange={setCooldown} searchPlaceholder="Search cooldown..." />
+              <UiDropdown label={<>Cooldown Period (Optional) <small>?</small></>} value={cooldown} options={COOLDOWN_OPTIONS} onChange={setCooldown} searchPlaceholder="Search cooldown..." />
               <UiDropdown label={<>Trigger Frequency (Optional) <small>?</small></>} value={frequency} options={FREQUENCY_OPTIONS} onChange={setFrequency} />
               <label className="notification-field">
                 <span>Notifications (Optional) <small>?</small></span>
