@@ -278,7 +278,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
   return (
     <aside className="application-sidebar" aria-hidden={!open}>
       <div className="application-sidebar-scroll">
-        <button className="application-brand" type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
+        <button className="application-brand bg-[#060f1c]" type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
           <span className="application-brand-mark" aria-hidden="true" />
           <strong>EdgeSignals</strong>
         </button>
