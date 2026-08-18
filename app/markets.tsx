@@ -33,6 +33,28 @@ type ChartCandle = Candle & {
   bodyHeight: number;
 };
 
+type BinanceSymbol = {
+  symbol: string;
+  status: string;
+  baseAsset: string;
+  quoteAsset: string;
+  isSpotTradingAllowed?: boolean;
+};
+
+type BinanceTicker = {
+  symbol: string;
+  openPrice: string;
+  highPrice: string;
+  lowPrice: string;
+  lastPrice: string;
+  volume: string;
+  quoteVolume: string;
+  closeTime: number;
+};
+
+type BinanceKline = [number, string, string, string, string, string, number, ...unknown[]];
+
+const BINANCE_MARKET_DATA = "https://api.binance.us";
 const QUOTE_FILTERS = ["USDT", "USDC", "FDUSD", "BTC", "ETH"];
 const CHART_TIMEFRAMES = [
   ["1m", "1m"],
@@ -156,11 +178,36 @@ export default function MarketsView() {
       setMarketsLoading(true);
       setMarketsError("");
       try {
-        const response = await fetch("/api/markets", { signal: controller.signal });
-        const payload = await response.json() as { markets?: Market[]; asOf?: number; error?: string };
-        if (!response.ok || !payload.markets) throw new Error(payload.error ?? "Unable to load exchange markets.");
-        setMarkets(payload.markets);
-        setAsOf(payload.asOf ?? Date.now());
+        const [exchangeResponse, tickerResponse] = await Promise.all([
+          fetch(`${BINANCE_MARKET_DATA}/api/v3/exchangeInfo`, { signal: controller.signal }),
+          fetch(`${BINANCE_MARKET_DATA}/api/v3/ticker/24hr?type=MINI`, { signal: controller.signal }),
+        ]);
+        if (!exchangeResponse.ok || !tickerResponse.ok) throw new Error("Unable to load Binance.US markets.");
+        const [exchange, tickers] = await Promise.all([
+          exchangeResponse.json() as Promise<{ symbols?: BinanceSymbol[] }>,
+          tickerResponse.json() as Promise<BinanceTicker[]>,
+        ]);
+        const tickerBySymbol = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
+        const nextMarkets = (exchange.symbols ?? [])
+          .filter((market) => market.status === "TRADING" && market.isSpotTradingAllowed !== false)
+          .map((market): Market => {
+            const ticker = tickerBySymbol.get(market.symbol);
+            return {
+              symbol: market.symbol,
+              baseAsset: market.baseAsset,
+              quoteAsset: market.quoteAsset,
+              status: market.status,
+              lastPrice: ticker?.lastPrice ?? "0",
+              openPrice: ticker?.openPrice ?? "0",
+              highPrice: ticker?.highPrice ?? "0",
+              lowPrice: ticker?.lowPrice ?? "0",
+              volume: ticker?.volume ?? "0",
+              quoteVolume: ticker?.quoteVolume ?? "0",
+              closeTime: ticker?.closeTime ?? Date.now(),
+            };
+          });
+        setMarkets(nextMarkets);
+        setAsOf(Date.now());
       } catch (error) {
         if (controller.signal.aborted) return;
         setMarketsError(error instanceof Error ? error.message : "Unable to load exchange markets.");
@@ -179,11 +226,19 @@ export default function MarketsView() {
       setChartLoading(true);
       setChartError("");
       try {
-        const params = new URLSearchParams({ symbol: selected.symbol, interval });
-        const response = await fetch(`/api/markets/candles?${params}`, { signal: controller.signal });
-        const payload = await response.json() as { candles?: Candle[]; error?: string };
-        if (!response.ok || !payload.candles) throw new Error(payload.error ?? "Unable to load this chart.");
-        setCandles(payload.candles);
+        const params = new URLSearchParams({ symbol: selected.symbol, interval, limit: "120" });
+        const response = await fetch(`${BINANCE_MARKET_DATA}/api/v3/klines?${params}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Unable to load this Binance.US chart.");
+        const rows = await response.json() as BinanceKline[];
+        setCandles(rows.map((row) => ({
+          time: row[0],
+          open: Number(row[1]),
+          high: Number(row[2]),
+          low: Number(row[3]),
+          close: Number(row[4]),
+          volume: Number(row[5]),
+          closeTime: row[6],
+        })));
       } catch (error) {
         if (controller.signal.aborted) return;
         setChartError(error instanceof Error ? error.message : "Unable to load this chart.");

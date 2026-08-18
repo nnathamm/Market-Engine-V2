@@ -29,11 +29,9 @@ test("server-renders the Signal Control single page", async () => {
 });
 
 test("keeps exchange access read-only and loads charts on demand", async () => {
-  const [page, marketsPage, marketsRoute, candlesRoute, styles, hosting, packageJson] = await Promise.all([
+  const [page, marketsPage, styles, hosting, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/markets.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/markets/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/markets/candles/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -99,12 +97,10 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.doesNotMatch(styles, /\.master-profile-menu/);
   assert.match(page, /view === "markets" && <MarketsView \/>/);
   assert.match(marketsPage, /Browse Binance\.US Spot pairs and load any chart on demand/);
-  assert.match(marketsPage, /fetch\("\/api\/markets"[\s\S]*fetch\(`\/api\/markets\/candles\?\$\{params\}`/);
+  assert.match(marketsPage, /https:\/\/api\.binance\.us[\s\S]*\/api\/v3\/exchangeInfo[\s\S]*\/api\/v3\/ticker\/24hr\?type=MINI[\s\S]*\/api\/v3\/klines/);
   assert.match(marketsPage, /if \(!selected\) return;[\s\S]*loadChart/);
   assert.match(marketsPage, /Candle data is not downloaded until you make a selection/);
-  assert.match(marketsRoute, /https:\/\/api\.binance\.us[\s\S]*\/api\/v3\/exchangeInfo[\s\S]*\/api\/v3\/ticker\/24hr\?type=MINI/);
-  assert.match(candlesRoute, /SYMBOL_PATTERN[\s\S]*ALLOWED_INTERVALS[\s\S]*\/api\/v3\/klines/);
-  assert.doesNotMatch(`${marketsRoute}\n${candlesRoute}`, /\/api\/v3\/(order|account)|X-MBX-APIKEY|secretKey/i);
+  assert.doesNotMatch(marketsPage, /\/api\/v3\/(order|account)|X-MBX-APIKEY|secretKey/i);
   assert.match(styles, /\.markets-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.market-list\s*\{[^}]*overflow-y:\s*auto/s);
   assert.doesNotMatch(styles, /\.of-page\s*\{[^}]*grid-template-columns:/s);
