@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type CoinResult = { id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string };
+type CoinResult = { id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string; image?: string };
 type DbToken = { id: number; symbol: string; label: string | null; created_at: string };
 type DbWallet = { id: number; address: string; label: string | null; chain: string | null; notes: string | null; created_at: string };
 
@@ -61,9 +61,9 @@ function Change({ value }: { value: number }) {
   return <span className={value >= 0 ? "tracking-positive" : "tracking-negative"}>{value >= 0 ? "+" : ""}{value.toFixed(2)}%</span>;
 }
 
-function CoinIcon({ symbol }: { symbol: string }) {
+function CoinIcon({ symbol, imageUrl }: { symbol: string; imageUrl?: string }) {
   const [failed, setFailed] = useState(false);
-  const src = `https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`;
+  const src = imageUrl || `https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`;
   if (failed) return <span className="tracking-coin-letter">{symbol.slice(0, 1)}</span>;
   return <img src={src} alt={symbol} width={28} height={28} className="tracking-coin-img" onError={() => setFailed(true)} />;
 }
@@ -164,7 +164,7 @@ function TrackingDialog({ kind, close, finish, onSave }: {
                   {results.map(coin => (
                     <li key={coin.id} role="option" aria-selected={false}>
                       <button type="button" onClick={() => pickCoin(coin)}>
-                        <CoinIcon symbol={coin.symbol} />
+                        <CoinIcon symbol={coin.symbol} imageUrl={coin.image} />
                         <span className="tracking-coin-info">
                           <strong>{coin.symbol}</strong>
                           <small>{coin.name}</small>
@@ -186,7 +186,7 @@ function TrackingDialog({ kind, close, finish, onSave }: {
             </label>
             {selectedCoin && (
               <div className="tracking-token-result">
-                <CoinIcon symbol={selectedCoin.symbol} />
+                <CoinIcon symbol={selectedCoin.symbol} imageUrl={selectedCoin.image} />
                 <span>
                   <strong>{selectedCoin.name} <b className="tracking-positive">✓</b></strong>
                   <small>{selectedCoin.symbol} · Rank #{selectedCoin.rank}</small>
