@@ -33,6 +33,10 @@ type Market = {
   volume: string;
   quoteVolume: string;
   closeTime: number;
+  changePercent: number;
+  markPrice: string;
+  indexPrice: string;
+  pricePrecision: number | null;
 };
 
 type Candle = {
@@ -45,33 +49,35 @@ type Candle = {
   closeTime: number;
 };
 
-type BinanceSymbol = {
-  symbol: string;
-  status: string;
-  baseAsset: string;
-  quoteAsset: string;
-  isSpotTradingAllowed?: boolean;
-};
+type WeexKline = [number, string, string, string, string, string, number, ...unknown[]];
 
-type BinanceTicker = {
-  symbol: string;
-  openPrice: string;
-  highPrice: string;
-  lowPrice: string;
-  lastPrice: string;
-  volume: string;
-  quoteVolume: string;
-  closeTime: number;
-};
-
-type BinanceKline = [number, string, string, string, string, string, number, ...unknown[]];
-
-const BINANCE_MARKET_DATA = "https://data-api.binance.vision";
 const MARKET_PAGE_SIZE = 20;
-const KLINE_PAGE_SIZE = 500;
+const HISTORY_CONFIG: Record<string, { initial: number; visible: number; page: number }> = {
+  "1m": { initial: 360, visible: 100, page: 100 },
+  "5m": { initial: 360, visible: 110, page: 100 },
+  "15m": { initial: 288, visible: 110, page: 100 },
+  "1h": { initial: 216, visible: 100, page: 100 },
+  "4h": { initial: 150, visible: 80, page: 100 },
+  "1d": { initial: 93, visible: 55, page: 93 },
+};
+const INTERVAL_MS: Record<string, number> = {
+  "1m": 60_000,
+  "5m": 300_000,
+  "15m": 900_000,
+  "1h": 3_600_000,
+  "4h": 14_400_000,
+  "1d": 86_400_000,
+};
+const WICK_LIMIT: Record<string, number> = {
+  "1m": .08,
+  "5m": .10,
+  "15m": .14,
+  "1h": .22,
+  "4h": .35,
+  "1d": .55,
+};
 const FAVORITES_STORAGE_KEY = "edge-signals-market-favorites-v1";
 const FAVORITES_CHANGED_EVENT = "edge-signals-market-favorites-changed";
-const QUOTE_FILTERS = ["USDT", "USDC", "FDUSD", "BTC", "ETH"];
 const CHART_TIMEFRAMES = [
   ["1m", "1m"],
   ["5m", "5m"],
@@ -87,15 +93,16 @@ function numberValue(value: string) {
 }
 
 function percentChange(market: Market) {
-  const open = numberValue(market.openPrice);
-  const last = numberValue(market.lastPrice);
-  return open > 0 ? ((last - open) / open) * 100 : 0;
+  return Number.isFinite(market.changePercent) ? market.changePercent : 0;
 }
 
-function formatPrice(value: string | number) {
+function formatPrice(value: string | number, exchangePrecision?: number | null) {
   const price = typeof value === "number" ? value : numberValue(value);
   if (price === 0) return "—";
-  const maximumFractionDigits = price >= 1000 ? 2 : price >= 1 ? 4 : price >= .01 ? 6 : 9;
+  const automaticPrecision = price >= 1000 ? 2 : price >= 1 ? 4 : price >= .01 ? 6 : 9;
+  const maximumFractionDigits = Number.isInteger(exchangePrecision)
+    ? Math.max(0, Math.min(12, Number(exchangePrecision)))
+    : automaticPrecision;
   return price.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits });
 }
 
@@ -138,11 +145,34 @@ function parseFavorites(snapshot: string) {
   }
 }
 
-function chartPrecision(price: number) {
-  if (price >= 1000) return 2;
-  if (price >= 1) return 4;
-  if (price >= .01) return 6;
-  return 9;
+function cleanCandle(row: WeexKline, interval: string): Candle | null {
+  const time = Number(row?.[0]);
+  const open = Number(row?.[1]);
+  const high = Number(row?.[2]);
+  const low = Number(row?.[3]);
+  const close = Number(row?.[4]);
+  const volume = Math.max(0, Number(row?.[5]) || 0);
+  const closeTime = Number(row?.[6]) || time + (INTERVAL_MS[interval] ?? 60_000) - 1;
+  if (![time, open, high, low, close].every(Number.isFinite) || time <= 0 || Math.min(open, high, low, close) <= 0) return null;
+  if (high < Math.max(open, close) || low > Math.min(open, close) || high < low) return null;
+  const bodyHigh = Math.max(open, close);
+  const bodyLow = Math.min(open, close);
+  const wickLimit = WICK_LIMIT[interval] ?? .35;
+  const upperWick = (high - bodyHigh) / Math.max(bodyHigh, 1e-12);
+  const lowerWick = (bodyLow - low) / Math.max(bodyLow, 1e-12);
+  if (upperWick > wickLimit || lowerWick > wickLimit) return null;
+  const bucket = INTERVAL_MS[interval] ?? 60_000;
+  if (time % bucket !== 0) return null;
+  return { time, open, high, low, close, volume, closeTime };
+}
+
+function sanitizeRows(rows: WeexKline[], interval: string) {
+  const unique = new Map<number, Candle>();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const candle = cleanCandle(row, interval);
+    if (candle) unique.set(candle.time, candle);
+  }
+  return [...unique.values()].toSorted((left, right) => left.time - right.time);
 }
 
 function MarketChart({
@@ -151,18 +181,19 @@ function MarketChart({
   historyLoading,
   hasMoreHistory,
   onNeedMore,
+  visibleCandles,
 }: {
   candles: Candle[];
   datasetKey: string;
   historyLoading: boolean;
   hasMoreHistory: boolean;
   onNeedMore: () => void;
+  visibleCandles: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const datasetKeyRef = useRef("");
-  const previousLengthRef = useRef(0);
   const onNeedMoreRef = useRef(onNeedMore);
 
   useEffect(() => {
@@ -177,31 +208,32 @@ function MarketChart({
       autoSize: true,
       height: 398,
       layout: {
-        background: { type: ColorType.Solid, color: "#071321" },
-        textColor: "#718096",
+        background: { type: ColorType.Solid, color: "#0a0f16" },
+        textColor: "#8493a5",
         fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
         fontSize: 10,
       },
       grid: {
-        vertLines: { color: "#142235" },
-        horzLines: { color: "#1b2a3d" },
+        vertLines: { color: "#151e29" },
+        horzLines: { color: "#151e29" },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: "#8052a7", labelBackgroundColor: "#6f3e96" },
-        horzLine: { color: "#8052a7", labelBackgroundColor: "#6f3e96" },
+        vertLine: { color: "#516174", labelBackgroundColor: "#263545" },
+        horzLine: { color: "#516174", labelBackgroundColor: "#263545" },
       },
       rightPriceScale: {
-        borderColor: "#243247",
-        scaleMargins: { top: .1, bottom: .12 },
+        borderColor: "#263545",
+        scaleMargins: { top: .08, bottom: .08 },
       },
       timeScale: {
-        borderColor: "#243247",
+        borderColor: "#344253",
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 5,
+        rightOffset: 2,
         barSpacing: 8,
         minBarSpacing: 2,
+        lockVisibleTimeRangeOnResize: true,
       },
       handleScroll: {
         mouseWheel: true,
@@ -217,17 +249,18 @@ function MarketChart({
       },
     });
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: "#44dca6",
-      downColor: "#f45f73",
-      wickUpColor: "#44dca6",
-      wickDownColor: "#f45f73",
-      borderVisible: false,
-      priceLineColor: "#9d58d7",
+      upColor: "#19c37d",
+      downColor: "#f04452",
+      borderUpColor: "#19c37d",
+      borderDownColor: "#f04452",
+      wickUpColor: "#19c37d",
+      wickDownColor: "#f04452",
+      priceLineVisible: true,
+      lastValueVisible: true,
     });
     const handleVisibleRange = (range: { from: Logical; to: Logical } | null) => {
       if (!range) return;
-      const bars = series.barsInLogicalRange(range);
-      if (bars && bars.barsBefore < 50) onNeedMoreRef.current();
+      if (range.from < 25) onNeedMoreRef.current();
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleRange);
     chartRef.current = chart;
@@ -252,31 +285,22 @@ function MarketChart({
       low: candle.low,
       close: candle.close,
     }));
-    const precision = chartPrecision(candles[candles.length - 1].close);
-    series.applyOptions({
-      priceFormat: { type: "price", precision, minMove: 10 ** -precision },
-    });
-
-    const previousRange = chart.timeScale().getVisibleLogicalRange();
+    const previousRange = chart.timeScale().getVisibleRange();
     const sameDataset = datasetKeyRef.current === datasetKey;
-    const insertedBars = sameDataset ? Math.max(0, data.length - previousLengthRef.current) : 0;
     series.setData(data);
+    chart.priceScale("right").applyOptions({ autoScale: true });
 
     if (!sameDataset) {
       chart.timeScale().setVisibleLogicalRange({
-        from: Math.max(0, data.length - 90) as Logical,
-        to: (data.length + 4) as Logical,
+        from: Math.max(0, data.length - visibleCandles) as Logical,
+        to: (data.length + 2) as Logical,
       });
-    } else if (previousRange && insertedBars > 0) {
-      chart.timeScale().setVisibleLogicalRange({
-        from: (previousRange.from + insertedBars) as Logical,
-        to: (previousRange.to + insertedBars) as Logical,
-      });
+    } else if (previousRange) {
+      chart.timeScale().setVisibleRange(previousRange);
     }
 
     datasetKeyRef.current = datasetKey;
-    previousLengthRef.current = data.length;
-  }, [candles, datasetKey]);
+  }, [candles, datasetKey, visibleCandles]);
 
   function zoom(multiplier: number) {
     const timeScale = chartRef.current?.timeScale();
@@ -294,8 +318,8 @@ function MarketChart({
     const timeScale = chartRef.current?.timeScale();
     if (!timeScale || candles.length === 0) return;
     timeScale.setVisibleLogicalRange({
-      from: Math.max(0, candles.length - 90) as Logical,
-      to: (candles.length + 4) as Logical,
+      from: Math.max(0, candles.length - visibleCandles) as Logical,
+      to: (candles.length + 2) as Logical,
     });
   }
 
@@ -318,7 +342,6 @@ export default function MarketsView() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selected, setSelected] = useState<Market | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [quoteFilter, setQuoteFilter] = useState("ALL");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(MARKET_PAGE_SIZE);
   const [query, setQuery] = useState("");
@@ -354,35 +377,12 @@ export default function MarketsView() {
       setMarketsLoading(true);
       setMarketsError("");
       try {
-        const [exchangeResponse, tickerResponse] = await Promise.all([
-          fetch(`${BINANCE_MARKET_DATA}/api/v3/exchangeInfo`, { signal: controller.signal }),
-          fetch(`${BINANCE_MARKET_DATA}/api/v3/ticker/24hr?type=MINI`, { signal: controller.signal }),
-        ]);
-        if (!exchangeResponse.ok || !tickerResponse.ok) throw new Error("Unable to load Binance markets.");
-        const [exchange, tickers] = await Promise.all([
-          exchangeResponse.json() as Promise<{ symbols?: BinanceSymbol[] }>,
-          tickerResponse.json() as Promise<BinanceTicker[]>,
-        ]);
-        const tickerBySymbol = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
-        const nextMarkets = (exchange.symbols ?? [])
-          .filter((market) => market.status === "TRADING" && market.isSpotTradingAllowed !== false)
-          .map((market): Market => {
-            const ticker = tickerBySymbol.get(market.symbol);
-            return {
-              symbol: market.symbol,
-              baseAsset: market.baseAsset,
-              quoteAsset: market.quoteAsset,
-              status: market.status,
-              lastPrice: ticker?.lastPrice ?? "0",
-              openPrice: ticker?.openPrice ?? "0",
-              highPrice: ticker?.highPrice ?? "0",
-              lowPrice: ticker?.lowPrice ?? "0",
-              volume: ticker?.volume ?? "0",
-              quoteVolume: ticker?.quoteVolume ?? "0",
-              closeTime: ticker?.closeTime ?? Date.now(),
-            };
-          });
+        const response = await fetch("/api/weex/markets", { signal: controller.signal, cache: "no-store" });
+        const payload = await response.json() as { markets?: Market[]; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Unable to load WEEX markets.");
+        const nextMarkets = Array.isArray(payload.markets) ? payload.markets : [];
         setMarkets(nextMarkets);
+        setSelected((current) => current ? nextMarkets.find((market) => market.symbol === current.symbol) ?? current : current);
         setAsOf(Date.now());
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -405,22 +405,15 @@ export default function MarketsView() {
       setChartLoading(true);
       setChartError("");
       try {
-        const params = new URLSearchParams({ symbol: selected.symbol, interval, limit: String(KLINE_PAGE_SIZE) });
-        const response = await fetch(`${BINANCE_MARKET_DATA}/api/v3/klines?${params}`, { signal: controller.signal });
-        if (!response.ok) throw new Error("Unable to load this Binance chart.");
-        const rows = await response.json() as BinanceKline[];
-        const nextCandles = rows.map((row) => ({
-          time: row[0],
-          open: Number(row[1]),
-          high: Number(row[2]),
-          low: Number(row[3]),
-          close: Number(row[4]),
-          volume: Number(row[5]),
-          closeTime: row[6],
-        }));
+        const config = HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"];
+        const params = new URLSearchParams({ symbol: selected.symbol, interval, limit: String(config.initial) });
+        const response = await fetch(`/api/weex/klines?${params}`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("Unable to load this WEEX chart.");
+        const rows = await response.json() as WeexKline[];
+        const nextCandles = sanitizeRows(rows, interval);
         candlesRef.current = nextCandles;
         setCandles(nextCandles);
-        setHasMoreHistory(rows.length === KLINE_PAGE_SIZE);
+        setHasMoreHistory(rows.length === config.initial);
       } catch (error) {
         if (controller.signal.aborted) return;
         setChartError(error instanceof Error ? error.message : "Unable to load this chart.");
@@ -440,29 +433,24 @@ export default function MarketsView() {
     historyLoadingRef.current = true;
     setHistoryLoading(true);
     try {
+      const config = HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"];
       const params = new URLSearchParams({
         symbol: selected.symbol,
         interval,
         endTime: String(currentCandles[0].time - 1),
-        limit: String(KLINE_PAGE_SIZE),
+        limit: String(config.page),
       });
-      const response = await fetch(`${BINANCE_MARKET_DATA}/api/v3/klines?${params}`);
-      if (!response.ok) throw new Error("Unable to load older Binance candles.");
-      const rows = await response.json() as BinanceKline[];
+      const response = await fetch(`/api/weex/klines?${params}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Unable to load older WEEX candles.");
+      const rows = await response.json() as WeexKline[];
       if (datasetKeyRef.current !== requestKey) return;
-      const olderCandles = rows.map((row) => ({
-        time: row[0],
-        open: Number(row[1]),
-        high: Number(row[2]),
-        low: Number(row[3]),
-        close: Number(row[4]),
-        volume: Number(row[5]),
-        closeTime: row[6],
-      })).filter((candle) => candle.time < currentCandles[0].time);
-      const nextCandles = [...olderCandles, ...currentCandles];
+      const olderCandles = sanitizeRows(rows, interval).filter((candle) => candle.time < currentCandles[0].time);
+      const merged = new Map(currentCandles.map((candle) => [candle.time, candle]));
+      for (const candle of olderCandles) merged.set(candle.time, candle);
+      const nextCandles = [...merged.values()].toSorted((left, right) => left.time - right.time);
       candlesRef.current = nextCandles;
       setCandles(nextCandles);
-      setHasMoreHistory(rows.length === KLINE_PAGE_SIZE && olderCandles.length > 0);
+      setHasMoreHistory(rows.length === config.page && olderCandles.length > 0);
     } catch (error) {
       if (datasetKeyRef.current === requestKey) {
         setChartError(error instanceof Error ? error.message : "Unable to load older candles.");
@@ -475,20 +463,14 @@ export default function MarketsView() {
 
   const filteredMarkets = useMemo(() => {
     const result = markets.filter((market) => {
-      const matchesQuote = quoteFilter === "ALL" || market.quoteAsset === quoteFilter;
       const matchesQuery = !deferredQuery || market.symbol.includes(deferredQuery) || market.baseAsset.includes(deferredQuery) || market.quoteAsset.includes(deferredQuery);
       const matchesFavorite = !favoritesOnly || favorites.has(market.symbol);
-      return matchesQuote && matchesQuery && matchesFavorite;
+      return matchesQuery && matchesFavorite;
     });
     return result.toSorted((left, right) => numberValue(right.quoteVolume) - numberValue(left.quoteVolume));
-  }, [markets, quoteFilter, deferredQuery, favoritesOnly, favorites]);
+  }, [markets, deferredQuery, favoritesOnly, favorites]);
 
   const visibleMarkets = filteredMarkets.slice(0, visibleCount);
-
-  function updateQuoteFilter(value: string) {
-    setQuoteFilter(value);
-    setVisibleCount(MARKET_PAGE_SIZE);
-  }
 
   function updateSearch(value: string) {
     setQuery(value);
@@ -523,9 +505,9 @@ export default function MarketsView() {
       <header className="markets-header">
         <div className="inner-title">
           <span className="markets-hero-icon" aria-hidden="true">◉</span>
-          <div><h1>Markets</h1><p>Browse Binance Spot pairs and load any chart on demand.</p></div>
+          <div><h1>Markets</h1><p>Browse WEEX USDT perpetual markets and load any chart on demand.</p></div>
         </div>
-        <div className="markets-connection"><span><i aria-hidden="true" /> Binance Spot connected</span><small>Public read-only market data</small></div>
+        <div className="markets-connection"><span><i aria-hidden="true" /> WEEX connected</span><small>Same public read-only feed as the live engine</small></div>
       </header>
 
       <main className="markets-layout">
@@ -533,15 +515,12 @@ export default function MarketsView() {
           <header><div><h2>Exchange Markets</h2><p>{marketsLoading ? "Loading trading pairs…" : `${visibleMarkets.length.toLocaleString()} of ${filteredMarkets.length.toLocaleString()} pairs loaded`}</p></div><button type="button" disabled={marketsLoading} onClick={() => setMarketRequest((current) => current + 1)} aria-label="Refresh market prices">↻</button></header>
           <label className="market-search"><span aria-hidden="true">⌕</span><input type="search" value={query} placeholder="Search BTC, SOL, USDT…" aria-label="Search exchange markets" onChange={(event) => updateSearch(event.target.value)} /></label>
           <div className="market-browser-filters">
-            <div className="market-quote-filters" aria-label="Filter by quote asset">
-              <button className={quoteFilter === "ALL" ? "active" : ""} type="button" aria-pressed={quoteFilter === "ALL"} onClick={() => updateQuoteFilter("ALL")}>All</button>
-              {QUOTE_FILTERS.map((quote) => <button className={quoteFilter === quote ? "active" : ""} type="button" aria-pressed={quoteFilter === quote} onClick={() => updateQuoteFilter(quote)} key={quote}>{quote}</button>)}
-            </div>
+            <div className="market-source-label"><span aria-hidden="true">USDT</span> Perpetual contracts</div>
             <button className={`market-favorites-filter ${favoritesOnly ? "active" : ""}`} type="button" aria-pressed={favoritesOnly} onClick={toggleFavoritesOnly}><span aria-hidden="true">★</span> Favorites <b>{favorites.size}</b></button>
           </div>
           <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span><span aria-label="Favorite">★</span></div>
           <div className="market-list" aria-live="polite" onScroll={loadMoreOnScroll}>
-            {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to Binance…</div> : null}
+            {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to WEEX…</div> : null}
             {!marketsLoading && marketsError ? <div className="market-list-message error"><strong>Market list unavailable</strong><span>{marketsError}</span><button type="button" onClick={() => setMarketRequest((current) => current + 1)}>Try again</button></div> : null}
             {!marketsLoading && !marketsError && filteredMarkets.length === 0 ? <div className="market-list-message">{favoritesOnly ? "No favorites match these filters yet." : "No trading pairs match these filters."}</div> : null}
             {!marketsLoading && !marketsError ? visibleMarkets.map((market) => {
@@ -551,7 +530,7 @@ export default function MarketsView() {
                 <div className={`market-list-row ${selected?.symbol === market.symbol ? "active" : ""}`} key={market.symbol}>
                   <button className="market-row-select" type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => setSelected(market)}>
                     <span className="market-pair"><i aria-hidden="true">{market.baseAsset.slice(0, 2)}</i><span><strong>{market.baseAsset}</strong><small>/{market.quoteAsset}</small></span></span>
-                    <span className="market-row-price"><strong>{formatPrice(market.lastPrice)}</strong><small>{formatVolume(market.quoteVolume)} {market.quoteAsset}</small></span>
+                    <span className="market-row-price"><strong>{formatPrice(market.lastPrice, market.pricePrecision)}</strong><small>{formatVolume(market.quoteVolume)} {market.quoteAsset}</small></span>
                     <b className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</b>
                   </button>
                   <button className={`market-favorite-toggle ${favorite ? "active" : ""}`} type="button" aria-pressed={favorite} aria-label={`${favorite ? "Remove" : "Add"} ${market.symbol} ${favorite ? "from" : "to"} favorites`} onClick={() => toggleFavorite(market.symbol)}>★</button>
@@ -565,12 +544,12 @@ export default function MarketsView() {
 
         <section className="surface market-chart-panel">
           {!selected ? (
-            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any trading pair from the Binance list. Candle data is not downloaded until you make a selection.</p></div>
+            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any WEEX USDT perpetual. Candle data is not downloaded until you make a selection.</p></div>
           ) : (
             <>
               <header className="market-chart-header">
-                <div className="market-selected-pair"><i aria-hidden="true">{selected.baseAsset.slice(0, 2)}</i><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>Binance Spot · {selected.symbol}</p></span></div>
-                <div className="market-last-price"><small>Last price</small><strong>{formatPrice(selected.lastPrice)}</strong><b className={selectedChange >= 0 ? "positive" : "negative"}>{selectedChange >= 0 ? "+" : ""}{selectedChange.toFixed(2)}%</b></div>
+                <div className="market-selected-pair"><i aria-hidden="true">{selected.baseAsset.slice(0, 2)}</i><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>WEEX perpetual · {selected.symbol}</p></span></div>
+                <div className="market-last-price"><small>Last price</small><strong>{formatPrice(selected.lastPrice, selected.pricePrecision)}</strong><b className={selectedChange >= 0 ? "positive" : "negative"}>{selectedChange >= 0 ? "+" : ""}{selectedChange.toFixed(2)}%</b></div>
               </header>
               <div className="market-chart-toolbar">
                 <div className="market-timeframes" aria-label="Chart timeframe">
@@ -581,11 +560,11 @@ export default function MarketsView() {
               <div className="market-chart-frame">
                 {chartLoading ? <div className="market-chart-loading"><span className="market-loader" />Loading {selected.symbol} candles…</div> : null}
                 {!chartLoading && chartError ? <div className="market-chart-loading error"><strong>Chart unavailable</strong><span>{chartError}</span><button type="button" onClick={() => setChartRequest((current) => current + 1)}>Try again</button></div> : null}
-                {!chartLoading && !chartError ? <MarketChart candles={candles} datasetKey={datasetKey} historyLoading={historyLoading} hasMoreHistory={hasMoreHistory} onNeedMore={loadOlderCandles} /> : null}
+                {!chartLoading && !chartError ? <MarketChart candles={candles} datasetKey={datasetKey} historyLoading={historyLoading} hasMoreHistory={hasMoreHistory} onNeedMore={loadOlderCandles} visibleCandles={(HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"]).visible} /> : null}
               </div>
               <div className="market-stat-grid">
-                <span><small>24h high</small><strong>{formatPrice(selected.highPrice)}</strong></span>
-                <span><small>24h low</small><strong>{formatPrice(selected.lowPrice)}</strong></span>
+                <span><small>24h high</small><strong>{formatPrice(selected.highPrice, selected.pricePrecision)}</strong></span>
+                <span><small>24h low</small><strong>{formatPrice(selected.lowPrice, selected.pricePrecision)}</strong></span>
                 <span><small>24h volume</small><strong>{formatVolume(selected.quoteVolume)} {selected.quoteAsset}</strong></span>
                 <span><small>Chart candles</small><strong>{candles.length || "—"}</strong></span>
               </div>

@@ -29,9 +29,11 @@ test("server-renders the Signal Control single page", async () => {
 });
 
 test("keeps exchange access read-only and loads charts on demand", async () => {
-  const [page, marketsPage, styles, hosting, packageJson] = await Promise.all([
+  const [page, marketsPage, weexMarketsRoute, weexKlinesRoute, styles, hosting, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/markets.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/weex/markets/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/weex/klines/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -97,13 +99,19 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.doesNotMatch(styles, /\.master-profile-menu/);
   assert.match(page, /lazy\(\(\) => import\("\.\/markets"\)\)/);
   assert.match(page, /view === "markets" && <Suspense[\s\S]*<MarketsView \/>[\s\S]*<\/Suspense>/);
-  assert.match(marketsPage, /Browse Binance Spot pairs and load any chart on demand/);
-  assert.match(marketsPage, /https:\/\/data-api\.binance\.vision[\s\S]*\/api\/v3\/exchangeInfo[\s\S]*\/api\/v3\/ticker\/24hr\?type=MINI[\s\S]*\/api\/v3\/klines/);
+  assert.match(marketsPage, /Browse WEEX USDT perpetual markets and load any chart on demand/);
+  assert.match(marketsPage, /fetch\("\/api\/weex\/markets"[\s\S]*fetch\(`\/api\/weex\/klines\?\$\{params\}`/);
+  assert.doesNotMatch(marketsPage, /data-api\.binance\.vision|Binance Spot/);
+  assert.match(weexMarketsRoute, /https:\/\/api-contract\.weex\.com[\s\S]*\/capi\/v3\/market\/exchangeInfo[\s\S]*\/capi\/v2\/market\/tickers/);
+  assert.match(weexMarketsRoute, /replace\(\/\^CMT_\/[\s\S]*changeRatio \* 100[\s\S]*pricePrecision/);
+  assert.match(weexKlinesRoute, /\/capi\/v3\/market\/klines[\s\S]*\/capi\/v3\/market\/historyKlines/);
+  assert.match(weexKlinesRoute, /priceType", "LAST"/);
+  assert.doesNotMatch(weexMarketsRoute + weexKlinesRoute, /apiKey|secretKey|Authorization|\/order|\/account/i);
   assert.match(marketsPage, /if \(!selected\) return;[\s\S]*loadChart/);
   assert.match(marketsPage, /Candle data is not downloaded until you make a selection/);
   assert.doesNotMatch(marketsPage, /\/api\/v3\/(order|account)|X-MBX-APIKEY|secretKey/i);
   assert.match(marketsPage, /const MARKET_PAGE_SIZE = 20/);
-  assert.match(marketsPage, /useState\("ALL"\)[\s\S]*filteredMarkets\.slice\(0, visibleCount\)/);
+  assert.match(marketsPage, /filteredMarkets\.slice\(0, visibleCount\)/);
   assert.match(marketsPage, /function loadMoreOnScroll[\s\S]*nearBottom[\s\S]*current \+ MARKET_PAGE_SIZE/);
   assert.match(marketsPage, /onScroll=\{loadMoreOnScroll\}/);
   assert.match(marketsPage, /FAVORITES_STORAGE_KEY[\s\S]*localStorage\.getItem[\s\S]*localStorage\.setItem/);
@@ -112,8 +120,12 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(marketsPage, /createChart\([\s\S]*CandlestickSeries/);
   assert.match(marketsPage, /handleScroll:[\s\S]*mouseWheel: true[\s\S]*pressedMouseMove: true/);
   assert.match(marketsPage, /handleScale:[\s\S]*mouseWheel: true[\s\S]*pinch: true/);
-  assert.match(marketsPage, /bars\.barsBefore < 50[\s\S]*subscribeVisibleLogicalRangeChange/);
-  assert.match(marketsPage, /const KLINE_PAGE_SIZE = 500/);
+  assert.match(marketsPage, /range\.from < 25[\s\S]*subscribeVisibleLogicalRangeChange/);
+  assert.match(marketsPage, /const HISTORY_CONFIG:[\s\S]*"1m": \{ initial: 360, visible: 100, page: 100 \}[\s\S]*"5m": \{ initial: 360, visible: 110, page: 100 \}/);
+  assert.match(marketsPage, /function cleanCandle[\s\S]*high < Math\.max\(open, close\)[\s\S]*upperWick > wickLimit[\s\S]*time % bucket !== 0/);
+  assert.match(marketsPage, /function sanitizeRows[\s\S]*new Map<number, Candle>[\s\S]*toSorted/);
+  assert.doesNotMatch(marketsPage, /chartPrecision|priceFormat: \{ type: "price"/);
+  assert.match(marketsPage, /getVisibleRange\(\)[\s\S]*setVisibleRange\(previousRange\)/);
   assert.match(marketsPage, /endTime: String\(currentCandles\[0\]\.time - 1\)/);
   assert.match(marketsPage, /aria-label="Zoom in"[\s\S]*aria-label="Zoom out"[\s\S]*Latest/);
   assert.doesNotMatch(styles, /\.market-candle-layer|\.market-candle-slot|\.market-price-axis/);
