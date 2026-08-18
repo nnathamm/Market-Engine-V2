@@ -353,20 +353,41 @@ function MarketChart({
   );
 }
 
+const CDN_URLS: ((slug: string) => string)[] = [
+  (slug) => `https://assets.coincap.io/assets/icons/${slug}@2x.png`,
+  (slug) => `https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/128/color/${slug}.png`,
+];
+
+// Module-level cache: symbol → index of next CDN to try (CDN_URLS.length = all failed)
+const iconCdnFailures = new Map<string, number>();
+
 function CoinIcon({ symbol }: { symbol: string }) {
-  const [failed, setFailed] = useState(false);
+  const slug = symbol.toLowerCase();
+  const [cdnIndex, setCdnIndex] = useState(() => iconCdnFailures.get(slug) ?? 0);
+
+  // When symbol changes (same component instance reused), sync to the cached failure index for the new slug
+  useEffect(() => {
+    setCdnIndex(iconCdnFailures.get(slug) ?? 0);
+  }, [slug]);
+
+  if (cdnIndex >= CDN_URLS.length) {
+    return <i aria-hidden="true">{symbol.slice(0, 2)}</i>;
+  }
+
   return (
     <i aria-hidden="true">
-      {failed ? symbol.slice(0, 2) : (
-        <img
-          src={`https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`}
-          alt=""
-          width={22}
-          height={22}
-          style={{ objectFit: "contain" }}
-          onError={() => setFailed(true)}
-        />
-      )}
+      <img
+        src={CDN_URLS[cdnIndex](slug)}
+        alt=""
+        width={22}
+        height={22}
+        style={{ objectFit: "contain" }}
+        onError={() => {
+          const next = cdnIndex + 1;
+          iconCdnFailures.set(slug, next);
+          setCdnIndex(next);
+        }}
+      />
     </i>
   );
 }

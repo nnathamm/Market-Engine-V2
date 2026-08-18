@@ -92,6 +92,13 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(marketsPage, /if \(!selectedSymbol\) return;[\s\S]*loadChart/);
   assert.match(marketsPage, /Candle data is not downloaded until you make a selection/);
   assert.doesNotMatch(marketsPage, /\/api\/v3\/(order|account)|X-MBX-APIKEY|secretKey/i);
+  // CoinIcon: multi-CDN fallback chain with per-symbol failure cache
+  assert.match(marketsPage, /const CDN_URLS:[\s\S]*coincap\.io[\s\S]*jsdelivr\.net/);
+  assert.match(marketsPage, /const iconCdnFailures = new Map/);
+  assert.match(marketsPage, /useState\(\(\) => iconCdnFailures\.get\(slug\)/);
+  assert.match(marketsPage, /useEffect\(\(\) => \{[\s\S]*setCdnIndex\(iconCdnFailures\.get\(slug\)/);
+  assert.match(marketsPage, /\[slug\]\)/);
+  assert.match(marketsPage, /iconCdnFailures\.set\(slug, next\)/);
   assert.match(marketsPage, /const MARKET_PAGE_SIZE = 20/);
   assert.match(marketsPage, /filteredMarkets\.slice\(0, visibleCount\)/);
   assert.match(marketsPage, /function loadMoreOnScroll[\s\S]*nearBottom[\s\S]*current \+ MARKET_PAGE_SIZE/);
