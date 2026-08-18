@@ -95,6 +95,7 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
   const [enabled, setEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [noPriceWarning, setNoPriceWarning] = useState(false);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && close();
@@ -121,13 +122,19 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
     setSelectedCoin(coin);
     setSearch(coin.symbol);
     setResults([]);
+    setNoPriceWarning(false);
     if (!label) setLabel(coin.name);
   }
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSaving(true);
     setSaveError(null);
+    // First attempt with no coin selected: show warning and stop. Second attempt proceeds.
+    if (kind === "tokens" && mode !== "link" && !selectedCoin && search.trim() && !noPriceWarning) {
+      setNoPriceWarning(true);
+      return;
+    }
+    setSaving(true);
     try {
       if (kind === "tokens") {
         const symbol = (selectedCoin?.symbol ?? search.trim()).toUpperCase();
@@ -183,7 +190,7 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
                 <input
                   type="search"
                   value={search}
-                  onChange={e => { setSearch(e.target.value); setSelectedCoin(null); }}
+                  onChange={e => { setSearch(e.target.value); setSelectedCoin(null); setNoPriceWarning(false); }}
                   placeholder="Search by token name, symbol, or contract address..."
                   autoComplete="off"
                   autoFocus
@@ -246,11 +253,16 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
         )}
 
         <label className="tracking-monitor-toggle"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /><span aria-hidden="true" /><b>Start monitoring immediately<small>Prepare this asset for alerts right away.</small></b></label>
+        {kind === "tokens" && noPriceWarning && !selectedCoin && (
+          <p className="tracking-no-price-warning" role="alert">
+            ⚠ No CoinGecko match selected — price data won't be available. Pick a result from the list to enable live prices, or click "Add anyway" to continue without prices.
+          </p>
+        )}
         {saveError && <p className="tracking-save-error" role="alert">⚠ {saveError}</p>}
         <footer>
           <button className="tracking-cancel" type="button" onClick={close} disabled={saving}>Cancel</button>
           <button className="tracking-primary" type="submit" disabled={saving || (mode === "link" && !selectedCoin)}>
-            {saving ? "Saving…" : mode === "link" ? "Link Token" : `Add ${kind === "tokens" ? "Token" : "Wallet"}`}
+            {saving ? "Saving…" : mode === "link" ? "Link Token" : kind === "tokens" && noPriceWarning && !selectedCoin ? "Add anyway" : `Add ${kind === "tokens" ? "Token" : "Wallet"}`}
           </button>
         </footer>
       </form>
