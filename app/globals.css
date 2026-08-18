@@ -279,15 +279,27 @@ button { color: inherit; }
 .market-search > span { color: #778599; font-size: 22px; transform: rotate(-16deg); }
 .market-search input { width: 100%; min-width: 0; color: #eef2f7; border: 0; outline: 0; background: transparent; font-size: 12px; }
 .market-search input::placeholder { color: #68768b; }
-.market-quote-filters { padding: 0 14px 12px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+.market-browser-filters { padding: 0 14px 12px; display: grid; gap: 8px; }
+.market-quote-filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
 .market-quote-filters button { min-width: max-content; height: 28px; padding: 0 9px; color: #8e9caf; border: 1px solid #2b394d; border-radius: 6px; background: #0b1624; cursor: pointer; font-size: 9px; font-weight: 700; }
 .market-quote-filters button.active { color: #d9b3ff; border-color: #7944b4; background: #281740; }
-.market-list-heading { height: 32px; padding: 0 17px; display: grid; grid-template-columns: 1.15fr 1fr 56px; align-items: center; gap: 8px; color: #6f7e93; border-top: 1px solid #1b293b; border-bottom: 1px solid #1b293b; text-transform: uppercase; font-size: 8px; font-weight: 750; letter-spacing: .08em; }
-.market-list-heading span:nth-child(2), .market-list-heading span:last-child { text-align: right; }
+.market-favorites-filter { width: 100%; height: 31px; padding: 0 10px; display: flex; align-items: center; gap: 6px; color: #929fb1; border: 1px solid #2d3b4f; border-radius: 7px; background: #0b1624; cursor: pointer; text-align: left; font-size: 9px; font-weight: 700; }
+.market-favorites-filter > span { color: #707d91; font-size: 13px; }
+.market-favorites-filter > b { margin-left: auto; min-width: 20px; padding: 2px 5px; color: #a9b4c4; border-radius: 9px; background: #182537; text-align: center; font-size: 8px; }
+.market-favorites-filter.active { color: #f0cd71; border-color: #7d6631; background: rgba(78, 59, 20, .35); }
+.market-favorites-filter.active > span { color: #ffd660; }
+.market-list-heading { height: 32px; padding: 0 12px 0 17px; display: grid; grid-template-columns: 1.15fr 1fr 56px 28px; align-items: center; gap: 8px; color: #6f7e93; border-top: 1px solid #1b293b; border-bottom: 1px solid #1b293b; text-transform: uppercase; font-size: 8px; font-weight: 750; letter-spacing: .08em; }
+.market-list-heading span:nth-child(n + 2) { text-align: right; }
+.market-list-heading span:last-child { color: #6f6037; }
 .market-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #60368b #081421; }
-.market-list > button { width: 100%; min-height: 64px; padding: 8px 14px; display: grid; grid-template-columns: 1.15fr 1fr 56px; align-items: center; gap: 8px; color: #dfe4eb; border: 0; border-bottom: 1px solid #172536; background: transparent; cursor: pointer; text-align: left; content-visibility: auto; contain-intrinsic-size: 64px; }
-.market-list > button:hover, .market-list > button:focus-visible { background: #101d2e; outline: 0; }
-.market-list > button.active { box-shadow: inset 3px 0 #a453ed; background: linear-gradient(90deg, rgba(52, 25, 83, .65), rgba(13, 27, 44, .65)); }
+.market-list-row { min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) 38px; align-items: stretch; border-bottom: 1px solid #172536; background: transparent; content-visibility: auto; contain-intrinsic-size: 64px; }
+.market-list-row:hover { background: #101d2e; }
+.market-list-row.active { box-shadow: inset 3px 0 #a453ed; background: linear-gradient(90deg, rgba(52, 25, 83, .65), rgba(13, 27, 44, .65)); }
+.market-row-select { min-width: 0; padding: 8px 4px 8px 14px; display: grid; grid-template-columns: 1.15fr 1fr 56px; align-items: center; gap: 8px; color: #dfe4eb; border: 0; outline: 0; background: transparent; cursor: pointer; text-align: left; }
+.market-row-select:focus-visible { box-shadow: inset 0 0 0 1px #8047b8; }
+.market-favorite-toggle { width: 38px; color: #536176; border: 0; outline: 0; background: transparent; cursor: pointer; font-size: 16px; }
+.market-favorite-toggle:hover, .market-favorite-toggle:focus-visible { color: #ffd86d; background: rgba(74, 58, 25, .25); }
+.market-favorite-toggle.active { color: #ffd357; text-shadow: 0 0 9px rgba(255, 211, 87, .28); }
 .market-pair { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .market-pair > i, .market-selected-pair > i { width: 33px; height: 33px; display: grid; place-items: center; flex: 0 0 33px; color: #d7b7f4; border: 1px solid #5b3a78; border-radius: 50%; background: linear-gradient(145deg, #39214e, #111d31); font-size: 9px; font-style: normal; font-weight: 800; }
 .market-pair > span { min-width: 0; display: flex; align-items: baseline; }
@@ -296,12 +308,14 @@ button { color: inherit; }
 .market-row-price { min-width: 0; display: grid; justify-items: end; gap: 3px; }
 .market-row-price strong { overflow: hidden; max-width: 100%; text-overflow: ellipsis; font-size: 10px; }
 .market-row-price small { overflow: hidden; max-width: 100%; color: #69778b; text-overflow: ellipsis; white-space: nowrap; font-size: 7px; }
-.market-list > button > b { text-align: right; font-size: 9px; }
+.market-row-select > b { text-align: right; font-size: 9px; }
 .markets-screen .positive { color: #47dfa9; }
 .markets-screen .negative { color: #ff6677; }
 .market-list-message { min-height: 260px; padding: 35px 24px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 9px; color: #8f9caf; text-align: center; font-size: 12px; }
 .market-list-message strong { color: #d9dee7; }
 .market-list-message button, .market-chart-loading button { height: 34px; padding: 0 13px; color: #ddbdff; border: 1px solid #613c89; border-radius: 7px; background: #211636; cursor: pointer; font-size: 10px; }
+.market-list-progress { min-height: 52px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #69778b; border-top: 1px solid #1f2d40; background: rgba(11, 24, 41, .72); font-size: 8px; }
+.market-list-progress b { color: #a46cce; font-size: 8px; }
 .market-loader { width: 25px; height: 25px; border: 2px solid #314056; border-top-color: #ad55f7; border-radius: 50%; animation: market-spin .8s linear infinite; }
 @keyframes market-spin { to { transform: rotate(360deg); } }
 .market-browser-panel > footer { min-height: 43px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #69778c; border-top: 1px solid #202e40; font-size: 8px; }

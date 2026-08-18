@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 type Market = {
   symbol: string;
@@ -54,7 +54,10 @@ type BinanceTicker = {
 
 type BinanceKline = [number, string, string, string, string, string, number, ...unknown[]];
 
-const BINANCE_MARKET_DATA = "https://api.binance.us";
+const BINANCE_MARKET_DATA = "https://data-api.binance.vision";
+const MARKET_PAGE_SIZE = 20;
+const FAVORITES_STORAGE_KEY = "edge-signals-market-favorites-v1";
+const FAVORITES_CHANGED_EVENT = "edge-signals-market-favorites-changed";
 const QUOTE_FILTERS = ["USDT", "USDC", "FDUSD", "BTC", "ETH"];
 const CHART_TIMEFRAMES = [
   ["1m", "1m"],
@@ -91,6 +94,35 @@ function formatVolume(value: string) {
 
 function formatTime(timestamp: number) {
   return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function subscribeFavorites(notify: () => void) {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === FAVORITES_STORAGE_KEY) notify();
+  };
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(FAVORITES_CHANGED_EVENT, notify);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(FAVORITES_CHANGED_EVENT, notify);
+  };
+}
+
+function getFavoritesSnapshot() {
+  return localStorage.getItem(FAVORITES_STORAGE_KEY) ?? "[]";
+}
+
+function getServerFavoritesSnapshot() {
+  return "[]";
+}
+
+function parseFavorites(snapshot: string) {
+  try {
+    const saved = JSON.parse(snapshot) as unknown;
+    return new Set(Array.isArray(saved) ? saved.filter((symbol): symbol is string => typeof symbol === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
 }
 
 function MarketChart({ candles }: { candles: Candle[] }) {
@@ -160,7 +192,9 @@ export default function MarketsView() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selected, setSelected] = useState<Market | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [quoteFilter, setQuoteFilter] = useState("USDT");
+  const [quoteFilter, setQuoteFilter] = useState("ALL");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(MARKET_PAGE_SIZE);
   const [query, setQuery] = useState("");
   const [interval, setInterval] = useState("15m");
   const [marketsLoading, setMarketsLoading] = useState(true);
@@ -171,6 +205,8 @@ export default function MarketsView() {
   const [chartRequest, setChartRequest] = useState(0);
   const [asOf, setAsOf] = useState(0);
   const deferredQuery = useDeferredValue(query.trim().toUpperCase());
+  const favoritesSnapshot = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getServerFavoritesSnapshot);
+  const favorites = useMemo(() => parseFavorites(favoritesSnapshot), [favoritesSnapshot]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -182,7 +218,7 @@ export default function MarketsView() {
           fetch(`${BINANCE_MARKET_DATA}/api/v3/exchangeInfo`, { signal: controller.signal }),
           fetch(`${BINANCE_MARKET_DATA}/api/v3/ticker/24hr?type=MINI`, { signal: controller.signal }),
         ]);
-        if (!exchangeResponse.ok || !tickerResponse.ok) throw new Error("Unable to load Binance.US markets.");
+        if (!exchangeResponse.ok || !tickerResponse.ok) throw new Error("Unable to load Binance markets.");
         const [exchange, tickers] = await Promise.all([
           exchangeResponse.json() as Promise<{ symbols?: BinanceSymbol[] }>,
           tickerResponse.json() as Promise<BinanceTicker[]>,
@@ -228,7 +264,7 @@ export default function MarketsView() {
       try {
         const params = new URLSearchParams({ symbol: selected.symbol, interval, limit: "120" });
         const response = await fetch(`${BINANCE_MARKET_DATA}/api/v3/klines?${params}`, { signal: controller.signal });
-        if (!response.ok) throw new Error("Unable to load this Binance.US chart.");
+        if (!response.ok) throw new Error("Unable to load this Binance chart.");
         const rows = await response.json() as BinanceKline[];
         setCandles(rows.map((row) => ({
           time: row[0],
@@ -255,10 +291,44 @@ export default function MarketsView() {
     const result = markets.filter((market) => {
       const matchesQuote = quoteFilter === "ALL" || market.quoteAsset === quoteFilter;
       const matchesQuery = !deferredQuery || market.symbol.includes(deferredQuery) || market.baseAsset.includes(deferredQuery) || market.quoteAsset.includes(deferredQuery);
-      return matchesQuote && matchesQuery;
+      const matchesFavorite = !favoritesOnly || favorites.has(market.symbol);
+      return matchesQuote && matchesQuery && matchesFavorite;
     });
     return result.toSorted((left, right) => numberValue(right.quoteVolume) - numberValue(left.quoteVolume));
-  }, [markets, quoteFilter, deferredQuery]);
+  }, [markets, quoteFilter, deferredQuery, favoritesOnly, favorites]);
+
+  const visibleMarkets = filteredMarkets.slice(0, visibleCount);
+
+  function updateQuoteFilter(value: string) {
+    setQuoteFilter(value);
+    setVisibleCount(MARKET_PAGE_SIZE);
+  }
+
+  function updateSearch(value: string) {
+    setQuery(value);
+    setVisibleCount(MARKET_PAGE_SIZE);
+  }
+
+  function toggleFavoritesOnly() {
+    setFavoritesOnly((current) => !current);
+    setVisibleCount(MARKET_PAGE_SIZE);
+  }
+
+  function toggleFavorite(symbol: string) {
+    const next = new Set(favorites);
+    if (next.has(symbol)) next.delete(symbol);
+    else next.add(symbol);
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...next]));
+    window.dispatchEvent(new Event(FAVORITES_CHANGED_EVENT));
+  }
+
+  function loadMoreOnScroll(event: React.UIEvent<HTMLDivElement>) {
+    const list = event.currentTarget;
+    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 140;
+    if (nearBottom && visibleCount < filteredMarkets.length) {
+      setVisibleCount((current) => Math.min(current + MARKET_PAGE_SIZE, filteredMarkets.length));
+    }
+  }
 
   const selectedChange = selected ? percentChange(selected) : 0;
 
@@ -267,45 +337,53 @@ export default function MarketsView() {
       <header className="markets-header">
         <div className="inner-title">
           <span className="markets-hero-icon" aria-hidden="true">◉</span>
-          <div><h1>Markets</h1><p>Browse Binance.US Spot pairs and load any chart on demand.</p></div>
+          <div><h1>Markets</h1><p>Browse Binance Spot pairs and load any chart on demand.</p></div>
         </div>
-        <div className="markets-connection"><span><i aria-hidden="true" /> Binance.US connected</span><small>Public read-only market data</small></div>
+        <div className="markets-connection"><span><i aria-hidden="true" /> Binance Spot connected</span><small>Public read-only market data</small></div>
       </header>
 
       <main className="markets-layout">
         <aside className="surface market-browser-panel">
-          <header><div><h2>Exchange Markets</h2><p>{marketsLoading ? "Loading trading pairs…" : `${filteredMarkets.length.toLocaleString()} pairs shown`}</p></div><button type="button" disabled={marketsLoading} onClick={() => setMarketRequest((current) => current + 1)} aria-label="Refresh market prices">↻</button></header>
-          <label className="market-search"><span aria-hidden="true">⌕</span><input type="search" value={query} placeholder="Search BTC, SOL, USDT…" aria-label="Search exchange markets" onChange={(event) => setQuery(event.target.value)} /></label>
-          <div className="market-quote-filters" aria-label="Filter by quote asset">
-            <button className={quoteFilter === "ALL" ? "active" : ""} type="button" aria-pressed={quoteFilter === "ALL"} onClick={() => setQuoteFilter("ALL")}>All</button>
-            {QUOTE_FILTERS.map((quote) => <button className={quoteFilter === quote ? "active" : ""} type="button" aria-pressed={quoteFilter === quote} onClick={() => setQuoteFilter(quote)} key={quote}>{quote}</button>)}
+          <header><div><h2>Exchange Markets</h2><p>{marketsLoading ? "Loading trading pairs…" : `${visibleMarkets.length.toLocaleString()} of ${filteredMarkets.length.toLocaleString()} pairs loaded`}</p></div><button type="button" disabled={marketsLoading} onClick={() => setMarketRequest((current) => current + 1)} aria-label="Refresh market prices">↻</button></header>
+          <label className="market-search"><span aria-hidden="true">⌕</span><input type="search" value={query} placeholder="Search BTC, SOL, USDT…" aria-label="Search exchange markets" onChange={(event) => updateSearch(event.target.value)} /></label>
+          <div className="market-browser-filters">
+            <div className="market-quote-filters" aria-label="Filter by quote asset">
+              <button className={quoteFilter === "ALL" ? "active" : ""} type="button" aria-pressed={quoteFilter === "ALL"} onClick={() => updateQuoteFilter("ALL")}>All</button>
+              {QUOTE_FILTERS.map((quote) => <button className={quoteFilter === quote ? "active" : ""} type="button" aria-pressed={quoteFilter === quote} onClick={() => updateQuoteFilter(quote)} key={quote}>{quote}</button>)}
+            </div>
+            <button className={`market-favorites-filter ${favoritesOnly ? "active" : ""}`} type="button" aria-pressed={favoritesOnly} onClick={toggleFavoritesOnly}><span aria-hidden="true">★</span> Favorites <b>{favorites.size}</b></button>
           </div>
-          <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span></div>
-          <div className="market-list" aria-live="polite">
-            {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to Binance.US…</div> : null}
+          <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span><span aria-label="Favorite">★</span></div>
+          <div className="market-list" aria-live="polite" onScroll={loadMoreOnScroll}>
+            {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to Binance…</div> : null}
             {!marketsLoading && marketsError ? <div className="market-list-message error"><strong>Market list unavailable</strong><span>{marketsError}</span><button type="button" onClick={() => setMarketRequest((current) => current + 1)}>Try again</button></div> : null}
-            {!marketsLoading && !marketsError && filteredMarkets.length === 0 ? <div className="market-list-message">No trading pairs match these filters.</div> : null}
-            {!marketsLoading && !marketsError ? filteredMarkets.map((market) => {
+            {!marketsLoading && !marketsError && filteredMarkets.length === 0 ? <div className="market-list-message">{favoritesOnly ? "No favorites match these filters yet." : "No trading pairs match these filters."}</div> : null}
+            {!marketsLoading && !marketsError ? visibleMarkets.map((market) => {
               const change = percentChange(market);
+              const favorite = favorites.has(market.symbol);
               return (
-                <button className={selected?.symbol === market.symbol ? "active" : ""} type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => setSelected(market)} key={market.symbol}>
-                  <span className="market-pair"><i aria-hidden="true">{market.baseAsset.slice(0, 2)}</i><span><strong>{market.baseAsset}</strong><small>/{market.quoteAsset}</small></span></span>
-                  <span className="market-row-price"><strong>{formatPrice(market.lastPrice)}</strong><small>{formatVolume(market.quoteVolume)} {market.quoteAsset}</small></span>
-                  <b className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</b>
-                </button>
+                <div className={`market-list-row ${selected?.symbol === market.symbol ? "active" : ""}`} key={market.symbol}>
+                  <button className="market-row-select" type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => setSelected(market)}>
+                    <span className="market-pair"><i aria-hidden="true">{market.baseAsset.slice(0, 2)}</i><span><strong>{market.baseAsset}</strong><small>/{market.quoteAsset}</small></span></span>
+                    <span className="market-row-price"><strong>{formatPrice(market.lastPrice)}</strong><small>{formatVolume(market.quoteVolume)} {market.quoteAsset}</small></span>
+                    <b className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</b>
+                  </button>
+                  <button className={`market-favorite-toggle ${favorite ? "active" : ""}`} type="button" aria-pressed={favorite} aria-label={`${favorite ? "Remove" : "Add"} ${market.symbol} ${favorite ? "from" : "to"} favorites`} onClick={() => toggleFavorite(market.symbol)}>★</button>
+                </div>
               );
             }) : null}
+            {!marketsLoading && !marketsError && visibleMarkets.length < filteredMarkets.length ? <div className="market-list-progress"><span>Scroll for the next {Math.min(MARKET_PAGE_SIZE, filteredMarkets.length - visibleMarkets.length)} pairs</span><b>{visibleMarkets.length} / {filteredMarkets.length}</b></div> : null}
           </div>
           <footer><span>{asOf ? `Prices refreshed ${formatTime(asOf)}` : "Waiting for exchange"}</span><b>Read only</b></footer>
         </aside>
 
         <section className="surface market-chart-panel">
           {!selected ? (
-            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any trading pair from the Binance.US list. Candle data is not downloaded until you make a selection.</p></div>
+            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any trading pair from the Binance list. Candle data is not downloaded until you make a selection.</p></div>
           ) : (
             <>
               <header className="market-chart-header">
-                <div className="market-selected-pair"><i aria-hidden="true">{selected.baseAsset.slice(0, 2)}</i><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>Binance.US Spot · {selected.symbol}</p></span></div>
+                <div className="market-selected-pair"><i aria-hidden="true">{selected.baseAsset.slice(0, 2)}</i><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>Binance Spot · {selected.symbol}</p></span></div>
                 <div className="market-last-price"><small>Last price</small><strong>{formatPrice(selected.lastPrice)}</strong><b className={selectedChange >= 0 ? "positive" : "negative"}>{selectedChange >= 0 ? "+" : ""}{selectedChange.toFixed(2)}%</b></div>
               </header>
               <div className="market-chart-toolbar">
