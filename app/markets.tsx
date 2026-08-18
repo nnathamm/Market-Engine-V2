@@ -212,9 +212,9 @@ export default function MarketsView() {
       <header className="markets-header">
         <div className="inner-title">
           <span className="markets-hero-icon" aria-hidden="true">◉</span>
-          <div><h1>Markets</h1><p>Browse Binance Spot pairs and load any chart on demand.</p></div>
+          <div><h1>Markets</h1><p>Browse Binance.US Spot pairs and load any chart on demand.</p></div>
         </div>
-        <div className="markets-connection"><span><i aria-hidden="true" /> Binance Spot connected</span><small>Public read-only market data</small></div>
+        <div className="markets-connection"><span><i aria-hidden="true" /> Binance.US connected</span><small>Public read-only market data</small></div>
       </header>
 
       <main className="markets-layout">
@@ -227,7 +227,7 @@ export default function MarketsView() {
           </div>
           <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span></div>
           <div className="market-list" aria-live="polite">
-            {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to Binance…</div> : null}
+            {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to Binance.US…</div> : null}
             {!marketsLoading && marketsError ? <div className="market-list-message error"><strong>Market list unavailable</strong><span>{marketsError}</span><button type="button" onClick={() => setMarketRequest((current) => current + 1)}>Try again</button></div> : null}
             {!marketsLoading && !marketsError && filteredMarkets.length === 0 ? <div className="market-list-message">No trading pairs match these filters.</div> : null}
             {!marketsLoading && !marketsError ? filteredMarkets.map((market) => {
@@ -246,11 +246,11 @@ export default function MarketsView() {
 
         <section className="surface market-chart-panel">
           {!selected ? (
-            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any trading pair from the Binance list. Candle data is not downloaded until you make a selection.</p></div>
+            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any trading pair from the Binance.US list. Candle data is not downloaded until you make a selection.</p></div>
           ) : (
             <>
               <header className="market-chart-header">
-                <div className="market-selected-pair"><i aria-hidden="true">{selected.baseAsset.slice(0, 2)}</i><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>Binance Spot · {selected.symbol}</p></span></div>
+                <div className="market-selected-pair"><i aria-hidden="true">{selected.baseAsset.slice(0, 2)}</i><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>Binance.US Spot · {selected.symbol}</p></span></div>
                 <div className="market-last-price"><small>Last price</small><strong>{formatPrice(selected.lastPrice)}</strong><b className={selectedChange >= 0 ? "positive" : "negative"}>{selectedChange >= 0 ? "+" : ""}{selectedChange.toFixed(2)}%</b></div>
               </header>
               <div className="market-chart-toolbar">

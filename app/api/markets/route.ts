@@ -1,4 +1,4 @@
-const BINANCE_MARKET_DATA = "https://data-api.binance.vision";
+const BINANCE_MARKET_DATA = "https://api.binance.us";
 
 type BinanceSymbol = {
   symbol: string;
@@ -56,13 +56,13 @@ export async function GET() {
       });
 
     return Response.json(
-      { exchange: "Binance Spot", asOf: Date.now(), markets },
+      { exchange: "Binance.US Spot", asOf: Date.now(), markets },
       { headers: { "Cache-Control": "public, max-age=15, s-maxage=30, stale-while-revalidate=30" } },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown exchange error";
     return Response.json(
-      { error: "Binance market data is temporarily unavailable.", detail: message },
+      { error: "Binance.US market data is temporarily unavailable.", detail: message },
       { status: 502, headers: { "Cache-Control": "no-store" } },
     );
   }

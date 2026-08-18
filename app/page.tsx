@@ -38,7 +38,7 @@ const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
 const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
   ["create", "＋", "Create Signal", "Build a new trading signal"],
   ["signals", "☷", "View Signals", "Manage existing signals"],
-  ["markets", "◉", "Markets", "Browse live Binance Spot markets"],
+  ["markets", "◉", "Markets", "Browse live Binance.US Spot markets"],
   ["order-flow", "⇄", "Order Flow", "Configure order-flow analysis"],
   ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
   ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],

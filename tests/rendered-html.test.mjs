@@ -98,11 +98,11 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.profile-layout\s*\{[^}]*grid-template-columns:/s);
   assert.doesNotMatch(styles, /\.master-profile-menu/);
   assert.match(page, /view === "markets" && <MarketsView \/>/);
-  assert.match(marketsPage, /Browse Binance Spot pairs and load any chart on demand/);
+  assert.match(marketsPage, /Browse Binance\.US Spot pairs and load any chart on demand/);
   assert.match(marketsPage, /fetch\("\/api\/markets"[\s\S]*fetch\(`\/api\/markets\/candles\?\$\{params\}`/);
   assert.match(marketsPage, /if \(!selected\) return;[\s\S]*loadChart/);
   assert.match(marketsPage, /Candle data is not downloaded until you make a selection/);
-  assert.match(marketsRoute, /https:\/\/data-api\.binance\.vision[\s\S]*\/api\/v3\/exchangeInfo[\s\S]*\/api\/v3\/ticker\/24hr\?type=MINI/);
+  assert.match(marketsRoute, /https:\/\/api\.binance\.us[\s\S]*\/api\/v3\/exchangeInfo[\s\S]*\/api\/v3\/ticker\/24hr\?type=MINI/);
   assert.match(candlesRoute, /SYMBOL_PATTERN[\s\S]*ALLOWED_INTERVALS[\s\S]*\/api\/v3\/klines/);
   assert.doesNotMatch(`${marketsRoute}\n${candlesRoute}`, /\/api\/v3\/(order|account)|X-MBX-APIKEY|secretKey/i);
   assert.match(styles, /\.markets-layout\s*\{[^}]*grid-template-columns:/s);
