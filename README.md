@@ -1,5 +1,11 @@
 # Signal Control UI
 
+## Delivery workflow
+
+GitHub is the source of truth for this website. Completed code changes are validated, committed, and pushed to `nnathamm/Market-Engine-V2`. Changes that affect the running application are also published to the existing Sites deployment from the same committed source.
+
+Repository-specific agent instructions are defined in `AGENTS.md`.
+
 A single-page, front-end-only reproduction of the supplied Signal Control interface.
 
 ## Hard boundary
