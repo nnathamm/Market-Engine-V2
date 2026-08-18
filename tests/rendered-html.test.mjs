@@ -121,7 +121,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(weexKlinesRoute, /\/capi\/v3\/market\/klines[\s\S]*\/capi\/v3\/market\/historyKlines/);
   assert.match(weexKlinesRoute, /priceType", "LAST"/);
   assert.doesNotMatch(weexMarketsRoute + weexKlinesRoute, /apiKey|secretKey|Authorization|\/order|\/account/i);
-  assert.match(marketsPage, /if \(!selected\) return;[\s\S]*loadChart/);
+  assert.match(marketsPage, /if \(!selectedSymbol\) return;[\s\S]*loadChart/);
   assert.match(marketsPage, /Candle data is not downloaded until you make a selection/);
   assert.doesNotMatch(marketsPage, /\/api\/v3\/(order|account)|X-MBX-APIKEY|secretKey/i);
   assert.match(marketsPage, /const MARKET_PAGE_SIZE = 20/);
@@ -139,9 +139,18 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(marketsPage, /function cleanCandle[\s\S]*high < Math\.max\(open, close\)[\s\S]*upperWick > wickLimit[\s\S]*time % bucket !== 0/);
   assert.match(marketsPage, /function sanitizeRows[\s\S]*new Map<number, Candle>[\s\S]*toSorted/);
   assert.doesNotMatch(marketsPage, /chartPrecision|priceFormat: \{ type: "price"/);
-  assert.match(marketsPage, /getVisibleRange\(\)[\s\S]*setVisibleRange\(previousRange\)/);
+  assert.match(marketsPage, /getVisibleLogicalRange\(\)[\s\S]*getVisibleRange\(\)[\s\S]*wasFollowingLatest[\s\S]*setVisibleRange\(previousTimeRange\)/);
   assert.match(marketsPage, /endTime: String\(currentCandles\[0\]\.time - 1\)/);
   assert.match(marketsPage, /aria-label="Zoom in"[\s\S]*aria-label="Zoom out"[\s\S]*Latest/);
+  assert.match(marketsPage, /const LIVE_CHART_POLL_MS = 5_000/);
+  assert.match(marketsPage, /function mergeCandles[\s\S]*new Map\(current\.map[\s\S]*toSorted/);
+  assert.match(marketsPage, /limit: "3"[\s\S]*window\.setInterval\(refreshLiveChart, LIVE_CHART_POLL_MS\)/);
+  assert.match(marketsPage, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
+  assert.match(marketsPage, /setLastLiveUpdate\(Date\.now\(\)\)[\s\S]*setLiveState\("live"\)/);
+  assert.match(marketsPage, /market-live-status[\s\S]*Reconnecting[\s\S]*Waiting for first candle/);
+  assert.doesNotMatch(marketsPage, /Refresh chart|market-chart-refresh/);
+  assert.match(styles, /\.market-live-status\s*\{[^}]*display:\s*grid/s);
+  assert.doesNotMatch(styles, /\.market-chart-refresh/);
   assert.doesNotMatch(styles, /\.market-candle-layer|\.market-candle-slot|\.market-price-axis/);
   assert.match(styles, /\.markets-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.market-list\s*\{[^}]*overflow-y:\s*auto/s);

@@ -337,10 +337,17 @@ button { color: inherit; }
 .market-last-price b { align-self: center; font-size: 10px; }
 .market-chart-toolbar { min-height: 54px; padding: 0 21px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #1d2b3d; }
 .market-timeframes { display: flex; gap: 4px; }
-.market-timeframes button, .market-chart-refresh { height: 30px; padding: 0 10px; color: #8996a9; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 9px; font-weight: 700; }
+.market-timeframes button { height: 30px; padding: 0 10px; color: #8996a9; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 9px; font-weight: 700; }
 .market-timeframes button.active { color: #d7adff; border-color: #674090; background: #25153d; }
-.market-chart-refresh { color: #ae75df; border-color: #44315f; }
-.market-chart-refresh:disabled { cursor: wait; opacity: .55; }
+.market-live-status { min-width: 145px; display: grid; justify-items: end; gap: 3px; }
+.market-live-status > span { min-height: 25px; padding: 0 9px; display: flex; align-items: center; gap: 6px; color: #72e7bd; border: 1px solid #285e51; border-radius: 14px; background: rgba(16, 75, 61, .2); text-transform: uppercase; font-size: 8px; font-weight: 800; letter-spacing: .05em; }
+.market-live-status i { width: 7px; height: 7px; border-radius: 50%; background: #44e3ac; box-shadow: 0 0 8px rgba(68, 227, 172, .55); animation: market-live-pulse 1.7s ease-in-out infinite; }
+.market-live-status small { color: #69778b; font-size: 8px; }
+.market-live-status.connecting > span { color: #c7a0ef; border-color: #523973; background: rgba(61, 37, 91, .24); }
+.market-live-status.connecting i { background: #ae63ed; box-shadow: 0 0 8px rgba(174, 99, 237, .55); }
+.market-live-status.delayed > span { color: #f6c369; border-color: #735923; background: rgba(103, 75, 17, .2); }
+.market-live-status.delayed i { background: #f2b94f; box-shadow: 0 0 8px rgba(242, 185, 79, .48); }
+@keyframes market-live-pulse { 50% { opacity: .42; transform: scale(.78); } }
 .market-chart-frame { position: relative; min-height: 435px; padding: 22px 22px 15px; }
 .market-chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 11px; color: #8d9aad; background: rgba(6, 16, 29, .92); font-size: 12px; }
 .market-chart-loading.error strong { color: #e1e5eb; }

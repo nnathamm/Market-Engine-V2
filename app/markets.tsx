@@ -52,6 +52,7 @@ type Candle = {
 type WeexKline = [number, string, string, string, string, string, number, ...unknown[]];
 
 const MARKET_PAGE_SIZE = 20;
+const LIVE_CHART_POLL_MS = 5_000;
 const HISTORY_CONFIG: Record<string, { initial: number; visible: number; page: number }> = {
   "1m": { initial: 360, visible: 100, page: 100 },
   "5m": { initial: 360, visible: 110, page: 100 },
@@ -113,7 +114,7 @@ function formatVolume(value: string) {
 }
 
 function formatTime(timestamp: number) {
-  return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function subscribeFavorites(notify: () => void) {
@@ -175,6 +176,12 @@ function sanitizeRows(rows: WeexKline[], interval: string) {
   return [...unique.values()].toSorted((left, right) => left.time - right.time);
 }
 
+function mergeCandles(current: Candle[], incoming: Candle[]) {
+  const merged = new Map(current.map((candle) => [candle.time, candle]));
+  for (const candle of incoming) merged.set(candle.time, candle);
+  return [...merged.values()].toSorted((left, right) => left.time - right.time);
+}
+
 function MarketChart({
   candles,
   datasetKey,
@@ -194,6 +201,7 @@ function MarketChart({
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const datasetKeyRef = useRef("");
+  const dataLengthRef = useRef(0);
   const onNeedMoreRef = useRef(onNeedMore);
 
   useEffect(() => {
@@ -285,8 +293,10 @@ function MarketChart({
       low: candle.low,
       close: candle.close,
     }));
-    const previousRange = chart.timeScale().getVisibleRange();
+    const previousLogicalRange = chart.timeScale().getVisibleLogicalRange();
+    const previousTimeRange = chart.timeScale().getVisibleRange();
     const sameDataset = datasetKeyRef.current === datasetKey;
+    const wasFollowingLatest = sameDataset && previousLogicalRange !== null && previousLogicalRange.to >= dataLengthRef.current;
     series.setData(data);
     chart.priceScale("right").applyOptions({ autoScale: true });
 
@@ -295,11 +305,16 @@ function MarketChart({
         from: Math.max(0, data.length - visibleCandles) as Logical,
         to: (data.length + 2) as Logical,
       });
-    } else if (previousRange) {
-      chart.timeScale().setVisibleRange(previousRange);
+    } else if (previousLogicalRange && wasFollowingLatest) {
+      const span = Math.max(6, previousLogicalRange.to - previousLogicalRange.from);
+      const to = data.length + 2;
+      chart.timeScale().setVisibleLogicalRange({ from: (to - span) as Logical, to: to as Logical });
+    } else if (previousTimeRange) {
+      chart.timeScale().setVisibleRange(previousTimeRange);
     }
 
     datasetKeyRef.current = datasetKey;
+    dataLengthRef.current = data.length;
   }, [candles, datasetKey, visibleCandles]);
 
   function zoom(multiplier: number) {
@@ -353,11 +368,14 @@ export default function MarketsView() {
   const [marketsError, setMarketsError] = useState("");
   const [chartError, setChartError] = useState("");
   const [marketRequest, setMarketRequest] = useState(0);
-  const [chartRequest, setChartRequest] = useState(0);
+  const [chartRetryRequest, setChartRetryRequest] = useState(0);
   const [asOf, setAsOf] = useState(0);
+  const [lastLiveUpdate, setLastLiveUpdate] = useState(0);
+  const [liveState, setLiveState] = useState<"connecting" | "live" | "delayed">("connecting");
   const candlesRef = useRef<Candle[]>([]);
   const historyLoadingRef = useRef(false);
-  const datasetKey = selected ? `${selected.symbol}:${interval}` : "";
+  const selectedSymbol = selected?.symbol ?? "";
+  const datasetKey = selectedSymbol ? `${selectedSymbol}:${interval}` : "";
   const datasetKeyRef = useRef(datasetKey);
   const deferredQuery = useDeferredValue(query.trim().toUpperCase());
   const favoritesSnapshot = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getServerFavoritesSnapshot);
@@ -370,6 +388,21 @@ export default function MarketsView() {
   useEffect(() => {
     datasetKeyRef.current = datasetKey;
   }, [datasetKey]);
+
+  const applyLatestCandle = useCallback((symbol: string, candle: Candle) => {
+    const updateMarket = (market: Market) => {
+      if (market.symbol !== symbol) return market;
+      const openPrice = numberValue(market.openPrice);
+      return {
+        ...market,
+        lastPrice: String(candle.close),
+        closeTime: Date.now(),
+        changePercent: openPrice > 0 ? ((candle.close - openPrice) / openPrice) * 100 : market.changePercent,
+      };
+    };
+    setSelected((current) => current ? updateMarket(current) : current);
+    setMarkets((current) => current.map(updateMarket));
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -396,46 +429,98 @@ export default function MarketsView() {
   }, [marketRequest]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selectedSymbol) return;
     const controller = new AbortController();
+    const requestKey = `${selectedSymbol}:${interval}`;
     historyLoadingRef.current = false;
     async function loadChart() {
       setHistoryLoading(false);
       setHasMoreHistory(true);
       setChartLoading(true);
       setChartError("");
+      setLiveState("connecting");
+      setLastLiveUpdate(0);
       try {
         const config = HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"];
-        const params = new URLSearchParams({ symbol: selected.symbol, interval, limit: String(config.initial) });
+        const params = new URLSearchParams({ symbol: selectedSymbol, interval, limit: String(config.initial) });
         const response = await fetch(`/api/weex/klines?${params}`, { signal: controller.signal, cache: "no-store" });
         if (!response.ok) throw new Error("Unable to load this WEEX chart.");
         const rows = await response.json() as WeexKline[];
         const nextCandles = sanitizeRows(rows, interval);
+        if (datasetKeyRef.current !== requestKey) return;
         candlesRef.current = nextCandles;
         setCandles(nextCandles);
         setHasMoreHistory(rows.length === config.initial);
+        const latest = nextCandles.at(-1);
+        if (latest) applyLatestCandle(selectedSymbol, latest);
+        setLastLiveUpdate(Date.now());
+        setLiveState("live");
       } catch (error) {
         if (controller.signal.aborted) return;
         setChartError(error instanceof Error ? error.message : "Unable to load this chart.");
         setCandles([]);
+        setLiveState("delayed");
       } finally {
         if (!controller.signal.aborted) setChartLoading(false);
       }
     }
     void loadChart();
     return () => controller.abort();
-  }, [selected, interval, chartRequest]);
+  }, [selectedSymbol, interval, chartRetryRequest, applyLatestCandle]);
+
+  useEffect(() => {
+    if (!selectedSymbol || chartLoading || chartError || candlesRef.current.length === 0) return;
+    const requestKey = `${selectedSymbol}:${interval}`;
+    let activeController: AbortController | null = null;
+    let disposed = false;
+    let inFlight = false;
+
+    async function refreshLiveChart() {
+      if (disposed || inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      activeController = new AbortController();
+      try {
+        const params = new URLSearchParams({ symbol: selectedSymbol, interval, limit: "3" });
+        const response = await fetch(`/api/weex/klines?${params}`, { signal: activeController.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("The live WEEX candle feed is temporarily delayed.");
+        const rows = await response.json() as WeexKline[];
+        const freshCandles = sanitizeRows(rows, interval);
+        if (disposed || datasetKeyRef.current !== requestKey || freshCandles.length === 0) return;
+        const nextCandles = mergeCandles(candlesRef.current, freshCandles);
+        candlesRef.current = nextCandles;
+        setCandles(nextCandles);
+        applyLatestCandle(selectedSymbol, freshCandles.at(-1)!);
+        setLastLiveUpdate(Date.now());
+        setLiveState("live");
+      } catch {
+        if (disposed || activeController.signal.aborted) return;
+        setLiveState("delayed");
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    const timer = window.setInterval(refreshLiveChart, LIVE_CHART_POLL_MS);
+    const refreshWhenVisible = () => document.visibilityState === "visible" && void refreshLiveChart();
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      disposed = true;
+      activeController?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [selectedSymbol, interval, chartLoading, chartError, applyLatestCandle]);
 
   const loadOlderCandles = useCallback(async () => {
     const currentCandles = candlesRef.current;
-    if (!selected || currentCandles.length === 0 || historyLoadingRef.current || !hasMoreHistory) return;
-    const requestKey = `${selected.symbol}:${interval}`;
+    if (!selectedSymbol || currentCandles.length === 0 || historyLoadingRef.current || !hasMoreHistory) return;
+    const requestKey = `${selectedSymbol}:${interval}`;
     historyLoadingRef.current = true;
     setHistoryLoading(true);
     try {
       const config = HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"];
       const params = new URLSearchParams({
-        symbol: selected.symbol,
+        symbol: selectedSymbol,
         interval,
         endTime: String(currentCandles[0].time - 1),
         limit: String(config.page),
@@ -459,7 +544,7 @@ export default function MarketsView() {
       historyLoadingRef.current = false;
       if (datasetKeyRef.current === requestKey) setHistoryLoading(false);
     }
-  }, [selected, interval, hasMoreHistory]);
+  }, [selectedSymbol, interval, hasMoreHistory]);
 
   const filteredMarkets = useMemo(() => {
     const result = markets.filter((market) => {
@@ -555,11 +640,11 @@ export default function MarketsView() {
                 <div className="market-timeframes" aria-label="Chart timeframe">
                   {CHART_TIMEFRAMES.map(([value, label]) => <button className={interval === value ? "active" : ""} type="button" aria-pressed={interval === value} onClick={() => setInterval(value)} key={value}>{label}</button>)}
                 </div>
-                <button className="market-chart-refresh" type="button" disabled={chartLoading} onClick={() => setChartRequest((current) => current + 1)}>↻ Refresh chart</button>
+                <div className={`market-live-status ${liveState}`} role="status"><span><i aria-hidden="true" />{liveState === "live" ? "Live" : liveState === "delayed" ? "Reconnecting" : "Connecting"}</span><small>{lastLiveUpdate ? `Updated ${formatTime(lastLiveUpdate)}` : "Waiting for first candle"}</small></div>
               </div>
               <div className="market-chart-frame">
                 {chartLoading ? <div className="market-chart-loading"><span className="market-loader" />Loading {selected.symbol} candles…</div> : null}
-                {!chartLoading && chartError ? <div className="market-chart-loading error"><strong>Chart unavailable</strong><span>{chartError}</span><button type="button" onClick={() => setChartRequest((current) => current + 1)}>Try again</button></div> : null}
+                {!chartLoading && chartError ? <div className="market-chart-loading error"><strong>Chart unavailable</strong><span>{chartError}</span><button type="button" onClick={() => setChartRetryRequest((current) => current + 1)}>Try again</button></div> : null}
                 {!chartLoading && !chartError ? <MarketChart candles={candles} datasetKey={datasetKey} historyLoading={historyLoading} hasMoreHistory={hasMoreHistory} onNeedMore={loadOlderCandles} visibleCandles={(HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"]).visible} /> : null}
               </div>
               <div className="market-stat-grid">
