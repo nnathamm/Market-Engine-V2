@@ -4,7 +4,7 @@ import pool from "@/lib/db";
 export async function GET() {
   try {
     const { rows } = await pool.query(
-      "SELECT id, symbol, label, created_at FROM tracked_tokens ORDER BY created_at DESC"
+      "SELECT id, symbol, label, coingecko_id, image_url, full_name, cached_price, cached_change_24h, cached_rank, created_at FROM tracked_tokens ORDER BY created_at DESC"
     );
     return NextResponse.json(rows);
   } catch (err) {
