@@ -37,7 +37,7 @@ test("keeps the application UI-only", async () => {
   ]);
 
   assert.doesNotMatch(page, /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|indexedDB/);
-  assert.doesNotMatch(page, /score|decision|order execution|market feed/i);
+  assert.doesNotMatch(page, /decision engine|order execution|market feed/i);
   const hostingConfig = JSON.parse(hosting);
   assert.equal(hostingConfig.d1, null);
   assert.equal(hostingConfig.r2, null);
@@ -61,4 +61,13 @@ test("keeps the application UI-only", async () => {
   assert.match(styles, /\.ui-custom-duration-fields\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s);
   assert.match(styles, /\.ui-dropdown-menu\.align-above\s*\{[^}]*top:\s*auto;[^}]*bottom:\s*52px/s);
   assert.match(styles, /\.ui-dropdown-menu\.cooldown-menu\s*\{[^}]*width:\s*360px;[^}]*max-width:\s*calc\(100vw - 40px\)/s);
+  assert.match(page, /type View = "home" \| "create" \| "signals" \| "order-flow"/);
+  assert.match(page, /function OrderFlowView[\s\S]*Order Flow Settings[\s\S]*Timeframe Configuration[\s\S]*Minimum Imbalance Threshold[\s\S]*Minimum Confidence Score/);
+  assert.match(page, /const ORDER_FLOW_TIMEFRAMES = \["1m", "5m", "15m", "30m", "1H", "4H", "1D"\]/);
+  assert.match(page, /Reset to Defaults[\s\S]*Save Changes[\s\S]*Order Flow Preview/);
+  assert.match(page, /Bullish Confidence/);
+  assert.match(page, /setView\("order-flow"\)/);
+  assert.match(styles, /\.of-page\s*\{[^}]*grid-template-columns:\s*194px minmax\(0, 1fr\)/s);
+  assert.match(styles, /\.of-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(680px, 1fr\) 311px/s);
+  assert.match(styles, /\.of-gauge-arc\s*\{[^}]*conic-gradient/s);
 });

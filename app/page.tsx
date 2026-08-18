@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-type View = "home" | "create" | "signals";
+type View = "home" | "create" | "signals" | "order-flow";
 type DropdownOption = { value: string; label: string };
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
@@ -247,6 +247,9 @@ function InnerNavigation({ activeView, setView }: { activeView: "create" | "sign
         <button className={activeView === "signals" ? "active" : ""} type="button" aria-current={activeView === "signals" ? "page" : undefined} onClick={() => setView("signals")}>
           <span aria-hidden="true">☷</span> View Signals
         </button>
+        <button type="button" onClick={() => setView("order-flow")}>
+          <span aria-hidden="true">⇄</span> Order Flow
+        </button>
       </nav>
     </div>
   );
@@ -435,6 +438,264 @@ function SignalsView({ setView }: { setView: (view: View) => void }) {
   );
 }
 
+type OrderFlowValues = {
+  imbalance: number;
+  imbalanceLookback: number;
+  differential: number;
+  volumeMultiplier: number;
+  volumeLookback: number;
+  confidence: number;
+};
+
+const DEFAULT_ORDER_FLOW_VALUES: OrderFlowValues = {
+  imbalance: 60,
+  imbalanceLookback: 60,
+  differential: 10,
+  volumeMultiplier: 1.5,
+  volumeLookback: 60,
+  confidence: 70,
+};
+
+const ORDER_FLOW_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
+  ["⌂", "Dashboard", "home"],
+  ["◈", "Signals", "signals"],
+  ["⌁", "Chart", null],
+  ["⊗", "Backtesting", null],
+  ["▣", "Trades", null],
+  ["▥", "Analytics", null],
+];
+
+const ORDER_FLOW_SYSTEM_NAV = [
+  ["◉", "Markets"],
+  ["▤", "Data Feeds"],
+  ["♧", "Users"],
+  ["♢", "Alerts"],
+  ["⌘", "Integrations"],
+] as const;
+
+const ORDER_FLOW_TIMEFRAMES = ["1m", "5m", "15m", "30m", "1H", "4H", "1D"] as const;
+
+function FlowSidebar({ setView }: { setView: (view: View) => void }) {
+  return (
+    <aside className="of-sidebar">
+      <button className="of-brand" type="button" onClick={() => setView("home")}>
+        <span className="of-brand-mark" aria-hidden="true" />
+        <strong>EdgeSignals</strong>
+      </button>
+      <nav className="of-nav" aria-label="EdgeSignals navigation">
+        {ORDER_FLOW_PRIMARY_NAV.map(([icon, label, destination]) => (
+          <button type="button" key={label} onClick={() => {
+            if (destination) setView(destination);
+          }}>
+            <span className="of-nav-icon" aria-hidden="true">{icon}</span>{label}
+          </button>
+        ))}
+        <small>System</small>
+        {ORDER_FLOW_SYSTEM_NAV.map(([icon, label]) => (
+          <button type="button" key={label}><span className="of-nav-icon" aria-hidden="true">{icon}</span>{label}</button>
+        ))}
+        <button className="active" type="button"><span className="of-nav-icon" aria-hidden="true">⌘</span>Settings</button>
+        <div className="of-subnav">
+          <button type="button">General</button>
+          <button type="button">Trading</button>
+          <button type="button">Risk</button>
+          <button className="active" type="button"><i aria-hidden="true" />Order Flow</button>
+          <button type="button">Notifications</button>
+          <button type="button">Logs</button>
+        </div>
+      </nav>
+      <div className="of-profile">
+        <span className="of-avatar">AD</span>
+        <span><strong>Admin</strong><small>Admin</small></span>
+        <i aria-hidden="true">⌄</i>
+      </div>
+    </aside>
+  );
+}
+
+function FlowSettingRow({
+  title,
+  description,
+  value,
+  min,
+  max,
+  step = 1,
+  unit,
+  hint,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit: string;
+  hint: string;
+  onChange: (value: number) => void;
+}) {
+  const progress = ((value - min) / (max - min)) * 100;
+  const displayValue = step < 1 ? value.toFixed(2) : String(value);
+
+  return (
+    <div className="of-setting-row">
+      <div className="of-setting-copy"><strong>{title} <span aria-hidden="true">ⓘ</span></strong><small>{description}</small></div>
+      <input
+        className="of-range"
+        type="range"
+        aria-label={title}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        style={{ "--flow-progress": `${progress}%` } as React.CSSProperties}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <label className="of-value-box">
+        <span className="sr-only">{title} value</span>
+        <input type="number" min={min} max={max} step={step} value={displayValue} onChange={(event) => onChange(Number(event.target.value))} />
+        <b>{unit}</b>
+      </label>
+      <p>{hint}</p>
+    </div>
+  );
+}
+
+function FlowSelectRow({ title, description, value, options, hint, onChange }: {
+  title: string;
+  description: string;
+  value: string;
+  options: string[];
+  hint: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="of-setting-row select-row">
+      <div className="of-setting-copy"><strong>{title} <span aria-hidden="true">ⓘ</span></strong><small>{description}</small></div>
+      <label className="of-select-wrap">
+        <span className="sr-only">{title}</span>
+        <select value={value} onChange={(event) => onChange(event.target.value)}>
+          {options.map((option) => <option key={option}>{option}</option>)}
+        </select>
+      </label>
+      <p>{hint}</p>
+    </div>
+  );
+}
+
+function FlowGauge() {
+  return (
+    <div className="of-gauge-wrap" role="img" aria-label="Bullish confidence 78 percent">
+      <div className="of-gauge"><span className="of-gauge-arc" /><span className="of-gauge-needle" /></div>
+      <strong>78%</strong>
+      <b>Bullish Confidence</b>
+      <small>Strong Confirmation</small>
+    </div>
+  );
+}
+
+function OrderFlowView({ setView }: { setView: (view: View) => void }) {
+  const [timeframe, setTimeframe] = useState("5m");
+  const [enabled, setEnabled] = useState(true);
+  const [values, setValues] = useState<OrderFlowValues>(DEFAULT_ORDER_FLOW_VALUES);
+  const [confluence, setConfluence] = useState("Imbalance + Volume");
+  const [direction, setDirection] = useState("Strict (Must Align)");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [lastSaved, setLastSaved] = useState("Last saved: 2 minutes ago");
+
+  function setValue(key: keyof OrderFlowValues, value: number) {
+    setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function resetDefaults() {
+    setTimeframe("5m");
+    setEnabled(true);
+    setValues(DEFAULT_ORDER_FLOW_VALUES);
+    setConfluence("Imbalance + Volume");
+    setDirection("Strict (Must Align)");
+    setLastSaved("Defaults restored");
+  }
+
+  return (
+    <div className="of-page">
+      <FlowSidebar setView={setView} />
+      <main className="of-main">
+        <header className="of-header">
+          <div className="of-breadcrumb"><span>Settings</span><b>›</b><strong>Order Flow</strong></div>
+          <div className="of-title-row"><h1>Order Flow Settings</h1><span>Advanced</span></div>
+          <p>Configure order flow analysis parameters by timeframe. These settings control how order flow<br />confirmation is calculated across the platform.</p>
+          <button className="of-help" type="button"><span aria-hidden="true">?</span> How Order Flow Works</button>
+          <div className="of-header-actions">
+            <button type="button" onClick={resetDefaults}>Reset to Defaults</button>
+            <button className="save" type="button" onClick={() => setLastSaved("Last saved: just now")}><span aria-hidden="true">▣</span> Save Changes</button>
+          </div>
+        </header>
+
+        <div className="of-workspace">
+          <section className="of-config-panel">
+            <div className="of-tabs" role="tablist" aria-label="Order flow settings sections">
+              <button className="active" type="button" role="tab" aria-selected="true">Timeframe Configuration</button>
+              <button type="button" role="tab" aria-selected="false">Global Settings</button>
+            </div>
+            <div className="of-timeframe-bar">
+              <div className="of-timeframes" aria-label="Select timeframe">
+                {ORDER_FLOW_TIMEFRAMES.map((option) => (
+                  <button className={timeframe === option ? "active" : ""} type="button" key={option} onClick={() => setTimeframe(option)}>{option}</button>
+                ))}
+              </div>
+              <label className="of-enable"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /><span />Enable Order Flow</label>
+            </div>
+
+            <div className="of-settings-table">
+              <h2>Imbalance Settings</h2>
+              <FlowSettingRow title="Minimum Imbalance Threshold" description="Minimum buy/sell imbalance required" value={values.imbalance} min={0} max={100} unit="%" hint="Higher = stricter confirmation" onChange={(value) => setValue("imbalance", value)} />
+              <FlowSettingRow title="Imbalance Lookback Window" description="Time window to calculate imbalance" value={values.imbalanceLookback} min={1} max={120} unit="min" hint="Compares against historical average" onChange={(value) => setValue("imbalanceLookback", value)} />
+              <FlowSettingRow title="Imbalance Differential" description="Current imbalance must exceed historical average by" value={values.differential} min={0} max={50} unit="%" hint="Filters out weak imbalances" onChange={(value) => setValue("differential", value)} />
+              <h2>Volume Confirmation</h2>
+              <FlowSettingRow title="Minimum Volume Multiplier" description="Current volume vs average volume" value={values.volumeMultiplier} min={1} max={3} step={0.05} unit="x" hint="1.50x = 50% above average" onChange={(value) => setValue("volumeMultiplier", value)} />
+              <FlowSettingRow title="Volume Lookback Window" description="Window for average volume calculation" value={values.volumeLookback} min={1} max={120} unit="min" hint="Should match market conditions" onChange={(value) => setValue("volumeLookback", value)} />
+              <h2>Confirmation Settings</h2>
+              <FlowSettingRow title="Minimum Confidence Score" description="Overall confidence required for confirmation" value={values.confidence} min={0} max={100} unit="%" hint="0-100% confidence threshold" onChange={(value) => setValue("confidence", value)} />
+              <FlowSelectRow title="Require Confluence" description="Require multiple conditions to align" value={confluence} options={["Imbalance + Volume", "Imbalance Only", "Volume Only"]} hint="More confluence = higher quality" onChange={setConfluence} />
+              <FlowSelectRow title="Confirmation Direction" description="How strict should direction matching be" value={direction} options={["Strict (Must Align)", "Allow Minor Divergence", "Flexible"]} hint="Strict or Allow Minor Divergence" onChange={setDirection} />
+            </div>
+
+            <button className="of-advanced" type="button" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((current) => !current)}>
+              <span>Advanced Filters (Optional)</span><b aria-hidden="true">⌄</b>
+            </button>
+            {advancedOpen ? <div className="of-advanced-content">Additional order flow filters will appear here.</div> : null}
+            <div className="of-status-bar">
+              <span>Changes are applied in real-time to new signals. Existing signals will use new settings on next evaluation.</span>
+              <b aria-live="polite">{lastSaved} <i aria-hidden="true">✓</i></b>
+            </div>
+          </section>
+
+          <aside className="of-insights">
+            <section className="of-card preview-card">
+              <header><strong>Order Flow Preview</strong><span><i /> Live</span></header>
+              <FlowGauge />
+              <div className="of-preview-stats"><span>Imbalance <b>65%</b></span><span>Volume <b>1.62x</b></span><span>Confluence <b>High</b></span><span>Overall <b>78%</b></span></div>
+            </section>
+            <section className="of-card about-card">
+              <h2>About These Settings</h2>
+              <p>These parameters determine how order flow confirmation is calculated.</p>
+              <div className="of-about-item purple"><i>↕</i><span><strong>Imbalance</strong><small>Measures the ratio of aggressive buys to sells in the order book and trades.</small></span></div>
+              <div className="of-about-item blue"><i>◴</i><span><strong>Volume</strong><small>Confirms that the imbalance is supported by meaningful volume.</small></span></div>
+              <div className="of-about-item amber"><i>⌘</i><span><strong>Confluence</strong><small>Ensures multiple factors align before confirming a signal.</small></span></div>
+              <button type="button">Learn more about order flow <span aria-hidden="true">↗</span></button>
+            </section>
+            <section className="of-card apply-card">
+              <h2>Apply to All Timeframes</h2>
+              <p>Copy current {timeframe} settings to all timeframes</p>
+              <button type="button"><span aria-hidden="true">⌘</span> Apply to All</button>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function ConditionModal({ close }: { close: () => void }) {
   const [triggerOpen, setTriggerOpen] = useState(true);
   const [trigger, setTrigger] = useState("Bollinger Squeeze");
@@ -476,6 +737,7 @@ export default function Home() {
       {view === "home" && <HomeView setView={setView} />}
       {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
       {view === "signals" && <SignalsView setView={setView} />}
+      {view === "order-flow" && <OrderFlowView setView={setView} />}
       {conditionOpen && <ConditionModal close={() => setConditionOpen(false)} />}
     </main>
   );
