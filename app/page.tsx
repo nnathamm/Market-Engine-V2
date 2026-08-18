@@ -346,7 +346,6 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
     <div className="screen inner-screen create-screen">
       <header className="inner-header mt-[10px] mb-[10px]">
         <div className="inner-title">
-          <SignalMark />
           <div>
             <h1>Create New Signal</h1>
             <p>Build a new signal with your own rules, time frame, and trigger conditions.</p>
