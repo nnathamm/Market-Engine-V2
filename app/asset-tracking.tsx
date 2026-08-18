@@ -293,7 +293,7 @@ export default function AssetTrackingView() {
   const allTokens = useMemo(() => {
     const dbRows: TokenRow[] = dbTokens.map(t => {
       const m = t.coingecko_id ? marketData.get(t.coingecko_id) : undefined;
-      const rawPrice = m?.priceUsd ?? t.cached_price;
+      const rawPrice = m?.priceUsd ?? (t.cached_price != null ? Number(t.cached_price) : null);
       const price = rawPrice != null
         ? (rawPrice >= 1
           ? `$${rawPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
