@@ -4,36 +4,27 @@ A front-end-only React app (React Server Components, Tailwind CSS) built with `v
 
 ## Stack
 
-- **Framework**: [vinext](https://github.com/nicholasgasior/vinext) — Vite + Next.js App Router hybrid
-- **Runtime target**: Cloudflare Workers (via `@cloudflare/vite-plugin` + Wrangler)
+- **Framework**: Next.js 16 (App Router) on Node.js
+- **Database**: Replit built-in PostgreSQL (connection via `DATABASE_URL` / `PG*` env vars)
 - **Styling**: Tailwind CSS v4
 - **Charts**: lightweight-charts
 - **Node**: ≥ 22.13.0
 
-## Running locally on Replit
+## Running on Replit
 
 ```bash
-npm run dev       # dev server on port 5000
+npm run dev       # Next.js dev server on port 5000
 npm run build     # production build
-npm test          # build + rendered-html tests
+npm start         # production server on port 5000
+npm test          # rendered-html source checks
 npm run lint      # ESLint
 ```
 
 The workflow **Start application** runs `npm run dev` and serves the app on port 5000.
 
-## Project constraints (from README)
-
-- No market data or external data sources
-- No API routes or network requests
-- No database, storage, authentication, or persistence
-- No signal calculations, decision scoring, or trading logic
-- No connection to the existing VELVET engine
-
-Signal rows are inert visual fixtures; buttons change visible screen/overlay in memory only.
-
 ## Deployment
 
-The project targets **Cloudflare Sites** (configured in `.openai/hosting.json`). GitHub (`nnathamm/Market-Engine-V2`) is the source of truth; see `AGENTS.md` for the full delivery workflow.
+Hosted on Replit. Use the Publish button to deploy. The production database schema is managed automatically by Replit's Publish flow.
 
 ## User preferences
 
