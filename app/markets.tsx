@@ -386,6 +386,7 @@ function MarketChart({
 const CDN_URLS: ((slug: string) => string)[] = [
   (slug) => `https://assets.coincap.io/assets/icons/${slug}@2x.png`,
   (slug) => `https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/128/color/${slug}.png`,
+  (slug) => `https://lcw.nyc3.cdn.digitaloceanspaces.com/production/currencies/64/${slug}.png`,
 ];
 
 // Module-level cache: symbol → index of next CDN to try (CDN_URLS.length = all failed)
