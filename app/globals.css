@@ -689,6 +689,7 @@ button { color: inherit; }
 .tracking-side-list > span { display: grid; grid-template-columns: 27px 1fr auto; align-items: center; gap: 9px; }
 .tracking-side-list em { color: #8eddbd; font-size: 8px; font-style: normal; }
 .tracking-toast { position: fixed; z-index: 130; right: 22px; bottom: 22px; max-width: 390px; padding: 13px 16px; color: #aaf1d5; border: 1px solid #2a725d; border-radius: 8px; background: #0b2722; box-shadow: 0 15px 35px rgba(0, 0, 0, .45); font-size: 11px; }
+.tracking-save-error { margin: 0 0 4px; padding: 9px 12px; color: #f87171; border: 1px solid #7f1d1d; border-radius: 6px; background: #1c0a0a; font-size: 12px; }
 
 .tracking-modal-backdrop { position: fixed; inset: 0; z-index: 140; padding: 12px; display: grid; place-items: center; background: rgba(1, 7, 16, .86); backdrop-filter: blur(5px); }
 .tracking-dialog { width: min(480px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 20px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #34445a; border-radius: 12px; background: linear-gradient(145deg, #0c1726, #081221); box-shadow: 0 30px 90px rgba(0, 0, 0, .67); scrollbar-width: thin; scrollbar-color: #7440a6 #0a1524; }

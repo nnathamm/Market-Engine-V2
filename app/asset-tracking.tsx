@@ -68,13 +68,15 @@ function CoinIcon({ symbol, imageUrl }: { symbol: string; imageUrl?: string }) {
   return <img src={src} alt={symbol} width={28} height={28} className="tracking-coin-img" onError={() => setFailed(true)} />;
 }
 
-function TrackingDialog({ kind, close, finish, onSave }: {
+function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "add" }: {
   kind: Exclude<DialogKind, null>;
   close: () => void;
   finish: (message: string) => void;
   onSave?: (data: Record<string, string | number | null>) => Promise<void>;
+  initialSearch?: string;
+  mode?: "add" | "link";
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch ?? "");
   const [results, setResults] = useState<CoinResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedCoin, setSelectedCoin] = useState<CoinResult | null>(null);
@@ -84,6 +86,7 @@ function TrackingDialog({ kind, close, finish, onSave }: {
   const [notes, setNotes] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && close();
@@ -116,6 +119,7 @@ function TrackingDialog({ kind, close, finish, onSave }: {
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
+    setSaveError(null);
     try {
       if (kind === "tokens") {
         const symbol = (selectedCoin?.symbol ?? search.trim()).toUpperCase();
@@ -130,12 +134,16 @@ function TrackingDialog({ kind, close, finish, onSave }: {
             cached_rank: parseInt(selectedCoin.rank, 10),
           } : {}),
         });
-        finish(symbol ? `${symbol} added to your tracked tokens.` : "Token added to your watchlist.");
+        finish(symbol
+          ? (mode === "link" ? `${symbol} linked to CoinGecko.` : `${symbol} added to your tracked tokens.`)
+          : "Token added to your watchlist.");
       } else {
         const address = walletAddress.trim();
         if (address && onSave) await onSave({ address, label, chain: walletChain, notes });
         finish(address ? `Wallet ${address.slice(0, 8)}… added to your watchlist.` : "Wallet added to your watchlist.");
       }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -149,10 +157,10 @@ function TrackingDialog({ kind, close, finish, onSave }: {
     <div className="tracking-modal-backdrop" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && close()}>
       <form id="Addnewtoken" className="tracking-dialog" role="dialog" aria-modal="true" aria-labelledby="tracking-dialog-title" onSubmit={submit}>
         <header>
-          <div><span className="tracking-dialog-mark" aria-hidden="true">◎</span><h2 id="tracking-dialog-title">Add New {kind === "tokens" ? "Token" : "Wallet"}</h2></div>
+          <div><span className="tracking-dialog-mark" aria-hidden="true">◎</span><h2 id="tracking-dialog-title">{mode === "link" ? "Link to CoinGecko" : `Add New ${kind === "tokens" ? "Token" : "Wallet"}`}</h2></div>
           <button type="button" aria-label="Close dialog" onClick={close}>×</button>
         </header>
-        <p>{kind === "tokens" ? "Add a token or trading pair to your monitored assets." : "Add a wallet address to your monitored assets."}</p>
+        <p>{mode === "link" ? "Search for this token on CoinGecko to enable live price data." : kind === "tokens" ? "Add a token or trading pair to your monitored assets." : "Add a wallet address to your monitored assets."}</p>
 
         {kind === "tokens" ? (
           <>
@@ -222,9 +230,12 @@ function TrackingDialog({ kind, close, finish, onSave }: {
         )}
 
         <label className="tracking-monitor-toggle"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /><span aria-hidden="true" /><b>Start monitoring immediately<small>Prepare this asset for alerts right away.</small></b></label>
+        {saveError && <p className="tracking-save-error" role="alert">⚠ {saveError}</p>}
         <footer>
           <button className="tracking-cancel" type="button" onClick={close} disabled={saving}>Cancel</button>
-          <button className="tracking-primary" type="submit" disabled={saving}>{saving ? "Saving…" : `Add ${kind === "tokens" ? "Token" : "Wallet"}`}</button>
+          <button className="tracking-primary" type="submit" disabled={saving || (mode === "link" && !selectedCoin)}>
+            {saving ? "Saving…" : mode === "link" ? "Link Token" : `Add ${kind === "tokens" ? "Token" : "Wallet"}`}
+          </button>
         </footer>
       </form>
     </div>
@@ -387,6 +398,7 @@ export default function AssetTrackingView() {
   }, [refreshWallets]);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [linkTokenSymbol, setLinkTokenSymbol] = useState<string | null>(null);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -396,9 +408,22 @@ export default function AssetTrackingView() {
   }, [openMenu]);
 
   const removeToken = useCallback(async (symbol: string) => {
-    await fetch(`/api/tracked/tokens/${symbol}`, { method: "DELETE" });
+    await fetch(`/api/tracked/tokens/${encodeURIComponent(symbol)}`, { method: "DELETE" });
     await refreshTokens();
     setOpenMenu(null);
+  }, [refreshTokens]);
+
+  const linkToken = useCallback(async (symbol: string, data: Record<string, string | number | null>) => {
+    const res = await fetch(`/api/tracked/tokens/${encodeURIComponent(symbol)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error ?? `Failed to link token (${res.status})`);
+    }
+    await refreshTokens();
   }, [refreshTokens]);
 
   const removeWallet = useCallback(async (portfolioId: string) => {
@@ -482,6 +507,9 @@ export default function AssetTrackingView() {
                                 <button type="button" onClick={() => editTokenLabel(token.symbol, token.name)}>✎ Edit Label</button>
                                 <button type="button" onClick={() => copy(token.symbol, "symbol")}>⎘ Copy Symbol</button>
                                 <a className="tracking-menu-link" href={`https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View on CoinGecko</a>
+                                {!token.coingecko_id && (
+                                  <button type="button" onClick={() => { setOpenMenu(null); setLinkTokenSymbol(token.symbol); }}>↗ Link to CoinGecko</button>
+                                )}
                                 <hr />
                                 <button type="button" className="tracking-menu-delete" onClick={() => removeToken(token.symbol)}>🗑 Delete Token</button>
                               </div>
@@ -550,6 +578,19 @@ export default function AssetTrackingView() {
       </div>
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}
       {dialog && <TrackingDialog kind={dialog} close={() => setDialog(null)} finish={finishDialog} onSave={dialog === "tokens" ? saveToken : saveWallet} />}
+      {linkTokenSymbol && (
+        <TrackingDialog
+          kind="tokens"
+          mode="link"
+          initialSearch={linkTokenSymbol}
+          close={() => setLinkTokenSymbol(null)}
+          finish={(msg) => { setLinkTokenSymbol(null); setToast(msg); window.setTimeout(() => setToast(""), 3200); }}
+          onSave={async (data) => {
+            const { symbol: _sym, label: _lbl, ...coinFields } = data;
+            await linkToken(linkTokenSymbol, coinFields);
+          }}
+        />
+      )}
     </div>
   );
 }
