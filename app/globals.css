@@ -69,7 +69,7 @@ button { color: inherit; }
 .application-shell.sidebar-open { --sidebar-width: 292px; }
 .application-stage { min-width: 0; min-height: 100vh; }
 .application-view { min-width: 0; }
-.application-topbar { position: sticky; z-index: 100; top: 0; height: 64px; padding: 0 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; border-bottom: 1px solid #1d2b3e; background: rgba(4, 13, 24, .95); backdrop-filter: blur(16px); }
+.application-topbar { position: sticky; z-index: 100; top: 0; height: 70px; padding: 0 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; border-bottom: 1px solid #1d2b3e; background: rgba(4, 13, 24, .95); backdrop-filter: blur(16px); }
 .application-menu-trigger { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #2b3a4f; border-radius: 9px; background: #0c1726; cursor: pointer; }
 .application-menu-trigger:hover, .application-menu-trigger:focus-visible, .application-menu-trigger.open { border-color: #7845af; outline: 0; background: #151c30; }
 .application-menu-trigger > span { color: #bd72ff; font-size: 20px; line-height: 1; }
