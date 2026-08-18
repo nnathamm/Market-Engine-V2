@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-type View = "create" | "signals" | "order-flow";
+type View = "create" | "signals" | "order-flow" | "notifications";
 type DropdownOption = { value: string; label: string };
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
@@ -241,6 +241,9 @@ function InnerNavigation({ activeView, setView }: { activeView: View; setView: (
         <button className={activeView === "order-flow" ? "active" : ""} type="button" aria-current={activeView === "order-flow" ? "page" : undefined} onClick={() => setView("order-flow")}>
           <span aria-hidden="true">⇄</span> Order Flow
         </button>
+        <button className={activeView === "notifications" ? "active" : ""} type="button" aria-current={activeView === "notifications" ? "page" : undefined} onClick={() => setView("notifications")}>
+          <span aria-hidden="true">♢</span> Notifications
+        </button>
       </nav>
     </div>
   );
@@ -308,10 +311,11 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
             <p>Configure the cooldown and optional notifications for this signal.</p>
             <div className="settings-fields">
               <CooldownChooser value={cooldown} onChange={setCooldown} />
-              <label className="notification-field">
+              <div className="notification-field">
                 <span>Notifications (Optional) <small>?</small></span>
-                <span className="toggle-row"><input type="checkbox" defaultChecked /> <em>Enable notifications when triggered</em></span>
-              </label>
+                <label className="toggle-row"><input type="checkbox" defaultChecked aria-label="Enable notifications when triggered" /> <em>Enable notifications when triggered</em></label>
+                <button className="configure-notifications" type="button" onClick={() => setView("notifications")}>Set delivery methods <span aria-hidden="true">→</span></button>
+              </div>
             </div>
             <div className="info-strip"><span>ⓘ</span> Cooldown prevents the same signal from triggering repeatedly too quickly.</div>
           </section>
@@ -413,13 +417,13 @@ const ORDER_FLOW_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | nul
   ["▥", "Analytics", null],
 ];
 
-const ORDER_FLOW_SYSTEM_NAV = [
-  ["◉", "Markets"],
-  ["▤", "Data Feeds"],
-  ["♧", "Users"],
-  ["♢", "Alerts"],
-  ["⌘", "Integrations"],
-] as const;
+const ORDER_FLOW_SYSTEM_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
+  ["◉", "Markets", null],
+  ["▤", "Data Feeds", null],
+  ["♧", "Users", null],
+  ["♢", "Alerts", "notifications"],
+  ["⌘", "Integrations", null],
+];
 
 const ORDER_FLOW_TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1m", label: "1 Minute (1m)" },
@@ -447,8 +451,10 @@ function FlowSidebar({ setView }: { setView: (view: View) => void }) {
           </button>
         ))}
         <small>System</small>
-        {ORDER_FLOW_SYSTEM_NAV.map(([icon, label]) => (
-          <button type="button" key={label}><span className="of-nav-icon" aria-hidden="true">{icon}</span>{label}</button>
+        {ORDER_FLOW_SYSTEM_NAV.map(([icon, label, destination]) => (
+          <button type="button" key={label} onClick={() => {
+            if (destination) setView(destination);
+          }}><span className="of-nav-icon" aria-hidden="true">{icon}</span>{label}</button>
         ))}
         <button className="active" type="button"><span className="of-nav-icon" aria-hidden="true">⌘</span>Settings</button>
         <div className="of-subnav">
@@ -456,7 +462,7 @@ function FlowSidebar({ setView }: { setView: (view: View) => void }) {
           <button type="button">Trading</button>
           <button type="button">Risk</button>
           <button className="active" type="button"><i aria-hidden="true" />Order Flow</button>
-          <button type="button">Notifications</button>
+          <button type="button" onClick={() => setView("notifications")}>Notifications</button>
           <button type="button">Logs</button>
         </div>
       </nav>
@@ -657,6 +663,132 @@ function OrderFlowView({ setView }: { setView: (view: View) => void }) {
   );
 }
 
+function NotificationSwitch({ checked, label, ariaLabel, onChange }: { checked: boolean; label: string; ariaLabel: string; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="notification-switch">
+      <input type="checkbox" checked={checked} aria-label={ariaLabel} onChange={(event) => onChange(event.target.checked)} />
+      <span aria-hidden="true" />
+      <b>{label}</b>
+    </label>
+  );
+}
+
+function NotificationChannelCard({
+  icon,
+  tone,
+  title,
+  description,
+  fieldLabel,
+  placeholder,
+  type,
+  value,
+  enabled,
+  helper,
+  onValueChange,
+  onEnabledChange,
+  onPreview,
+}: {
+  icon: string;
+  tone: "purple" | "blue" | "green";
+  title: string;
+  description: string;
+  fieldLabel: string;
+  placeholder: string;
+  type: "email" | "tel" | "url";
+  value: string;
+  enabled: boolean;
+  helper: string;
+  onValueChange: (value: string) => void;
+  onEnabledChange: (enabled: boolean) => void;
+  onPreview: () => void;
+}) {
+  return (
+    <section className={`surface notification-channel-card ${tone}`}>
+      <header>
+        <span className="notification-channel-icon" aria-hidden="true">{icon}</span>
+        <div><h2>{title}</h2><p>{description}</p></div>
+        <NotificationSwitch checked={enabled} label={enabled ? "On" : "Off"} ariaLabel={`Enable ${title} notifications`} onChange={onEnabledChange} />
+      </header>
+      <label className="notification-contact-field">
+        <span>{fieldLabel}</span>
+        <div>
+          <input type={type} value={value} autoComplete={type === "email" ? "email" : type === "tel" ? "tel" : "off"} placeholder={placeholder} onChange={(event) => onValueChange(event.target.value)} />
+          <button type="button" disabled={!enabled || !value.trim()} onClick={onPreview}>Preview test</button>
+        </div>
+        <small>{helper}</small>
+      </label>
+    </section>
+  );
+}
+
+function NotificationRule({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <div className="notification-rule">
+      <span><strong>{title}</strong><small>{description}</small></span>
+      <NotificationSwitch checked={checked} label={checked ? "On" : "Off"} ariaLabel={`Send notifications for ${title}`} onChange={onChange} />
+    </div>
+  );
+}
+
+function NotificationsView({ setView }: { setView: (view: View) => void }) {
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [discord, setDiscord] = useState("");
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [smsEnabled, setSmsEnabled] = useState(false);
+  const [discordEnabled, setDiscordEnabled] = useState(false);
+  const [rules, setRules] = useState({ triggered: true, invalidated: true, orderFlow: false, risk: true });
+  const [notice, setNotice] = useState("No settings have been saved in this preview.");
+  const configuredChannels = [emailEnabled && email.trim(), smsEnabled && phone.trim(), discordEnabled && discord.trim()].filter(Boolean).length;
+
+  function updateRule(key: keyof typeof rules, checked: boolean) {
+    setRules((current) => ({ ...current, [key]: checked }));
+  }
+
+  return (
+    <div className="screen inner-screen notifications-screen">
+      <InnerNavigation activeView="notifications" setView={setView} />
+      <header className="notifications-header">
+        <div className="inner-title">
+          <span className="notifications-hero-icon" aria-hidden="true">♢</span>
+          <div><h1>Notification Settings</h1><p>Choose where automatic signal alerts should be delivered.</p></div>
+        </div>
+        <button className="purple-button notification-save" type="button" onClick={() => setNotice("Settings updated for this session only.")}>Save Settings</button>
+      </header>
+
+      <div className="notification-prototype-note"><span>ⓘ</span><p><strong>Interface preview:</strong> contact details stay only on this page and are not stored or sent. Secure delivery connections will be added with the backend later.</p></div>
+
+      <main className="notifications-layout">
+        <div className="notification-channels">
+          <div className="notifications-section-heading"><div><h2>Delivery Methods</h2><p>Add the destinations that should receive alerts.</p></div><span>{configuredChannels} configured</span></div>
+          <NotificationChannelCard icon="@" tone="purple" title="Email" description="Send detailed alerts to an inbox." fieldLabel="Email address" placeholder="you@example.com" type="email" value={email} enabled={emailEnabled} helper="Use an address you check when trading." onValueChange={setEmail} onEnabledChange={setEmailEnabled} onPreview={() => setNotice(`Email preview prepared for ${email}.`)} />
+          <NotificationChannelCard icon="◫" tone="blue" title="Text Message" description="Send short, urgent alerts by SMS." fieldLabel="Phone number" placeholder="+1 (555) 000-0000" type="tel" value={phone} enabled={smsEnabled} helper="Include the country code, such as +1." onValueChange={setPhone} onEnabledChange={setSmsEnabled} onPreview={() => setNotice(`SMS preview prepared for ${phone}.`)} />
+          <NotificationChannelCard icon="#" tone="green" title="Discord" description="Post alerts directly into a Discord channel." fieldLabel="Discord webhook URL" placeholder="https://discord.com/api/webhooks/..." type="url" value={discord} enabled={discordEnabled} helper="Paste the webhook URL from the Discord channel that should receive alerts." onValueChange={setDiscord} onEnabledChange={setDiscordEnabled} onPreview={() => setNotice("Discord alert preview prepared.")} />
+        </div>
+
+        <aside className="notification-preferences">
+          <section className="surface notification-rules-card">
+            <h2>Automatic Alerts</h2>
+            <p>Choose which events should send a notification.</p>
+            <NotificationRule title="Signal triggered" description="A rule reaches its entry conditions." checked={rules.triggered} onChange={(checked) => updateRule("triggered", checked)} />
+            <NotificationRule title="Signal invalidated" description="Conditions fail after a signal appears." checked={rules.invalidated} onChange={(checked) => updateRule("invalidated", checked)} />
+            <NotificationRule title="Order-flow confirmation" description="Order flow confirms a market direction." checked={rules.orderFlow} onChange={(checked) => updateRule("orderFlow", checked)} />
+            <NotificationRule title="Risk warning" description="Price approaches a stop or danger level." checked={rules.risk} onChange={(checked) => updateRule("risk", checked)} />
+          </section>
+          <section className="surface notification-summary-card">
+            <h2>Delivery Summary</h2>
+            <div><span>Email</span><b className={emailEnabled && email.trim() ? "ready" : "waiting"}>{emailEnabled && email.trim() ? "Ready" : "Needs address"}</b></div>
+            <div><span>Text Message</span><b className={smsEnabled && phone.trim() ? "ready" : "waiting"}>{smsEnabled && phone.trim() ? "Ready" : "Not configured"}</b></div>
+            <div><span>Discord</span><b className={discordEnabled && discord.trim() ? "ready" : "waiting"}>{discordEnabled && discord.trim() ? "Ready" : "Not configured"}</b></div>
+            <p className="notification-live-status" aria-live="polite">{notice}</p>
+          </section>
+          <section className="surface notification-security-card"><span aria-hidden="true">⌾</span><div><h2>Keep contact details private</h2><p>Notification destinations should be encrypted and never exposed inside public alert messages.</p></div></section>
+        </aside>
+      </main>
+    </div>
+  );
+}
+
 function ConditionModal({ close }: { close: () => void }) {
   const [triggerOpen, setTriggerOpen] = useState(true);
   const [trigger, setTrigger] = useState("Bollinger Squeeze");
@@ -698,6 +830,7 @@ export default function Home() {
       {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
       {view === "signals" && <SignalsView setView={setView} />}
       {view === "order-flow" && <OrderFlowView setView={setView} />}
+      {view === "notifications" && <NotificationsView setView={setView} />}
       {conditionOpen && <ConditionModal close={() => setConditionOpen(false)} />}
     </main>
   );

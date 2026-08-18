@@ -60,7 +60,7 @@ test("keeps the application UI-only", async () => {
   assert.match(styles, /\.ui-custom-duration-fields\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s);
   assert.match(styles, /\.ui-dropdown-menu\.align-above\s*\{[^}]*top:\s*auto;[^}]*bottom:\s*52px/s);
   assert.match(styles, /\.ui-dropdown-menu\.cooldown-menu\s*\{[^}]*width:\s*360px;[^}]*max-width:\s*calc\(100vw - 40px\)/s);
-  assert.match(page, /type View = "create" \| "signals" \| "order-flow"/);
+  assert.match(page, /type View = "create" \| "signals" \| "order-flow" \| "notifications"/);
   assert.doesNotMatch(page, /function HomeView|view === "home"|setView\("home"\)/);
   assert.doesNotMatch(styles, /\.home-screen|\.home-header|\.home-main|\.choice-card/);
   assert.match(page, /function OrderFlowView[\s\S]*Order Flow Settings[\s\S]*Timeframe Configuration[\s\S]*Minimum Imbalance Threshold[\s\S]*Minimum Confidence Score/);
@@ -70,6 +70,13 @@ test("keeps the application UI-only", async () => {
   assert.match(page, /Reset to Defaults[\s\S]*Save Changes[\s\S]*Order Flow Preview/);
   assert.match(page, /Bullish Confidence/);
   assert.match(page, /setView\("order-flow"\)/);
+  assert.match(page, /function NotificationsView[\s\S]*Notification Settings[\s\S]*Email address[\s\S]*Phone number[\s\S]*Discord webhook URL/);
+  assert.match(page, /Interface preview:[\s\S]*not stored or sent/);
+  assert.match(page, /<InnerNavigation activeView="notifications"/);
+  assert.match(page, /setView\("notifications"\)/);
+  assert.match(page, /type="checkbox" checked=\{checked\} aria-label=\{ariaLabel\}/);
+  assert.match(styles, /\.notifications-layout\s*\{[^}]*grid-template-columns:/s);
+  assert.match(styles, /\.notification-switch input:checked \+ span/s);
   assert.match(styles, /\.of-page\s*\{[^}]*grid-template-columns:\s*194px minmax\(0, 1fr\)/s);
   assert.match(styles, /\.of-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(680px, 1fr\) 311px/s);
   assert.match(styles, /\.of-gauge-arc\s*\{[^}]*conic-gradient/s);
