@@ -72,11 +72,7 @@ button { color: inherit; }
 .application-topbar { position: sticky; z-index: 100; top: 0; height: 64px; padding: 0 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; border-bottom: 1px solid #1d2b3e; background: rgba(4, 13, 24, .95); backdrop-filter: blur(16px); }
 .application-menu-trigger { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #2b3a4f; border-radius: 9px; background: #0c1726; cursor: pointer; }
 .application-menu-trigger:hover, .application-menu-trigger:focus-visible, .application-menu-trigger.open { border-color: #7845af; outline: 0; background: #151c30; }
-.application-menu-trigger > span { width: 22px; display: grid; gap: 4px; }
-.application-menu-trigger i { width: 22px; height: 2px; border-radius: 3px; background: #bd72ff; transition: transform .16s ease, opacity .16s ease; }
-.application-menu-trigger.open i:first-child { transform: translateY(6px) rotate(45deg); }
-.application-menu-trigger.open i:nth-child(2) { opacity: 0; }
-.application-menu-trigger.open i:last-child { transform: translateY(-6px) rotate(-45deg); }
+.application-menu-trigger > span { color: #bd72ff; font-size: 20px; line-height: 1; }
 .application-page-context { min-width: 0; display: grid; gap: 1px; }
 .application-page-context small { color: #7d899c; text-transform: uppercase; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
 .application-page-context strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }

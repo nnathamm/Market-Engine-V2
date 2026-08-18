@@ -322,9 +322,9 @@ function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: 
   return (
     <header className="application-topbar">
       <button className={`application-menu-trigger ${sidebarOpen ? "open" : ""}`} type="button" aria-label={sidebarOpen ? "Collapse navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={toggleSidebar}>
-        <span aria-hidden="true"><i /><i /><i /></span>
+        <span aria-hidden="true">{sidebarOpen ? "‹" : "›"}</span>
       </button>
-      <div className="application-page-context"><strong>{currentPage[2]}</strong></div>
+      <div className="application-page-context"></div>
 
       <button className="master-profile-trigger" type="button" aria-current={activeView === "profile" ? "page" : undefined} onClick={() => setView("profile")}>
         <span className="master-avatar">MA</span>
