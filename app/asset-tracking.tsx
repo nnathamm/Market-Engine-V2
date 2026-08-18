@@ -440,14 +440,31 @@ export default function AssetTrackingView() {
 
   useEffect(() => {
     if (!dbTokens.length) return;
-    fetch("/api/coins/live-prices", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tokens: dbTokens }),
-    })
-      .then(r => r.ok ? r.json() : {})
-      .then((data: Record<string, LivePrice>) => setLiveData(new Map(Object.entries(data))))
-      .catch(() => {});
+
+    const fetchLivePrices = () => {
+      if (document.visibilityState === "hidden") return;
+      fetch("/api/coins/live-prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokens: dbTokens }),
+      })
+        .then(r => r.ok ? r.json() : {})
+        .then((data: Record<string, LivePrice>) => setLiveData(new Map(Object.entries(data))))
+        .catch(() => {});
+    };
+
+    fetchLivePrices();
+    const interval = setInterval(fetchLivePrices, 60_000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchLivePrices();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [dbTokens]);
 
   const allTokens = useMemo(() => {
