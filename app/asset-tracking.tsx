@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+const TRACKED_STORAGE_KEY = "signal-control:tracked-tokens";
+const TRACKED_CHANGED_EVENT = "signal-control:tracked-tokens-changed";
+
 type CoinResult = { id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string; image?: string };
 type MarketEntry = { id: string; symbol: string; name: string; priceUsd: number; changePercent24Hr: number; rank: number; image: string };
 type DbToken = {
@@ -269,7 +272,15 @@ export default function AssetTrackingView() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const refreshTokens = useCallback(() =>
-    fetch("/api/tracked/tokens").then(r => r.ok ? r.json() : []).then(setDbTokens).catch(() => {}), []);
+    fetch("/api/tracked/tokens")
+      .then(r => r.ok ? r.json() : [])
+      .then((tokens: DbToken[]) => {
+        setDbTokens(tokens);
+        const symbols = tokens.map((t: DbToken) => t.symbol);
+        localStorage.setItem(TRACKED_STORAGE_KEY, JSON.stringify(symbols));
+        window.dispatchEvent(new Event(TRACKED_CHANGED_EVENT));
+      })
+      .catch(() => {}), []);
   const refreshWallets = useCallback(() =>
     fetch("/api/wallet-portfolio")
       .then(r => r.ok ? r.json() : { wallets: [], alchemyConfigured: false })
