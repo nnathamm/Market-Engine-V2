@@ -9,7 +9,14 @@ type DbToken = {
   coingecko_id: string | null; image_url: string | null; full_name: string | null;
   cached_price: number | null; cached_change_24h: number | null; cached_rank: number | null;
 };
-type DbWallet = { id: number; address: string; label: string | null; chain: string | null; notes: string | null; created_at: string };
+type PortfolioWallet = {
+  id: string; address: string; addressType: "evm" | "solana"; label: string;
+  networks: string[]; createdAt: string; updatedAt: string; lastRefreshAt: string | null;
+  status: "PENDING_IMPORT" | "IMPORTING" | "LIVE" | "LIVE_WITH_WARNINGS" | "STALE" | "ERROR";
+  summary: { totalTokens: number; visibleTokens: number; totalValueUsd: number; valueCoverageComplete: boolean };
+  holdings: Array<{ network: string; symbol: string | null; name: string | null; balance: number; priceUsd: number | null; valueUsd: number | null; logo: string | null; trust: string; hiddenByDefault: boolean }>;
+  warnings?: string[]; lastError?: string;
+};
 
 type TrackingTab = "tokens" | "wallets";
 type DialogKind = TrackingTab | null;
@@ -37,7 +44,9 @@ type WalletRow = {
   change: number;
   activity: string;
   tone: string;
-  db_id?: number;
+  portfolio_id?: string;
+  status?: string;
+  addressType?: "evm" | "solana";
 };
 
 const TOKENS: TokenRow[] = [
@@ -273,7 +282,8 @@ export default function AssetTrackingView() {
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [query, setQuery] = useState("");
   const [dbTokens, setDbTokens] = useState<DbToken[]>([]);
-  const [dbWallets, setDbWallets] = useState<DbWallet[]>([]);
+  const [portfolioWallets, setPortfolioWallets] = useState<PortfolioWallet[]>([]);
+  const [alchemyConfigured, setAlchemyConfigured] = useState(true);
   const [selectedToken, setSelectedToken] = useState(TOKENS[0]);
   const [selectedWallet, setSelectedWallet] = useState(WALLETS[0]);
   const [toast, setToast] = useState("");
@@ -282,7 +292,10 @@ export default function AssetTrackingView() {
   const refreshTokens = useCallback(() =>
     fetch("/api/tracked/tokens").then(r => r.ok ? r.json() : []).then(setDbTokens).catch(() => {}), []);
   const refreshWallets = useCallback(() =>
-    fetch("/api/tracked/wallets").then(r => r.ok ? r.json() : []).then(setDbWallets).catch(() => {}), []);
+    fetch("/api/wallet-portfolio")
+      .then(r => r.ok ? r.json() : { wallets: [], alchemyConfigured: false })
+      .then(({ wallets, alchemyConfigured: ac }) => { setPortfolioWallets(wallets); setAlchemyConfigured(ac); })
+      .catch(() => {}), []);
 
   useEffect(() => { refreshTokens(); refreshWallets(); }, [refreshTokens, refreshWallets]);
 
@@ -327,15 +340,44 @@ export default function AssetTrackingView() {
   }, [dbTokens, existingSymbols, marketData]);
 
   const allWallets = useMemo(() => {
-    const dbRows: WalletRow[] = dbWallets.filter(w => !existingAddresses.has(w.address)).map(w => ({
-      short: (w.label || w.address).slice(0, 2).toUpperCase(),
-      name: w.label || `Wallet ${w.address.slice(0, 6)}…`,
-      address: w.address, chain: w.chain || "Unknown",
-      holdings: "—", change: 0, activity: "Just added", tone: "gray",
-      db_id: w.id,
-    }));
-    return [...dbRows, ...WALLETS];
-  }, [dbWallets, existingAddresses]);
+    const portfolioRows: WalletRow[] = portfolioWallets
+      .filter(w => !existingAddresses.has(w.address))
+      .map(w => {
+        const totalUsd = w.summary?.totalValueUsd ?? 0;
+        const holdings = totalUsd > 0
+          ? `$${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : w.status === "LIVE" || w.status === "LIVE_WITH_WARNINGS" ? "$0.00" : "—";
+        const mainNet = w.networks?.[0] ?? "";
+        const chain = w.addressType === "solana" ? "Solana"
+          : mainNet.includes("eth") ? "Ethereum"
+          : mainNet.includes("bnb") ? "BNB Chain"
+          : mainNet.includes("base") ? "Base"
+          : mainNet.includes("arb") ? "Arbitrum"
+          : mainNet.includes("matic") ? "Polygon"
+          : mainNet.includes("opt") ? "Optimism"
+          : mainNet || "EVM";
+        const activity = w.status === "IMPORTING" ? "Importing…"
+          : w.status === "ERROR" ? "Error"
+          : w.status === "PENDING_IMPORT" ? "Pending"
+          : w.lastRefreshAt ? `${Math.round((Date.now() - new Date(w.lastRefreshAt).getTime()) / 60000)}m ago`
+          : "Just added";
+        const tone = w.status === "ERROR" ? "red" : w.status === "LIVE" ? "teal" : "gray";
+        return {
+          short: (w.label || w.address).slice(0, 2).toUpperCase(),
+          name: w.label,
+          address: w.address,
+          chain,
+          holdings,
+          change: 0,
+          activity,
+          tone,
+          portfolio_id: w.id,
+          status: w.status,
+          addressType: w.addressType,
+        };
+      });
+    return [...portfolioRows, ...WALLETS];
+  }, [portfolioWallets, existingAddresses]);
 
   const tokens = useMemo(() => allTokens.filter(t => `${t.name} ${t.symbol} ${t.pair}`.toLowerCase().includes(query.toLowerCase())), [allTokens, query]);
   const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
@@ -347,7 +389,11 @@ export default function AssetTrackingView() {
   }, [refreshTokens]);
 
   const saveWallet = useCallback(async (data: Record<string, string | number | null>) => {
-    await fetch("/api/tracked/wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    const res = await fetch("/api/wallet-portfolio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Failed to add wallet" }));
+      throw new Error(error);
+    }
     await refreshWallets();
   }, [refreshWallets]);
 
@@ -366,10 +412,16 @@ export default function AssetTrackingView() {
     setOpenMenu(null);
   }, [refreshTokens]);
 
-  const removeWallet = useCallback(async (id: number) => {
-    await fetch(`/api/tracked/wallets/${id}`, { method: "DELETE" });
+  const removeWallet = useCallback(async (portfolioId: string) => {
+    await fetch(`/api/wallet-portfolio/${portfolioId}`, { method: "DELETE" });
     await refreshWallets();
     setOpenMenu(null);
+  }, [refreshWallets]);
+
+  const refreshWallet = useCallback(async (portfolioId: string) => {
+    setOpenMenu(null);
+    await fetch(`/api/wallet-portfolio/${portfolioId}/refresh`, { method: "POST" });
+    await refreshWallets();
   }, [refreshWallets]);
 
   const editTokenLabel = useCallback(async (symbol: string, currentLabel: string) => {
@@ -380,11 +432,11 @@ export default function AssetTrackingView() {
     await refreshTokens();
   }, [refreshTokens]);
 
-  const editWalletLabel = useCallback(async (address: string, currentLabel: string) => {
+  const editWalletLabel = useCallback(async (portfolioId: string, currentLabel: string) => {
     setOpenMenu(null);
     const next = window.prompt("Edit label:", currentLabel);
     if (next === null) return;
-    await fetch("/api/tracked/wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address, label: next }) });
+    await fetch(`/api/wallet-portfolio/${portfolioId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: next }) });
     await refreshWallets();
   }, [refreshWallets]);
 
@@ -455,32 +507,40 @@ export default function AssetTrackingView() {
               </div>
             ) : (
               <div className="tracking-table wallet-table">
-                <div className="tracking-table-head"><span>Wallet / Label</span><span>Chain</span><span>Holdings (USD)</span><span>24H Change</span><span>Last Activity</span><span>Actions</span></div>
+                {!alchemyConfigured && (
+                  <div className="tracking-api-notice">
+                    ⚠ <strong>ALCHEMY_API_KEY not set</strong> — wallets can be added but holdings won&apos;t be fetched until you add the secret.
+                  </div>
+                )}
+                <div className="tracking-table-head"><span>Wallet / Label</span><span>Chain</span><span>Holdings (USD)</span><span>Status</span><span>Last Activity</span><span>Actions</span></div>
                 {wallets.map((wallet) => {
-                  const explorerUrl = wallet.chain === "Solana"
+                  const explorerUrl = wallet.addressType === "solana" || wallet.chain === "Solana"
                     ? `https://solscan.io/account/${wallet.address}`
                     : `https://etherscan.io/address/${wallet.address}`;
                   const menuKey = `w-${wallet.address}`;
+                  const statusDot = wallet.status === "LIVE" ? "●" : wallet.status === "LIVE_WITH_WARNINGS" ? "◐" : wallet.status === "ERROR" ? "✕" : wallet.status === "IMPORTING" ? "⟳" : "○";
+                  const statusColor = wallet.status === "LIVE" ? "#7dd87d" : wallet.status === "ERROR" ? "#e05555" : "#8899aa";
                   return (
                     <div className={`tracking-table-row ${selectedWallet.address === wallet.address ? "selected" : ""}`} key={wallet.address} role="row" onClick={() => setSelectedWallet(wallet)}>
                       <span className="tracking-name-cell"><AssetBadge label={wallet.short} tone={wallet.tone} /><b>{wallet.name}<small>{wallet.address}</small></b></span>
                       <span className="tracking-chain">◆ {wallet.chain}</span>
                       <strong>{wallet.holdings}</strong>
-                      <Change value={wallet.change} />
+                      <span style={{ color: statusColor, fontSize: 12 }}>{statusDot} {wallet.status ? wallet.status.replace(/_/g, " ") : "—"}</span>
                       <span className="tracking-activity"><i />{wallet.activity}</span>
                       <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
-                        <span className="tracking-action-monitor" title="Monitoring active">◉</span>
+                        <span className="tracking-action-monitor" title="Monitoring active" style={{ color: statusColor }}>◉</span>
                         <a className="tracking-action-btn" href={explorerUrl} target="_blank" rel="noreferrer" title="View in explorer" onClick={e => e.stopPropagation()}>↗</a>
-                        {wallet.db_id != null && (
+                        {wallet.portfolio_id != null && (
                           <span className="tracking-action-menu-wrap">
                             <button className="tracking-action-btn" type="button" title="More options" onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === menuKey ? null : menuKey); }}>•••</button>
                             {openMenu === menuKey && (
                               <div className="tracking-action-menu" onClick={e => e.stopPropagation()}>
-                                <button type="button" onClick={() => editWalletLabel(wallet.address, wallet.name)}>✎ Edit Label</button>
+                                <button type="button" onClick={() => refreshWallet(wallet.portfolio_id!)}>⟳ Refresh Holdings</button>
+                                <button type="button" onClick={() => editWalletLabel(wallet.portfolio_id!, wallet.name)}>✎ Edit Label</button>
                                 <button type="button" onClick={() => copy(wallet.address, "address")}>⎘ Copy Address</button>
                                 <a className="tracking-menu-link" href={explorerUrl} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View in Explorer</a>
                                 <hr />
-                                <button type="button" className="tracking-menu-delete" onClick={() => removeWallet(wallet.db_id!)}>🗑 Delete Wallet</button>
+                                <button type="button" className="tracking-menu-delete" onClick={() => removeWallet(wallet.portfolio_id!)}>🗑 Delete Wallet</button>
                               </div>
                             )}
                           </span>
