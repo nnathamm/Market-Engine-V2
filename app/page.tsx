@@ -41,6 +41,32 @@ const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = 
   ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
 ];
 
+const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
+  ["⌂", "Dashboard", null],
+  ["＋", "Create Signal", "create"],
+  ["◇", "Signals", "signals"],
+  ["⌁", "Chart", null],
+  ["⊗", "Backtesting", null],
+  ["▣", "Trades", null],
+  ["▥", "Analytics", null],
+];
+
+const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [string, string]> = [
+  ["◉", "Markets"],
+  ["▤", "Data Feeds"],
+  ["♧", "Users"],
+  ["♢", "Alerts"],
+  ["⌘", "Integrations"],
+];
+
+const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [string, View | null]> = [
+  ["General", null],
+  ["Trading", null],
+  ["Risk", null],
+  ["Order Flow", "order-flow"],
+  ["Logs", null],
+];
+
 function cooldownSummaryLabel(value: string) {
   if (!value.startsWith("custom:")) return "not set";
 
@@ -235,46 +261,92 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function InnerNavigation({ activeView, setView }: { activeView: View; setView: (view: View) => void }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const menuId = useId();
+function SidebarNavigation({ activeView, open, setView }: { activeView: View; open: boolean; setView: (view: View) => void }) {
+  const tabIndex = open ? 0 : -1;
+
+  return (
+    <aside className="application-sidebar" aria-hidden={!open}>
+      <div className="application-sidebar-scroll">
+        <button className="application-brand" type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
+          <span className="application-brand-mark" aria-hidden="true" />
+          <strong>EdgeSignals</strong>
+        </button>
+
+        <nav className="application-sidebar-nav" aria-label="EdgeSignals pages">
+          {SIDEBAR_PRIMARY_NAV.map(([icon, label, destination]) => (
+            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
+              <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
+            </button>
+          ))}
+
+          <h2>System</h2>
+          {SIDEBAR_SYSTEM_NAV.map(([icon, label]) => (
+            <button type="button" tabIndex={tabIndex} disabled key={label}><span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span><small>Soon</small></button>
+          ))}
+
+          <div className="application-settings-label"><span className="application-sidebar-icon" aria-hidden="true">⌘</span><strong>Settings</strong></div>
+          <div className="application-settings-nav">
+            {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
+              <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
+                <i aria-hidden="true" />{label}{!destination ? <small>Soon</small> : null}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <p className="application-sidebar-footnote">Additional sections are UI placeholders until their pages are built.</p>
+      </div>
+    </aside>
+  );
+}
+
+function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: { activeView: View; sidebarOpen: boolean; toggleSidebar: () => void; setView: (view: View) => void }) {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const profileMenuId = useId();
   const currentPage = PAGE_NAVIGATION.find(([view]) => view === activeView) ?? PAGE_NAVIGATION[0];
 
   useEffect(() => {
-    if (!open) return;
+    if (!profileOpen) return;
     const closeOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false);
     };
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [open]);
+  }, [profileOpen]);
 
   return (
-    <div className="inner-topbar">
-      <div className="hamburger-navigation" ref={rootRef}>
-        <button className={`hamburger-trigger ${open ? "open" : ""}`} type="button" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen((current) => !current)} onKeyDown={(event) => event.key === "Escape" && setOpen(false)}>
-          <span className="hamburger-icon" aria-hidden="true"><i /><i /><i /></span>
-          <span className="hamburger-current"><small>Menu</small><strong>{currentPage[2]}</strong></span>
-          <span className="hamburger-chevron" aria-hidden="true">⌄</span>
+    <header className="application-topbar">
+      <button className={`application-menu-trigger ${sidebarOpen ? "open" : ""}`} type="button" aria-label={sidebarOpen ? "Collapse navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={toggleSidebar}>
+        <span aria-hidden="true"><i /><i /><i /></span>
+      </button>
+      <div className="application-page-context"><small>EdgeSignals</small><strong>{currentPage[2]}</strong></div>
+
+      <div className="master-profile" ref={profileRef}>
+        <button className={`master-profile-trigger ${profileOpen ? "open" : ""}`} type="button" aria-expanded={profileOpen} aria-controls={profileMenuId} onClick={() => setProfileOpen((current) => !current)} onKeyDown={(event) => event.key === "Escape" && setProfileOpen(false)}>
+          <span className="master-avatar">MA</span>
+          <span><strong>Master ADMIN</strong><small>Top-tier access</small></span>
+          <i aria-hidden="true">⌄</i>
         </button>
-        {open ? (
-          <nav className="page-menu" id={menuId} aria-label="Signal Control pages">
-            <header><strong>Pages</strong><span>Go to</span></header>
-            {PAGE_NAVIGATION.map(([view, icon, label, description]) => (
-              <button className={activeView === view ? "active" : ""} type="button" aria-current={activeView === view ? "page" : undefined} key={view} onKeyDown={(event) => event.key === "Escape" && setOpen(false)} onClick={() => {
-                setView(view);
-                setOpen(false);
-              }}>
-                <span className="page-menu-icon" aria-hidden="true">{icon}</span>
-                <span><strong>{label}</strong><small>{description}</small></span>
-                <b aria-hidden="true">{activeView === view ? "✓" : "›"}</b>
-              </button>
-            ))}
-          </nav>
+        {profileOpen ? (
+          <section className="master-profile-menu" id={profileMenuId} aria-label="Master ADMIN profile options">
+            <header><span className="master-avatar large">MA</span><div><strong>Master ADMIN</strong><small>Executive control account</small></div><b>MASTER</b></header>
+            <div className="master-authority">
+              <h2>Authority Scope</h2>
+              <p><span>✓</span> Full site configuration control</p>
+              <p><span>✓</span> Override lower-tier account permissions</p>
+              <p><span>✓</span> Modify, suspend, or delete accounts</p>
+            </div>
+            <button className={activeView === "notifications" ? "active" : ""} type="button" aria-current={activeView === "notifications" ? "page" : undefined} onKeyDown={(event) => event.key === "Escape" && setProfileOpen(false)} onClick={() => {
+              setView("notifications");
+              setProfileOpen(false);
+            }}><span aria-hidden="true">♢</span><span><strong>Notification Settings</strong><small>Email, SMS, and Discord delivery</small></span><b aria-hidden="true">›</b></button>
+            <button type="button" disabled><span aria-hidden="true">♧</span><span><strong>Manage Accounts</strong><small>Available when account roles are added</small></span><b aria-hidden="true">›</b></button>
+            <p className="master-profile-note"><strong>UI role preview:</strong> identity checks and permission enforcement are not connected yet.</p>
+          </section>
         ) : null}
       </div>
-    </div>
+    </header>
   );
 }
 
@@ -288,8 +360,6 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
 
   return (
     <div className="screen inner-screen create-screen">
-      <InnerNavigation activeView="create" setView={setView} />
-
       <header className="inner-header">
         <div className="inner-title">
           <SignalMark />
@@ -388,10 +458,9 @@ function SignalRow({ glyph, name, type, typeTone, frame, triggers, status, modif
   );
 }
 
-function SignalsView({ setView }: { setView: (view: View) => void }) {
+function SignalsView() {
   return (
     <div className="screen inner-screen signals-screen">
-      <InnerNavigation activeView="signals" setView={setView} />
       <header className="list-header">
         <SignalMark />
         <div><h1>View / Edit Signals</h1><p>View, edit, and manage all of your existing signals.</p></div>
@@ -437,23 +506,6 @@ const DEFAULT_ORDER_FLOW_VALUES: OrderFlowValues = {
   confidence: 70,
 };
 
-const ORDER_FLOW_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
-  ["⌂", "Dashboard", "create"],
-  ["◈", "Signals", "signals"],
-  ["⌁", "Chart", null],
-  ["⊗", "Backtesting", null],
-  ["▣", "Trades", null],
-  ["▥", "Analytics", null],
-];
-
-const ORDER_FLOW_SYSTEM_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
-  ["◉", "Markets", null],
-  ["▤", "Data Feeds", null],
-  ["♧", "Users", null],
-  ["♢", "Alerts", "notifications"],
-  ["⌘", "Integrations", null],
-];
-
 const ORDER_FLOW_TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1m", label: "1 Minute (1m)" },
   { value: "5m", label: "5 Minutes (5m)" },
@@ -463,46 +515,6 @@ const ORDER_FLOW_TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "4H", label: "4 Hours (4H)" },
   { value: "1D", label: "1 Day (1D)" },
 ];
-
-function FlowSidebar({ setView }: { setView: (view: View) => void }) {
-  return (
-    <aside className="of-sidebar">
-      <button className="of-brand" type="button" onClick={() => setView("create")}>
-        <span className="of-brand-mark" aria-hidden="true" />
-        <strong>EdgeSignals</strong>
-      </button>
-      <nav className="of-nav" aria-label="EdgeSignals navigation">
-        {ORDER_FLOW_PRIMARY_NAV.map(([icon, label, destination]) => (
-          <button type="button" key={label} onClick={() => {
-            if (destination) setView(destination);
-          }}>
-            <span className="of-nav-icon" aria-hidden="true">{icon}</span>{label}
-          </button>
-        ))}
-        <small>System</small>
-        {ORDER_FLOW_SYSTEM_NAV.map(([icon, label, destination]) => (
-          <button type="button" key={label} onClick={() => {
-            if (destination) setView(destination);
-          }}><span className="of-nav-icon" aria-hidden="true">{icon}</span>{label}</button>
-        ))}
-        <button className="active" type="button"><span className="of-nav-icon" aria-hidden="true">⌘</span>Settings</button>
-        <div className="of-subnav">
-          <button type="button">General</button>
-          <button type="button">Trading</button>
-          <button type="button">Risk</button>
-          <button className="active" type="button"><i aria-hidden="true" />Order Flow</button>
-          <button type="button" onClick={() => setView("notifications")}>Notifications</button>
-          <button type="button">Logs</button>
-        </div>
-      </nav>
-      <div className="of-profile">
-        <span className="of-avatar">AD</span>
-        <span><strong>Admin</strong><small>Admin</small></span>
-        <i aria-hidden="true">⌄</i>
-      </div>
-    </aside>
-  );
-}
 
 function FlowSettingRow({
   title,
@@ -585,7 +597,7 @@ function FlowGauge() {
   );
 }
 
-function OrderFlowView({ setView }: { setView: (view: View) => void }) {
+function OrderFlowView() {
   const [timeframe, setTimeframe] = useState("5m");
   const [enabled, setEnabled] = useState(true);
   const [values, setValues] = useState<OrderFlowValues>(DEFAULT_ORDER_FLOW_VALUES);
@@ -609,9 +621,7 @@ function OrderFlowView({ setView }: { setView: (view: View) => void }) {
 
   return (
     <div className="of-page">
-      <FlowSidebar setView={setView} />
       <main className="of-main">
-        <InnerNavigation activeView="order-flow" setView={setView} />
         <header className="of-header">
           <div className="of-breadcrumb"><span>Settings</span><b>›</b><strong>Order Flow</strong></div>
           <div className="of-title-row"><h1>Order Flow Settings</h1><span>Advanced</span></div>
@@ -759,7 +769,7 @@ function NotificationRule({ title, description, checked, onChange }: { title: st
   );
 }
 
-function NotificationsView({ setView }: { setView: (view: View) => void }) {
+function NotificationsView() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [discord, setDiscord] = useState("");
@@ -776,7 +786,6 @@ function NotificationsView({ setView }: { setView: (view: View) => void }) {
 
   return (
     <div className="screen inner-screen notifications-screen">
-      <InnerNavigation activeView="notifications" setView={setView} />
       <header className="notifications-header">
         <div className="inner-title">
           <span className="notifications-hero-icon" aria-hidden="true">♢</span>
@@ -853,14 +862,23 @@ function ConditionModal({ close }: { close: () => void }) {
 export default function Home() {
   const [view, setView] = useState<View>("create");
   const [conditionOpen, setConditionOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <main className="signal-control-app">
-      {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
-      {view === "signals" && <SignalsView setView={setView} />}
-      {view === "order-flow" && <OrderFlowView setView={setView} />}
-      {view === "notifications" && <NotificationsView setView={setView} />}
+    <div className="signal-control-app">
+      <div className={`application-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
+        <SidebarNavigation activeView={view} open={sidebarOpen} setView={setView} />
+        <div className="application-stage">
+          <ApplicationTopbar activeView={view} sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((current) => !current)} setView={setView} />
+          <div className="application-view">
+            {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
+            {view === "signals" && <SignalsView />}
+            {view === "order-flow" && <OrderFlowView />}
+            {view === "notifications" && <NotificationsView />}
+          </div>
+        </div>
+      </div>
       {conditionOpen && <ConditionModal close={() => setConditionOpen(false)} />}
-    </main>
+    </div>
   );
 }
