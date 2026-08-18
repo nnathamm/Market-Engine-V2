@@ -470,6 +470,16 @@ export default function AssetTrackingView() {
 
 
   const [liveData, setLiveData] = useState<Map<string, LivePrice>>(new Map());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [secondsSinceUpdate, setSecondsSinceUpdate] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (lastUpdated === null) { setSecondsSinceUpdate(null); return; }
+    const tick = () => setSecondsSinceUpdate(Math.floor((Date.now() - lastUpdated.getTime()) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lastUpdated]);
 
   useEffect(() => {
     if (!dbTokens.length) return;
@@ -481,8 +491,14 @@ export default function AssetTrackingView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tokens: dbTokens }),
       })
-        .then(r => r.ok ? r.json() : {})
-        .then((data: Record<string, LivePrice>) => setLiveData(new Map(Object.entries(data))))
+        .then(async r => {
+          if (!r.ok) return; // preserve existing data and timestamp on HTTP errors
+          const data: Record<string, LivePrice> = await r.json();
+          if (Object.keys(data).length > 0) {
+            setLiveData(new Map(Object.entries(data)));
+            setLastUpdated(new Date());
+          }
+        })
         .catch(() => {});
     };
 
@@ -714,6 +730,11 @@ export default function AssetTrackingView() {
           <div className="tracking-tabs" role="tablist" aria-label="Asset tracking views"><button className={tab === "tokens" ? "active" : ""} type="button" role="tab" aria-selected={tab === "tokens"} onClick={() => switchTab("tokens")}>◎ Watched Tokens</button><button className={tab === "wallets" ? "active" : ""} type="button" role="tab" aria-selected={tab === "wallets"} onClick={() => switchTab("wallets")}>▱ Watched Wallets</button></div>
           <div className="tracking-toolbar"><label><span aria-hidden="true">⌕</span><input type="search" placeholder={tab === "tokens" ? "Search tokens..." : "Search wallets..."} value={query} onChange={(event) => setQuery(event.target.value)} /></label><div><button type="button">All Chains ⌄</button><button type="button">Status: Active ⌄</button><button type="button">☷ Filters</button><button className="tracking-view-toggle" type="button" aria-label="List view">☷</button></div></div>
 
+          {tab === "tokens" && secondsSinceUpdate !== null && (
+            <p className="tracking-last-updated" aria-live="polite">
+              Updated {secondsSinceUpdate < 5 ? "just now" : `${secondsSinceUpdate}s ago`}
+            </p>
+          )}
           <div className="tracking-table-wrap">
             {tab === "tokens" ? (
               <div className="tracking-table token-table">

@@ -604,6 +604,7 @@ button { color: inherit; }
 .tracking-table { min-width: 850px; }
 .tracking-table-head, .tracking-table-row { display: grid; grid-template-columns: minmax(245px, 2fr) minmax(105px, .8fr) minmax(105px, .85fr) minmax(96px, .75fr) minmax(92px, .7fr) 92px; align-items: center; column-gap: 10px; }
 .tracking-table-head { height: 47px; padding: 0 16px; color: #8390a3; border-bottom: 1px solid #1e2b3d; text-transform: uppercase; font-size: 9px; font-weight: 650; letter-spacing: .035em; }
+.tracking-last-updated { margin: 0; padding: 5px 16px 0; color: #4d6278; font-size: 9px; font-weight: 500; letter-spacing: .02em; text-align: right; }
 .tracking-table-row { width: 100%; min-height: 69px; padding: 0 16px; color: #dfe4eb; border: 0; border-bottom: 1px solid #1b293a; background: transparent; cursor: pointer; text-align: left; font-size: 11px; }
 .tracking-table-row:hover, .tracking-table-row:focus-visible { outline: 0; background: #101c2d; }
 .tracking-table-row.selected { box-shadow: inset 3px 0 #a148f1; background: linear-gradient(90deg, rgba(47, 26, 78, .45), rgba(15, 28, 45, .2)); }

@@ -135,3 +135,37 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.of-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(680px, 1fr\) 311px/s);
   assert.match(styles, /\.of-gauge-arc\s*\{[^}]*conic-gradient/s);
 });
+
+test("last-updated timestamp only advances on a genuine successful price fetch", async () => {
+  const assetTrackingPage = await readFile(
+    new URL("../app/asset-tracking.tsx", import.meta.url),
+    "utf8",
+  );
+
+  // The r.ok guard must exist to prevent failed responses from advancing the timestamp.
+  assert.match(assetTrackingPage, /if \(!r\.ok\) return/);
+
+  // setLastUpdated must be present.
+  assert.match(assetTrackingPage, /setLastUpdated\(new Date\(\)\)/);
+
+  // setLastUpdated must come AFTER the r.ok guard so non-OK responses cannot
+  // trigger it and falsely report a fresh update.
+  const okGuardIdx = assetTrackingPage.indexOf("if (!r.ok) return");
+  const setLastUpdatedIdx = assetTrackingPage.indexOf("setLastUpdated(new Date())");
+  assert.ok(okGuardIdx !== -1, "r.ok guard must exist in asset-tracking.tsx");
+  assert.ok(setLastUpdatedIdx > okGuardIdx, "setLastUpdated must appear after the r.ok guard");
+
+  // liveData and lastUpdated must only be updated when the response payload
+  // contains at least one price entry (empty {} is treated as a server-side failure).
+  assert.match(
+    assetTrackingPage,
+    /Object\.keys\(data\)\.length > 0[\s\S]{0,200}setLastUpdated\(new Date\(\)\)/,
+  );
+
+  // The timestamp element must be rendered outside the grid table-head to
+  // avoid overlapping column headings at narrow widths.
+  assert.match(
+    assetTrackingPage,
+    /tracking-last-updated[\s\S]{0,60}Updated[\s\S]{0,200}tracking-table-wrap/,
+  );
+});
