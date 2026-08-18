@@ -5,6 +5,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const TRACKED_STORAGE_KEY = "signal-control:tracked-tokens";
 const TRACKED_CHANGED_EVENT = "signal-control:tracked-tokens-changed";
 
+function networkToChain(network: string): string {
+  const map: Record<string, string> = {
+    "eth-mainnet": "Ethereum", "sol-mainnet": "Solana", "base-mainnet": "Base",
+    "arb-mainnet": "Arbitrum", "matic-mainnet": "Polygon", "opt-mainnet": "Optimism",
+    "bsc-mainnet": "BSC", "avax-mainnet": "Avalanche",
+  };
+  return map[network] ?? network;
+}
+
+async function pollWalletReady(id: string, maxAttempts = 20): Promise<PortfolioWallet | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const r = await fetch(`/api/wallet-portfolio/${id}`);
+    if (!r.ok) return null;
+    const w: PortfolioWallet = await r.json();
+    if (w.status !== "PENDING_IMPORT" && w.status !== "IMPORTING") return w;
+    await new Promise(res => setTimeout(res, 1500));
+  }
+  return null;
+}
+
 type PriceSource = "coingecko" | "binance" | "dexscreener" | "geckoterminal";
 type CoinResult = {
   id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string; image?: string;
@@ -23,7 +43,7 @@ type PortfolioWallet = {
   networks: string[]; createdAt: string; updatedAt: string; lastRefreshAt: string | null;
   status: "PENDING_IMPORT" | "IMPORTING" | "LIVE" | "LIVE_WITH_WARNINGS" | "STALE" | "ERROR";
   summary: { totalTokens: number; visibleTokens: number; totalValueUsd: number; valueCoverageComplete: boolean };
-  holdings: Array<{ network: string; symbol: string | null; name: string | null; balance: number; priceUsd: number | null; valueUsd: number | null; logo: string | null; trust: string; hiddenByDefault: boolean }>;
+  holdings: Array<{ network: string; contractAddress: string | null; symbol: string | null; name: string | null; balance: number; priceUsd: number | null; valueUsd: number | null; logo: string | null; trust: string; hiddenByDefault: boolean }>;
   warnings?: string[]; lastError?: string;
 };
 
@@ -579,8 +599,35 @@ export default function AssetTrackingView() {
       const { error } = await res.json().catch(() => ({ error: "Failed to add wallet" }));
       throw new Error(error);
     }
+    const newWallet: PortfolioWallet = await res.json();
     await refreshWallets();
-  }, [refreshWallets]);
+
+    // Background: wait for holdings to load, then auto-add all tokens to watched list
+    (async () => {
+      const ready = await pollWalletReady(newWallet.id);
+      if (!ready?.holdings?.length) return;
+      const toImport = ready.holdings.filter(
+        h => h.symbol && !h.hiddenByDefault && h.trust !== "low" && h.trust !== "blocked"
+      );
+      if (!toImport.length) return;
+      await Promise.all(
+        toImport.map(h =>
+          fetch("/api/tracked/tokens", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              symbol: h.symbol!.toUpperCase(),
+              full_name: h.name ?? null,
+              image_url: h.logo ?? null,
+              contract_address: h.contractAddress ?? null,
+              chain: networkToChain(h.network),
+            }),
+          })
+        )
+      );
+      await refreshTokens();
+    })();
+  }, [refreshWallets, refreshTokens]);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [linkTokenSymbol, setLinkTokenSymbol] = useState<string | null>(null);
