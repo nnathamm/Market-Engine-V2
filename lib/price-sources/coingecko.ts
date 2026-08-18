@@ -37,6 +37,12 @@ export async function searchCoingecko(query: string): Promise<SearchResult[]> {
         image: m?.image ?? c.thumb,
         source: "coingecko" as const,
       };
+    }).sort((a, b) => {
+      // Coins with a real market cap rank sort first (ascending = most dominant first).
+      // Unranked coins (rank "0") go to the bottom.
+      const ra = parseInt(a.rank) || 999_999;
+      const rb = parseInt(b.rank) || 999_999;
+      return ra - rb;
     });
   } catch {
     return [];
