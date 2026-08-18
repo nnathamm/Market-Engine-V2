@@ -292,7 +292,7 @@ button { color: inherit; }
 .market-list-heading span:nth-child(n + 2) { text-align: right; }
 .market-list-heading span:last-child { color: #6f6037; }
 .market-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #60368b #081421; }
-.market-list-row { min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) 38px; align-items: stretch; border-bottom: 1px solid #172536; background: transparent; content-visibility: auto; contain-intrinsic-size: 64px; }
+.market-list-row { min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) 38px 38px; align-items: stretch; border-bottom: 1px solid #172536; background: transparent; content-visibility: auto; contain-intrinsic-size: 64px; }
 .market-list-row:hover { background: #101d2e; }
 .market-list-row.active { box-shadow: inset 3px 0 #a453ed; background: linear-gradient(90deg, rgba(52, 25, 83, .65), rgba(13, 27, 44, .65)); }
 .market-row-select { min-width: 0; padding: 8px 4px 8px 14px; display: grid; grid-template-columns: 1.15fr 1fr 56px; align-items: center; gap: 8px; color: #dfe4eb; border: 0; outline: 0; background: transparent; cursor: pointer; text-align: left; }
@@ -300,6 +300,9 @@ button { color: inherit; }
 .market-favorite-toggle { width: 38px; color: #536176; border: 0; outline: 0; background: transparent; cursor: pointer; font-size: 16px; }
 .market-favorite-toggle:hover, .market-favorite-toggle:focus-visible { color: #ffd86d; background: rgba(74, 58, 25, .25); }
 .market-favorite-toggle.active { color: #ffd357; text-shadow: 0 0 9px rgba(255, 211, 87, .28); }
+.market-track-toggle { width: 38px; color: #536176; border: 0; outline: 0; background: transparent; cursor: pointer; font-size: 14px; }
+.market-track-toggle:hover, .market-track-toggle:focus-visible { color: #a67cf4; background: rgba(92, 48, 156, .2); }
+.market-track-toggle.active { color: #bd72ff; text-shadow: 0 0 9px rgba(169, 100, 255, .35); }
 .market-pair { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .market-pair > i, .market-selected-pair > i { width: 33px; height: 33px; display: grid; place-items: center; flex: 0 0 33px; color: #d7b7f4; border: 1px solid #5b3a78; border-radius: 50%; background: linear-gradient(145deg, #39214e, #111d31); font-size: 9px; font-style: normal; font-weight: 800; }
 .market-pair > span { min-width: 0; display: flex; align-items: baseline; }

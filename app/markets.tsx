@@ -419,6 +419,13 @@ export default function MarketsView() {
   const deferredQuery = useDeferredValue(query.trim().toUpperCase());
   const favoritesSnapshot = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getServerFavoritesSnapshot);
   const favorites = useMemo(() => parseFavorites(favoritesSnapshot), [favoritesSnapshot]);
+  const [tracked, setTracked] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    fetch("/api/tracked/tokens")
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: Array<{ symbol: string }>) => setTracked(new Set(rows.map(r => r.symbol))))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     candlesRef.current = candles;
@@ -614,6 +621,20 @@ export default function MarketsView() {
     window.dispatchEvent(new Event(FAVORITES_CHANGED_EVENT));
   }
 
+  async function toggleTracked(baseAsset: string) {
+    const isTracked = tracked.has(baseAsset);
+    const next = new Set(tracked);
+    if (isTracked) next.delete(baseAsset); else next.add(baseAsset);
+    setTracked(next);
+    try {
+      if (isTracked) {
+        await fetch(`/api/tracked/tokens/${baseAsset}`, { method: "DELETE" });
+      } else {
+        await fetch("/api/tracked/tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: baseAsset }) });
+      }
+    } catch { setTracked(tracked); }
+  }
+
   function loadMoreOnScroll(event: React.UIEvent<HTMLDivElement>) {
     const list = event.currentTarget;
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 140;
@@ -642,7 +663,7 @@ export default function MarketsView() {
             <div className="market-source-label"><span aria-hidden="true">USDT</span> Perpetual contracts</div>
             <button className={`market-favorites-filter ${favoritesOnly ? "active" : ""}`} type="button" aria-pressed={favoritesOnly} onClick={toggleFavoritesOnly}><span aria-hidden="true">★</span> Favorites <b>{favorites.size}</b></button>
           </div>
-          <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span><span aria-label="Favorite">★</span></div>
+          <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span><span aria-label="Favorite">★</span><span aria-label="Track">◎</span></div>
           <div className="market-list" aria-live="polite" onScroll={loadMoreOnScroll}>
             {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to WEEX…</div> : null}
             {!marketsLoading && marketsError ? <div className="market-list-message error"><strong>Market list unavailable</strong><span>{marketsError}</span><button type="button" onClick={() => setMarketRequest((current) => current + 1)}>Try again</button></div> : null}
@@ -650,6 +671,7 @@ export default function MarketsView() {
             {!marketsLoading && !marketsError ? visibleMarkets.map((market) => {
               const change = percentChange(market);
               const favorite = favorites.has(market.symbol);
+              const isTracked = tracked.has(market.baseAsset);
               return (
                 <div className={`market-list-row ${selected?.symbol === market.symbol ? "active" : ""}`} key={market.symbol}>
                   <button className="market-row-select" type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => setSelected(market)}>
@@ -658,6 +680,7 @@ export default function MarketsView() {
                     <b className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</b>
                   </button>
                   <button className={`market-favorite-toggle ${favorite ? "active" : ""}`} type="button" aria-pressed={favorite} aria-label={`${favorite ? "Remove" : "Add"} ${market.symbol} ${favorite ? "from" : "to"} favorites`} onClick={() => toggleFavorite(market.symbol)}>★</button>
+                  <button className={`market-track-toggle ${isTracked ? "active" : ""}`} type="button" aria-pressed={isTracked} aria-label={`${isTracked ? "Stop tracking" : "Track"} ${market.baseAsset}`} onClick={() => toggleTracked(market.baseAsset)}>◎</button>
                 </div>
               );
             }) : null}

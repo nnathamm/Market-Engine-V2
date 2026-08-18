@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+type DbToken = { id: number; symbol: string; label: string | null; created_at: string };
+type DbWallet = { id: number; address: string; label: string | null; chain: string | null; notes: string | null; created_at: string };
 
 type TrackingTab = "tokens" | "wallets";
 type DialogKind = TrackingTab | null;
@@ -57,9 +60,19 @@ function Change({ value }: { value: number }) {
   return <span className={value >= 0 ? "tracking-positive" : "tracking-negative"}>{value >= 0 ? "+" : ""}{value.toFixed(2)}%</span>;
 }
 
-function TrackingDialog({ kind, close, finish }: { kind: Exclude<DialogKind, null>; close: () => void; finish: (message: string) => void }) {
+function TrackingDialog({ kind, close, finish, onSave }: {
+  kind: Exclude<DialogKind, null>;
+  close: () => void;
+  finish: (message: string) => void;
+  onSave?: (data: Record<string, string>) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+  const [label, setLabel] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
+  const [walletChain, setWalletChain] = useState("");
   const [notes, setNotes] = useState("");
   const [enabled, setEnabled] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && close();
@@ -67,9 +80,22 @@ function TrackingDialog({ kind, close, finish }: { kind: Exclude<DialogKind, nul
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [close]);
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    finish(kind === "tokens" ? "Token tracking added to this interface preview." : "Wallet tracking added to this interface preview.");
+    setSaving(true);
+    try {
+      if (kind === "tokens") {
+        const symbol = search.trim().toUpperCase();
+        if (symbol && onSave) await onSave({ symbol, label });
+        finish(symbol ? `${symbol} added to your tracked tokens.` : "Token added to your watchlist.");
+      } else {
+        const address = walletAddress.trim();
+        if (address && onSave) await onSave({ address, label, chain: walletChain, notes });
+        finish(address ? `Wallet ${address.slice(0, 8)}… added to your watchlist.` : "Wallet added to your watchlist.");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -85,7 +111,7 @@ function TrackingDialog({ kind, close, finish }: { kind: Exclude<DialogKind, nul
           <>
             <label className="tracking-dialog-field">
               <span>Search Token or Paste Contract</span>
-              <div className="tracking-input-with-icon"><input type="search" placeholder="Search by token name, symbol, or contract address..." /><i aria-hidden="true">⌕</i></div>
+              <div className="tracking-input-with-icon"><input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by token name, symbol, or contract address..." /><i aria-hidden="true">⌕</i></div>
               <small>Supports a token name, symbol, or contract address.</small>
             </label>
             <button className="tracking-token-result" type="button">
@@ -94,20 +120,23 @@ function TrackingDialog({ kind, close, finish }: { kind: Exclude<DialogKind, nul
               <span><small>6 networks detected</small><em>◆ ◉ ◇ ⬡ ＋1</em></span>
             </button>
             <p className="tracking-result-note">This preview represents cross-network monitoring; no provider is connected yet.</p>
-            <label className="tracking-dialog-field"><span>Label (Optional)</span><input type="text" placeholder="e.g. PEPE Meme Coin" /><small>Give this token a name to easily identify it.</small></label>
+            <label className="tracking-dialog-field"><span>Label (Optional)</span><input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. PEPE Meme Coin" /><small>Give this token a name to easily identify it.</small></label>
             <label className="tracking-dialog-field"><span>Add to Watchlist (Optional)</span><select defaultValue=""><option value="">Select watchlist</option><option>Core assets</option><option>Momentum watch</option><option>Research</option></select><small>Organize this token in a watchlist.</small></label>
           </>
         ) : (
           <>
-            <label className="tracking-dialog-field"><span>Wallet Address</span><div className="tracking-input-with-icon"><input required type="text" placeholder="Paste wallet address here" /><i aria-hidden="true">⌗</i></div><small>Supports Ethereum, BSC, Polygon, Arbitrum, Base and more.</small></label>
-            <label className="tracking-dialog-field"><span>Label (Optional)</span><input type="text" placeholder="e.g. Binance: Hot Wallet" /><small>Give this wallet a name to easily identify it.</small></label>
-            <label className="tracking-dialog-field"><span>Chain (Optional)</span><select defaultValue=""><option value="">Auto-detect chain</option><option>Ethereum</option><option>Solana</option><option>Base</option></select><small>If left blank, the chain will be detected when a data provider is connected.</small></label>
+            <label className="tracking-dialog-field"><span>Wallet Address</span><div className="tracking-input-with-icon"><input required type="text" value={walletAddress} onChange={e => setWalletAddress(e.target.value)} placeholder="Paste wallet address here" /><i aria-hidden="true">⌗</i></div><small>Supports Ethereum, BSC, Polygon, Arbitrum, Base and more.</small></label>
+            <label className="tracking-dialog-field"><span>Label (Optional)</span><input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. Binance: Hot Wallet" /><small>Give this wallet a name to easily identify it.</small></label>
+            <label className="tracking-dialog-field"><span>Chain (Optional)</span><select value={walletChain} onChange={e => setWalletChain(e.target.value)}><option value="">Auto-detect chain</option><option>Ethereum</option><option>Solana</option><option>Base</option><option>Arbitrum</option><option>Polygon</option></select><small>If left blank, the chain will be detected when a data provider is connected.</small></label>
             <label className="tracking-dialog-field"><span>Notes (Optional)</span><textarea maxLength={200} value={notes} placeholder="Add any notes about this wallet..." onChange={(event) => setNotes(event.target.value)} /><small className="tracking-note-count">{notes.length} / 200</small></label>
           </>
         )}
 
         <label className="tracking-monitor-toggle"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /><span aria-hidden="true" /><b>Start monitoring immediately<small>Prepare this asset for alerts right away.</small></b></label>
-        <footer><button className="tracking-cancel" type="button" onClick={close}>Cancel</button><button className="tracking-primary" type="submit">Add {kind === "tokens" ? "Token" : "Wallet"}</button></footer>
+        <footer>
+          <button className="tracking-cancel" type="button" onClick={close} disabled={saving}>Cancel</button>
+          <button className="tracking-primary" type="submit" disabled={saving}>{saving ? "Saving…" : `Add ${kind === "tokens" ? "Token" : "Wallet"}`}</button>
+        </footer>
       </form>
     </div>
   );
@@ -145,18 +174,55 @@ export default function AssetTrackingView() {
   const [tab, setTab] = useState<TrackingTab>("tokens");
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [query, setQuery] = useState("");
+  const [dbTokens, setDbTokens] = useState<DbToken[]>([]);
+  const [dbWallets, setDbWallets] = useState<DbWallet[]>([]);
   const [selectedToken, setSelectedToken] = useState(TOKENS[0]);
   const [selectedWallet, setSelectedWallet] = useState(WALLETS[0]);
   const [toast, setToast] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const tokens = useMemo(() => TOKENS.filter((token) => `${token.name} ${token.symbol} ${token.pair}`.toLowerCase().includes(query.toLowerCase())), [query]);
-  const wallets = useMemo(() => WALLETS.filter((wallet) => `${wallet.name} ${wallet.address} ${wallet.chain}`.toLowerCase().includes(query.toLowerCase())), [query]);
+  const refreshTokens = useCallback(() =>
+    fetch("/api/tracked/tokens").then(r => r.ok ? r.json() : []).then(setDbTokens).catch(() => {}), []);
+  const refreshWallets = useCallback(() =>
+    fetch("/api/tracked/wallets").then(r => r.ok ? r.json() : []).then(setDbWallets).catch(() => {}), []);
 
-  const switchTab = (nextTab: TrackingTab) => {
-    setTab(nextTab);
-    setQuery("");
-  };
+  useEffect(() => { refreshTokens(); refreshWallets(); }, [refreshTokens, refreshWallets]);
+
+  const existingSymbols = useMemo(() => new Set(TOKENS.map(t => t.symbol)), []);
+  const existingAddresses = useMemo(() => new Set(WALLETS.map(w => w.address)), []);
+
+  const allTokens = useMemo(() => {
+    const dbRows: TokenRow[] = dbTokens.filter(t => !existingSymbols.has(t.symbol)).map(t => ({
+      symbol: t.symbol, name: t.label || t.symbol, pair: `${t.symbol} / USDT`,
+      networks: 1, price: "—", change: 0, activity: "Just added", tone: "violet",
+    }));
+    return [...dbRows, ...TOKENS];
+  }, [dbTokens, existingSymbols]);
+
+  const allWallets = useMemo(() => {
+    const dbRows: WalletRow[] = dbWallets.filter(w => !existingAddresses.has(w.address)).map(w => ({
+      short: (w.label || w.address).slice(0, 2).toUpperCase(),
+      name: w.label || `Wallet ${w.address.slice(0, 6)}…`,
+      address: w.address, chain: w.chain || "Unknown",
+      holdings: "—", change: 0, activity: "Just added", tone: "gray",
+    }));
+    return [...dbRows, ...WALLETS];
+  }, [dbWallets, existingAddresses]);
+
+  const tokens = useMemo(() => allTokens.filter(t => `${t.name} ${t.symbol} ${t.pair}`.toLowerCase().includes(query.toLowerCase())), [allTokens, query]);
+  const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
+
+  const saveToken = useCallback(async (data: Record<string, string>) => {
+    await fetch("/api/tracked/tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    await refreshTokens();
+  }, [refreshTokens]);
+
+  const saveWallet = useCallback(async (data: Record<string, string>) => {
+    await fetch("/api/tracked/wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    await refreshWallets();
+  }, [refreshWallets]);
+
+  const switchTab = (nextTab: TrackingTab) => { setTab(nextTab); setQuery(""); };
 
   const finishDialog = (message: string) => {
     setDialog(null);
@@ -191,12 +257,12 @@ export default function AssetTrackingView() {
               </div>
             )}
           </div>
-          <footer className="tracking-table-footer"><span>Showing 1 to {tab === "tokens" ? tokens.length : wallets.length} of {tab === "tokens" ? TOKENS.length : WALLETS.length} {tab}</span><div><button type="button">‹</button><button className="active" type="button">1</button><button type="button">2</button><button type="button">›</button></div><button type="button">Show 8 per page ⌄</button></footer>
+          <footer className="tracking-table-footer"><span>Showing 1 to {tab === "tokens" ? tokens.length : wallets.length} of {tab === "tokens" ? allTokens.length : allWallets.length} {tab}</span><div><button type="button">‹</button><button className="active" type="button">1</button><button type="button">2</button><button type="button">›</button></div><button type="button">Show 8 per page ⌄</button></footer>
         </main>
         {tab === "tokens" ? <TokenIntelligence token={selectedToken} /> : <WalletIntelligence wallet={selectedWallet} />}
       </div>
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}
-      {dialog && <TrackingDialog kind={dialog} close={() => setDialog(null)} finish={finishDialog} />}
+      {dialog && <TrackingDialog kind={dialog} close={() => setDialog(null)} finish={finishDialog} onSave={dialog === "tokens" ? saveToken : saveWallet} />}
     </div>
   );
 }
