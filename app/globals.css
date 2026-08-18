@@ -706,6 +706,19 @@ button { color: inherit; }
 .tracking-token-result small { color: #8c99aa; font-size: 8px; }
 .tracking-token-result em { color: #a886e5; font-size: 10px; font-style: normal; }
 .tracking-result-note { margin: 7px 0 0 !important; }
+
+/* Coin search results dropdown */
+.tracking-coin-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200; list-style: none; margin: 0; padding: 4px; background: #0d1a27; border: 1px solid #1e3148; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.55); max-height: 280px; overflow-y: auto; }
+.tracking-coin-results li button { width: 100%; display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: #eff2f6; cursor: pointer; text-align: left; }
+.tracking-coin-results li button:hover, .tracking-coin-results li button:focus-visible { background: #132033; }
+.tracking-coin-img { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; }
+.tracking-coin-letter { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #1e334f; color: #a0b0c8; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.tracking-coin-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tracking-coin-info strong { font-size: 11px; font-weight: 700; color: #eff2f6; }
+.tracking-coin-info small { font-size: 9px; color: #6d7f94; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tracking-coin-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.tracking-coin-meta b { font-size: 10px; color: #c8d4e0; }
+.tracking-coin-meta em { font-size: 9px; font-style: normal; }
 .tracking-note-count { justify-self: end; margin-top: -24px; padding: 0 8px 8px; pointer-events: none; }
 .tracking-monitor-toggle { margin-top: 19px; display: grid; grid-template-columns: 31px 1fr; align-items: center; column-gap: 9px; cursor: pointer; }
 .tracking-monitor-toggle input { position: absolute; opacity: 0; pointer-events: none; }

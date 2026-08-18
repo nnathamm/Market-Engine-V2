@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+type CoinResult = { id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string };
 type DbToken = { id: number; symbol: string; label: string | null; created_at: string };
 type DbWallet = { id: number; address: string; label: string | null; chain: string | null; notes: string | null; created_at: string };
 
@@ -60,6 +61,13 @@ function Change({ value }: { value: number }) {
   return <span className={value >= 0 ? "tracking-positive" : "tracking-negative"}>{value >= 0 ? "+" : ""}{value.toFixed(2)}%</span>;
 }
 
+function CoinIcon({ symbol }: { symbol: string }) {
+  const [failed, setFailed] = useState(false);
+  const src = `https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`;
+  if (failed) return <span className="tracking-coin-letter">{symbol.slice(0, 1)}</span>;
+  return <img src={src} alt={symbol} width={28} height={28} className="tracking-coin-img" onError={() => setFailed(true)} />;
+}
+
 function TrackingDialog({ kind, close, finish, onSave }: {
   kind: Exclude<DialogKind, null>;
   close: () => void;
@@ -67,6 +75,9 @@ function TrackingDialog({ kind, close, finish, onSave }: {
   onSave?: (data: Record<string, string>) => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
+  const [results, setResults] = useState<CoinResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedCoin, setSelectedCoin] = useState<CoinResult | null>(null);
   const [label, setLabel] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
   const [walletChain, setWalletChain] = useState("");
@@ -80,12 +91,34 @@ function TrackingDialog({ kind, close, finish, onSave }: {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [close]);
 
+  useEffect(() => {
+    if (kind !== "tokens") return;
+    const q = search.trim();
+    if (!q) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/coins/search?q=${encodeURIComponent(q)}`);
+        setResults(res.ok ? await res.json() : []);
+      } catch { setResults([]); }
+      finally { setSearching(false); }
+    }, 380);
+    return () => clearTimeout(timer);
+  }, [search, kind]);
+
+  function pickCoin(coin: CoinResult) {
+    setSelectedCoin(coin);
+    setSearch(coin.symbol);
+    setResults([]);
+    if (!label) setLabel(coin.name);
+  }
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
     try {
       if (kind === "tokens") {
-        const symbol = search.trim().toUpperCase();
+        const symbol = (selectedCoin?.symbol ?? search.trim()).toUpperCase();
         if (symbol && onSave) await onSave({ symbol, label });
         finish(symbol ? `${symbol} added to your tracked tokens.` : "Token added to your watchlist.");
       } else {
@@ -97,6 +130,10 @@ function TrackingDialog({ kind, close, finish, onSave }: {
       setSaving(false);
     }
   };
+
+  const changePercent = selectedCoin ? parseFloat(selectedCoin.changePercent24Hr) : 0;
+  const price = selectedCoin ? parseFloat(selectedCoin.priceUsd) : 0;
+  const priceStr = price >= 1 ? `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${price.toPrecision(4)}`;
 
   return (
     <div className="tracking-modal-backdrop" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && close()}>
@@ -111,16 +148,58 @@ function TrackingDialog({ kind, close, finish, onSave }: {
           <>
             <label className="tracking-dialog-field">
               <span>Search Token or Paste Contract</span>
-              <div className="tracking-input-with-icon"><input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by token name, symbol, or contract address..." /><i aria-hidden="true">⌕</i></div>
+              <div className="tracking-input-with-icon" style={{ position: "relative" }}>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setSelectedCoin(null); }}
+                  placeholder="Search by token name, symbol, or contract address..."
+                  autoComplete="off"
+                  autoFocus
+                />
+                <i aria-hidden="true">{searching ? "…" : "⌕"}</i>
+                {results.length > 0 && (
+                  <ul className="tracking-coin-results" role="listbox">
+                    {results.map(coin => (
+                      <li key={coin.id} role="option" aria-selected={false}>
+                        <button type="button" onClick={() => pickCoin(coin)}>
+                          <CoinIcon symbol={coin.symbol} />
+                          <span className="tracking-coin-info">
+                            <strong>{coin.symbol}</strong>
+                            <small>{coin.name}</small>
+                          </span>
+                          <span className="tracking-coin-meta">
+                            <b>${parseFloat(coin.priceUsd) >= 1
+                              ? parseFloat(coin.priceUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              : parseFloat(coin.priceUsd).toPrecision(4)}</b>
+                            <em className={parseFloat(coin.changePercent24Hr) >= 0 ? "tracking-positive" : "tracking-negative"}>
+                              {parseFloat(coin.changePercent24Hr) >= 0 ? "+" : ""}{parseFloat(coin.changePercent24Hr).toFixed(2)}%
+                            </em>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <small>Supports a token name, symbol, or contract address.</small>
             </label>
-            <button className="tracking-token-result" type="button">
-              <AssetBadge label="PEPE" tone="green" />
-              <span><strong>PEPE <b>✓</b></strong><small>Pepe</small></span>
-              <span><small>6 networks detected</small><em>◆ ◉ ◇ ⬡ ＋1</em></span>
-            </button>
-            <p className="tracking-result-note">This preview represents cross-network monitoring; no provider is connected yet.</p>
-            <label className="tracking-dialog-field"><span>Label (Optional)</span><input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. PEPE Meme Coin" /><small>Give this token a name to easily identify it.</small></label>
+            {selectedCoin && (
+              <div className="tracking-token-result">
+                <CoinIcon symbol={selectedCoin.symbol} />
+                <span>
+                  <strong>{selectedCoin.name} <b className="tracking-positive">✓</b></strong>
+                  <small>{selectedCoin.symbol} · Rank #{selectedCoin.rank}</small>
+                </span>
+                <span className="tracking-coin-meta">
+                  <b>{priceStr}</b>
+                  <em className={changePercent >= 0 ? "tracking-positive" : "tracking-negative"}>
+                    {changePercent >= 0 ? "+" : ""}{changePercent.toFixed(2)}%
+                  </em>
+                </span>
+              </div>
+            )}
+            <label className="tracking-dialog-field"><span>Label (Optional)</span><input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder={selectedCoin ? `e.g. ${selectedCoin.name}` : "e.g. My Token"} /><small>Give this token a name to easily identify it.</small></label>
             <label className="tracking-dialog-field"><span>Add to Watchlist (Optional)</span><select defaultValue=""><option value="">Select watchlist</option><option>Core assets</option><option>Momentum watch</option><option>Research</option></select><small>Organize this token in a watchlist.</small></label>
           </>
         ) : (
