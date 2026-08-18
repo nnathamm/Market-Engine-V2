@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-type View = "create" | "signals" | "order-flow" | "notifications";
+type View = "create" | "signals" | "order-flow" | "notifications" | "profile";
 type DropdownOption = { value: string; label: string };
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
@@ -39,6 +39,7 @@ const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = 
   ["signals", "☷", "View Signals", "Manage existing signals"],
   ["order-flow", "⇄", "Order Flow", "Configure order-flow analysis"],
   ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
+  ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],
 ];
 
 const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
@@ -301,19 +302,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
 }
 
 function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: { activeView: View; sidebarOpen: boolean; toggleSidebar: () => void; setView: (view: View) => void }) {
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-  const profileMenuId = useId();
   const currentPage = PAGE_NAVIGATION.find(([view]) => view === activeView) ?? PAGE_NAVIGATION[0];
-
-  useEffect(() => {
-    if (!profileOpen) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [profileOpen]);
 
   return (
     <header className="application-topbar">
@@ -322,30 +311,11 @@ function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: 
       </button>
       <div className="application-page-context"><small>EdgeSignals</small><strong>{currentPage[2]}</strong></div>
 
-      <div className="master-profile" ref={profileRef}>
-        <button className={`master-profile-trigger ${profileOpen ? "open" : ""}`} type="button" aria-expanded={profileOpen} aria-controls={profileMenuId} onClick={() => setProfileOpen((current) => !current)} onKeyDown={(event) => event.key === "Escape" && setProfileOpen(false)}>
-          <span className="master-avatar">MA</span>
-          <span><strong>Master ADMIN</strong><small>Top-tier access</small></span>
-          <i aria-hidden="true">⌄</i>
-        </button>
-        {profileOpen ? (
-          <section className="master-profile-menu" id={profileMenuId} aria-label="Master ADMIN profile options">
-            <header><span className="master-avatar large">MA</span><div><strong>Master ADMIN</strong><small>Executive control account</small></div><b>MASTER</b></header>
-            <div className="master-authority">
-              <h2>Authority Scope</h2>
-              <p><span>✓</span> Full site configuration control</p>
-              <p><span>✓</span> Override lower-tier account permissions</p>
-              <p><span>✓</span> Modify, suspend, or delete accounts</p>
-            </div>
-            <button className={activeView === "notifications" ? "active" : ""} type="button" aria-current={activeView === "notifications" ? "page" : undefined} onKeyDown={(event) => event.key === "Escape" && setProfileOpen(false)} onClick={() => {
-              setView("notifications");
-              setProfileOpen(false);
-            }}><span aria-hidden="true">♢</span><span><strong>Notification Settings</strong><small>Email, SMS, and Discord delivery</small></span><b aria-hidden="true">›</b></button>
-            <button type="button" disabled><span aria-hidden="true">♧</span><span><strong>Manage Accounts</strong><small>Available when account roles are added</small></span><b aria-hidden="true">›</b></button>
-            <p className="master-profile-note"><strong>UI role preview:</strong> identity checks and permission enforcement are not connected yet.</p>
-          </section>
-        ) : null}
-      </div>
+      <button className="master-profile-trigger" type="button" aria-current={activeView === "profile" ? "page" : undefined} onClick={() => setView("profile")}>
+        <span className="master-avatar">MA</span>
+        <span><strong>Master ADMIN</strong><small>Top-tier access</small></span>
+        <i aria-hidden="true">›</i>
+      </button>
     </header>
   );
 }
@@ -702,6 +672,63 @@ function OrderFlowView() {
   );
 }
 
+function ProfileView({ setView }: { setView: (view: View) => void }) {
+  return (
+    <div className="screen inner-screen profile-screen">
+      <header className="profile-header">
+        <div className="inner-title">
+          <span className="profile-hero-icon" aria-hidden="true">♛</span>
+          <div><h1>Master ADMIN Profile</h1><p>Executive account overview and site-level controls.</p></div>
+        </div>
+        <span className="profile-status"><i aria-hidden="true" /> Active master account</span>
+      </header>
+
+      <main className="profile-layout">
+        <section className="surface profile-identity-card">
+          <div className="profile-identity-main">
+            <span className="master-avatar profile-avatar">MA</span>
+            <div><span className="profile-role-badge">MASTER</span><h2>Master ADMIN</h2><p>Executive control account</p></div>
+          </div>
+          <div className="profile-account-facts">
+            <span><small>Account tier</small><strong>Top level</strong></span>
+            <span><small>Site access</small><strong>Full control</strong></span>
+            <span><small>Account status</small><strong className="profile-online">Active</strong></span>
+          </div>
+        </section>
+
+        <section className="surface profile-authority-card">
+          <header><span aria-hidden="true">⌾</span><div><h2>Authority Scope</h2><p>Capabilities assigned to the site&apos;s highest-level account.</p></div></header>
+          <div className="profile-authority-list">
+            <p><span>✓</span><strong>Full site configuration control</strong><small>Change every available setting and interface option.</small></p>
+            <p><span>✓</span><strong>Override lower-tier permissions</strong><small>Take control when another account&apos;s access conflicts with an executive decision.</small></p>
+            <p><span>✓</span><strong>Modify, suspend, or delete accounts</strong><small>Manage every future account and role from one place.</small></p>
+          </div>
+        </section>
+
+        <section className="profile-control-grid" aria-label="Profile controls">
+          <button className="surface profile-control-card" type="button" onClick={() => setView("notifications")}>
+            <span className="profile-control-icon purple" aria-hidden="true">♢</span>
+            <span><strong>Notification Settings</strong><small>Choose email, SMS, and Discord destinations for automatic alerts.</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
+          <button className="surface profile-control-card" type="button" disabled>
+            <span className="profile-control-icon blue" aria-hidden="true">♧</span>
+            <span><strong>Manage Accounts</strong><small>Create roles, modify access, or remove accounts when user management is added.</small></span>
+            <em>Coming later</em>
+          </button>
+          <button className="surface profile-control-card" type="button" disabled>
+            <span className="profile-control-icon green" aria-hidden="true">⌘</span>
+            <span><strong>Roles &amp; Permissions</strong><small>Define what future account tiers are allowed to see and change.</small></span>
+            <em>Coming later</em>
+          </button>
+        </section>
+
+        <section className="profile-prototype-note"><span>ⓘ</span><p><strong>Interface preview:</strong> this page shows the intended Master ADMIN authority. Identity verification, account storage, and permission enforcement are not connected yet.</p></section>
+      </main>
+    </div>
+  );
+}
+
 function NotificationSwitch({ checked, label, ariaLabel, onChange }: { checked: boolean; label: string; ariaLabel: string; onChange: (checked: boolean) => void }) {
   return (
     <label className="notification-switch">
@@ -875,6 +902,7 @@ export default function Home() {
             {view === "signals" && <SignalsView />}
             {view === "order-flow" && <OrderFlowView />}
             {view === "notifications" && <NotificationsView />}
+            {view === "profile" && <ProfileView setView={setView} />}
           </div>
         </div>
       </div>
