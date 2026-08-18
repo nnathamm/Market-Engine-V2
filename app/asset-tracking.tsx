@@ -291,7 +291,7 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
   );
 }
 
-function TokenIntelligence({ token, onLinkMarketData }: { token: TokenRow; onLinkMarketData?: () => void }) {
+function TokenIntelligence({ token, priceLoading, onLinkMarketData }: { token: TokenRow; priceLoading?: boolean; onLinkMarketData?: () => void }) {
   const geckoUrl = token.coingecko_id
     ? `https://www.coingecko.com/en/coins/${token.coingecko_id}`
     : null;
@@ -307,7 +307,15 @@ function TokenIntelligence({ token, onLinkMarketData }: { token: TokenRow; onLin
         <b className="tracking-active-pill">● Active</b>
       </div>
       <div className="tracking-hero-stats">
-        <span><small>Price</small><strong>{token.price}</strong><Change value={token.change} /></span>
+        <span>
+          <small>Price</small>
+          <strong className={priceLoading ? "" : "tracking-price-loaded"}>
+            {priceLoading
+              ? <span className="tracking-price-skeleton" aria-label="Loading price…" />
+              : token.price}
+          </strong>
+          <Change value={token.change} />
+        </span>
         <span><small>Last Activity</small><strong className="tracking-activity"><i /> {token.activity}</strong></span>
       </div>
       {missingPriceSource && (
@@ -472,6 +480,17 @@ export default function AssetTrackingView() {
   const [liveData, setLiveData] = useState<Map<string, LivePrice>>(new Map());
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState<number | null>(null);
+  const [livePriceFetching, setLivePriceFetching] = useState(false);
+  // Set to true once any initial live-price fetch has settled; prevents the
+  // skeleton from reappearing on later dbTokens changes or periodic refreshes.
+  const livePriceFetchedOnce = useRef(false);
+  // Incremented every time the effect fires before the first fetch settles.
+  // Each fetch closes over its own generation; only the fetch whose generation
+  // still matches the current value at settlement time may clear the skeleton.
+  // This eliminates the race where React Strict Mode's double-invoke (or a
+  // rapid dbTokens change) causes an earlier request to dismiss the skeleton
+  // while the later one is still in flight.
+  const initialFetchGenRef = useRef(0);
 
   // Always-current set of tracked symbols — read inside async callbacks to
   // prevent in-flight live-price responses from re-inserting a deleted symbol.
@@ -490,6 +509,19 @@ export default function AssetTrackingView() {
 
   useEffect(() => {
     if (!dbTokens.length) return;
+
+    // Show the skeleton for the very first live-price fetch only.
+    // Increment the generation counter so that if this effect fires again
+    // (Strict Mode double-invoke or rapid dbTokens change) before the current
+    // fetch settles, the earlier fetch's generation will be stale and it will
+    // not be allowed to clear the skeleton prematurely.
+    if (!livePriceFetchedOnce.current) {
+      initialFetchGenRef.current += 1;
+      setLivePriceFetching(true);
+    }
+    // Capture the generation for this specific effect invocation. The closure
+    // over `myGen` is what lets the finally-handler verify it is still current.
+    const myGen = initialFetchGenRef.current;
 
     const fetchLivePrices = () => {
       if (document.visibilityState === "hidden") return;
@@ -512,7 +544,16 @@ export default function AssetTrackingView() {
             setLastUpdated(new Date());
           }
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          // Only the latest-generation initial fetch may clear the skeleton.
+          // If a newer effect invocation has already incremented the counter,
+          // this fetch is superseded and must not dismiss loading early.
+          if (!livePriceFetchedOnce.current && myGen === initialFetchGenRef.current) {
+            livePriceFetchedOnce.current = true;
+            setLivePriceFetching(false);
+          }
+        });
     };
 
     fetchLivePrices();
@@ -847,7 +888,7 @@ export default function AssetTrackingView() {
           <footer className="tracking-table-footer"><span>Showing 1 to {tab === "tokens" ? tokens.length : wallets.length} of {tab === "tokens" ? allTokens.length : allWallets.length} {tab}</span><div><button type="button">‹</button><button className="active" type="button">1</button><button type="button">2</button><button type="button">›</button></div><button type="button">Show 8 per page ⌄</button></footer>
         </main>
         {tab === "tokens"
-          ? selectedToken ? <TokenIntelligence token={selectedToken} onLinkMarketData={() => setLinkTokenSymbol(selectedToken.symbol)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>
+          ? selectedToken ? <TokenIntelligence token={selectedToken} priceLoading={livePriceFetching} onLinkMarketData={() => setLinkTokenSymbol(selectedToken.symbol)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>
           : selectedWallet ? <WalletIntelligence wallet={selectedWallet} portfolioWallet={portfolioWallets.find(pw => pw.id === selectedWallet.portfolio_id)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a wallet to see intelligence here.</p></aside>}
       </div>
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}

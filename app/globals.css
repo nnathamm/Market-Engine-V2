@@ -661,6 +661,10 @@ button { color: inherit; }
 .tracking-hero-stats > span + span { padding-left: 25px; border-left: 1px solid #1c2a3c; }
 .tracking-hero-stats small, .tracking-facts small { color: #7f8c9f; font-size: 8px; }
 .tracking-hero-stats strong { font-size: 19px; }
+.tracking-price-skeleton { display: inline-block; width: 80px; height: 18px; border-radius: 5px; background: linear-gradient(90deg, #1c2d42 25%, #263d57 50%, #1c2d42 75%); background-size: 200% 100%; animation: tracking-price-shimmer 1.4s ease-in-out infinite; vertical-align: middle; }
+@keyframes tracking-price-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.tracking-price-loaded { animation: tracking-price-fadein 0.35s ease; }
+@keyframes tracking-price-fadein { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
 .tracking-hero-stats .tracking-positive, .tracking-hero-stats .tracking-negative { margin-left: 8px; font-size: 8px; }
 .tracking-hero-stats .tracking-activity { color: #d8dee7; font-size: 10px; font-weight: 500; }
 .tracking-detail-actions { min-height: 62px; padding: 10px 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; border-bottom: 1px solid #1d2a3c; }
