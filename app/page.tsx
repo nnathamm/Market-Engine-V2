@@ -228,7 +228,7 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function InnerNavigation({ activeView, setView }: { activeView: "create" | "signals"; setView: (view: View) => void }) {
+function InnerNavigation({ activeView, setView }: { activeView: View; setView: (view: View) => void }) {
   return (
     <div className="inner-topbar">
       <nav className="view-navigation" aria-label="Signal Control pages">
@@ -238,7 +238,7 @@ function InnerNavigation({ activeView, setView }: { activeView: "create" | "sign
         <button className={activeView === "signals" ? "active" : ""} type="button" aria-current={activeView === "signals" ? "page" : undefined} onClick={() => setView("signals")}>
           <span aria-hidden="true">☷</span> View Signals
         </button>
-        <button type="button" onClick={() => setView("order-flow")}>
+        <button className={activeView === "order-flow" ? "active" : ""} type="button" aria-current={activeView === "order-flow" ? "page" : undefined} onClick={() => setView("order-flow")}>
           <span aria-hidden="true">⇄</span> Order Flow
         </button>
       </nav>
@@ -568,6 +568,7 @@ function OrderFlowView({ setView }: { setView: (view: View) => void }) {
     <div className="of-page">
       <FlowSidebar setView={setView} />
       <main className="of-main">
+        <InnerNavigation activeView="order-flow" setView={setView} />
         <header className="of-header">
           <div className="of-breadcrumb"><span>Settings</span><b>›</b><strong>Order Flow</strong></div>
           <div className="of-title-row"><h1>Order Flow Settings</h1><span>Advanced</span></div>

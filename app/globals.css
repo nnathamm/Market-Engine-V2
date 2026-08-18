@@ -240,6 +240,7 @@ button { color: inherit; }
 .of-profile small { width: max-content; padding: 3px 7px; color: #bd72ff; border-radius: 4px; background: #302057; font-size: 10px; }
 .of-profile i { color: #aab4c4; font-style: normal; }
 .of-main { min-width: 0; overflow: hidden; background: radial-gradient(circle at 48% 35%, rgba(14, 31, 53, .19), transparent 48%); }
+.of-main > .inner-topbar { padding: 16px 21px 0 46px; }
 .of-header { position: relative; min-height: 183px; padding: 20px 325px 14px 46px; }
 .of-breadcrumb { display: flex; align-items: center; gap: 12px; color: #9aa6b8; font-size: 13px; }
 .of-breadcrumb b { color: #637086; font-size: 20px; font-weight: 300; }
@@ -412,6 +413,7 @@ button { color: inherit; }
   .of-nav { padding: 0 12px 10px; display: flex; overflow-x: auto; }
   .of-nav > button { min-width: max-content; width: auto; padding-inline: 12px; }
   .of-nav > small, .of-subnav, .of-profile, .of-nav > button:nth-of-type(n+4):not(.active) { display: none; }
+  .of-main > .inner-topbar { padding: 15px 14px 0; }
   .of-header { min-height: 250px; padding: 18px 18px 80px; }
   .of-header > p br { display: none; }
   .of-header-actions { left: 18px; right: auto; top: auto; bottom: 20px; }
