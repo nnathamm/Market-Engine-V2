@@ -298,7 +298,7 @@ function MarketChart({
     const sameDataset = datasetKeyRef.current === datasetKey;
     const wasFollowingLatest = sameDataset && previousLogicalRange !== null && previousLogicalRange.to >= dataLengthRef.current;
     series.setData(data);
-    chart.priceScale("right").applyOptions({ autoScale: true });
+    try { chart.priceScale("right").applyOptions({ autoScale: true }); } catch { /* chart not yet fully initialised */ }
 
     if (!sameDataset) {
       chart.timeScale().setVisibleLogicalRange({
