@@ -473,6 +473,13 @@ export default function AssetTrackingView() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState<number | null>(null);
 
+  // Always-current set of tracked symbols — read inside async callbacks to
+  // prevent in-flight live-price responses from re-inserting a deleted symbol.
+  const trackedSymbolsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    trackedSymbolsRef.current = new Set(dbTokens.map(t => t.symbol));
+  }, [dbTokens]);
+
   useEffect(() => {
     if (lastUpdated === null) { setSecondsSinceUpdate(null); return; }
     const tick = () => setSecondsSinceUpdate(Math.floor((Date.now() - lastUpdated.getTime()) / 1000));
@@ -494,8 +501,14 @@ export default function AssetTrackingView() {
         .then(async r => {
           if (!r.ok) return; // preserve existing data and timestamp on HTTP errors
           const data: Record<string, LivePrice> = await r.json();
-          if (Object.keys(data).length > 0) {
-            setLiveData(new Map(Object.entries(data)));
+          // Filter to only currently-tracked symbols so an in-flight request
+          // that resolves after a deletion cannot re-insert a stale entry.
+          const currentSymbols = trackedSymbolsRef.current;
+          const filtered = Object.fromEntries(
+            Object.entries(data).filter(([sym]) => currentSymbols.has(sym))
+          );
+          if (Object.keys(filtered).length > 0) {
+            setLiveData(new Map(Object.entries(filtered)));
             setLastUpdated(new Date());
           }
         })
@@ -656,7 +669,17 @@ export default function AssetTrackingView() {
   }, [openMenu]);
 
   const removeToken = useCallback(async (symbol: string) => {
-    await fetch(`/api/tracked/tokens/${encodeURIComponent(symbol)}`, { method: "DELETE" });
+    const res = await fetch(`/api/tracked/tokens/${encodeURIComponent(symbol)}`, { method: "DELETE" });
+    if (!res.ok) return; // retain state if the server rejected the deletion
+    // Synchronously evict the symbol from the ref so any in-flight live-price
+    // request that resolves before refreshTokens completes cannot reinsert it.
+    trackedSymbolsRef.current.delete(symbol);
+    setLiveData(prev => {
+      if (!prev.has(symbol)) return prev;
+      const next = new Map(prev);
+      next.delete(symbol);
+      return next;
+    });
     await refreshTokens();
     setOpenMenu(null);
   }, [refreshTokens]);

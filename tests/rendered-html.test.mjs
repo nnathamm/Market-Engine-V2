@@ -136,6 +136,33 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.of-gauge-arc\s*\{[^}]*conic-gradient/s);
 });
 
+test("removing a token prunes stale live-price data and guards against in-flight responses", async () => {
+  const assetTrackingPage = await readFile(
+    new URL("../app/asset-tracking.tsx", import.meta.url),
+    "utf8",
+  );
+
+  // A ref must be kept in sync with the current tracked-symbol set so that
+  // async fetch callbacks can read it after the state has already changed.
+  assert.match(assetTrackingPage, /trackedSymbolsRef\s*=\s*useRef/);
+  assert.match(assetTrackingPage, /trackedSymbolsRef\.current\s*=\s*new Set\(dbTokens\.map/);
+
+  // The live-price fetch result must be filtered through the ref so a response
+  // that arrives after a deletion cannot re-insert the removed symbol.
+  assert.match(
+    assetTrackingPage,
+    /trackedSymbolsRef\.current[\s\S]{0,300}filter\(\(\[sym\]\) => currentSymbols\.has\(sym\)\)/,
+  );
+
+  // The removeToken function must: (1) check res.ok before touching state,
+  // (2) prune liveData immediately, and (3) only then await refreshTokens —
+  // all three in that order.
+  assert.match(
+    assetTrackingPage,
+    /if \(!res\.ok\) return[\s\S]{0,400}next\.delete\(symbol\)[\s\S]{0,200}await refreshTokens\(\)/,
+  );
+});
+
 test("last-updated timestamp only advances on a genuine successful price fetch", async () => {
   const assetTrackingPage = await readFile(
     new URL("../app/asset-tracking.tsx", import.meta.url),
@@ -155,11 +182,11 @@ test("last-updated timestamp only advances on a genuine successful price fetch",
   assert.ok(okGuardIdx !== -1, "r.ok guard must exist in asset-tracking.tsx");
   assert.ok(setLastUpdatedIdx > okGuardIdx, "setLastUpdated must appear after the r.ok guard");
 
-  // liveData and lastUpdated must only be updated when the response payload
-  // contains at least one price entry (empty {} is treated as a server-side failure).
+  // liveData and lastUpdated must only be updated when the filtered response
+  // payload contains at least one price entry (empty {} treated as failure).
   assert.match(
     assetTrackingPage,
-    /Object\.keys\(data\)\.length > 0[\s\S]{0,200}setLastUpdated\(new Date\(\)\)/,
+    /Object\.keys\(filtered\)\.length > 0[\s\S]{0,200}setLastUpdated\(new Date\(\)\)/,
   );
 
   // The timestamp element must be rendered outside the grid table-head to
