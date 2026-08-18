@@ -278,7 +278,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
   return (
     <aside className="application-sidebar" aria-hidden={!open}>
       <div className="application-sidebar-scroll">
-        <button className="application-brand bg-[#060f1c]" type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
+        <button className="application-brand bg-[#060f1c] flex-col" type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
           <img src="/logo.png" alt="Stop Loss" style={{ height: "104px", width: "auto", objectFit: "contain", margin: "0 auto", display: "block" }} />
         </button>
 
