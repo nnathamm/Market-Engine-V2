@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import MarketsView from "./markets";
+import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+
+const MarketsView = lazy(() => import("./markets"));
 
 type View = "create" | "signals" | "markets" | "order-flow" | "notifications" | "profile";
 type DropdownOption = { value: string; label: string };
@@ -901,7 +902,7 @@ export default function Home() {
           <div className="application-view">
             {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
             {view === "signals" && <SignalsView />}
-            {view === "markets" && <MarketsView />}
+            {view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView /></Suspense>}
             {view === "order-flow" && <OrderFlowView />}
             {view === "notifications" && <NotificationsView />}
             {view === "profile" && <ProfileView setView={setView} />}

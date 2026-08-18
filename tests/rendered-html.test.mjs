@@ -95,7 +95,8 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.application-sidebar-scroll\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto/s);
   assert.match(styles, /\.profile-layout\s*\{[^}]*grid-template-columns:/s);
   assert.doesNotMatch(styles, /\.master-profile-menu/);
-  assert.match(page, /view === "markets" && <MarketsView \/>/);
+  assert.match(page, /lazy\(\(\) => import\("\.\/markets"\)\)/);
+  assert.match(page, /view === "markets" && <Suspense[\s\S]*<MarketsView \/>[\s\S]*<\/Suspense>/);
   assert.match(marketsPage, /Browse Binance Spot pairs and load any chart on demand/);
   assert.match(marketsPage, /https:\/\/data-api\.binance\.vision[\s\S]*\/api\/v3\/exchangeInfo[\s\S]*\/api\/v3\/ticker\/24hr\?type=MINI[\s\S]*\/api\/v3\/klines/);
   assert.match(marketsPage, /if \(!selected\) return;[\s\S]*loadChart/);
@@ -107,6 +108,15 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(marketsPage, /onScroll=\{loadMoreOnScroll\}/);
   assert.match(marketsPage, /FAVORITES_STORAGE_KEY[\s\S]*localStorage\.getItem[\s\S]*localStorage\.setItem/);
   assert.match(marketsPage, /market-favorites-filter[\s\S]*Favorites[\s\S]*market-favorite-toggle/);
+  assert.match(packageJson, /"lightweight-charts": "\^5\.2\.0"/);
+  assert.match(marketsPage, /createChart\([\s\S]*CandlestickSeries/);
+  assert.match(marketsPage, /handleScroll:[\s\S]*mouseWheel: true[\s\S]*pressedMouseMove: true/);
+  assert.match(marketsPage, /handleScale:[\s\S]*mouseWheel: true[\s\S]*pinch: true/);
+  assert.match(marketsPage, /bars\.barsBefore < 50[\s\S]*subscribeVisibleLogicalRangeChange/);
+  assert.match(marketsPage, /const KLINE_PAGE_SIZE = 500/);
+  assert.match(marketsPage, /endTime: String\(currentCandles\[0\]\.time - 1\)/);
+  assert.match(marketsPage, /aria-label="Zoom in"[\s\S]*aria-label="Zoom out"[\s\S]*Latest/);
+  assert.doesNotMatch(styles, /\.market-candle-layer|\.market-candle-slot|\.market-price-axis/);
   assert.match(styles, /\.markets-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.market-list\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(styles, /\.market-list-row\s*\{[^}]*grid-template-columns:/s);

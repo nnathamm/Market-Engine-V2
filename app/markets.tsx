@@ -1,6 +1,25 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import {
+  CandlestickSeries,
+  ColorType,
+  CrosshairMode,
+  createChart,
+  type CandlestickData,
+  type IChartApi,
+  type ISeriesApi,
+  type Logical,
+  type UTCTimestamp,
+} from "lightweight-charts";
 
 type Market = {
   symbol: string;
@@ -26,13 +45,6 @@ type Candle = {
   closeTime: number;
 };
 
-type ChartCandle = Candle & {
-  wickTop: number;
-  wickHeight: number;
-  bodyTop: number;
-  bodyHeight: number;
-};
-
 type BinanceSymbol = {
   symbol: string;
   status: string;
@@ -56,6 +68,7 @@ type BinanceKline = [number, string, string, string, string, string, number, ...
 
 const BINANCE_MARKET_DATA = "https://data-api.binance.vision";
 const MARKET_PAGE_SIZE = 20;
+const KLINE_PAGE_SIZE = 500;
 const FAVORITES_STORAGE_KEY = "edge-signals-market-favorites-v1";
 const FAVORITES_CHANGED_EVENT = "edge-signals-market-favorites-changed";
 const QUOTE_FILTERS = ["USDT", "USDC", "FDUSD", "BTC", "ETH"];
@@ -125,65 +138,178 @@ function parseFavorites(snapshot: string) {
   }
 }
 
-function MarketChart({ candles }: { candles: Candle[] }) {
-  const chart = useMemo(() => {
-    if (candles.length === 0) return null;
-    let minimum = Number.POSITIVE_INFINITY;
-    let maximum = Number.NEGATIVE_INFINITY;
-    for (const candle of candles) {
-      if (candle.low < minimum) minimum = candle.low;
-      if (candle.high > maximum) maximum = candle.high;
-    }
-    const rawRange = maximum - minimum;
-    const padding = rawRange > 0 ? rawRange * .08 : Math.max(maximum * .01, .000001);
-    const low = minimum - padding;
-    const high = maximum + padding;
-    const range = high - low;
-    const position = (price: number) => ((high - price) / range) * 100;
-    const plotted: ChartCandle[] = candles.map((candle) => {
-      const wickTop = position(candle.high);
-      const wickBottom = position(candle.low);
-      const bodyTop = position(Math.max(candle.open, candle.close));
-      const bodyBottom = position(Math.min(candle.open, candle.close));
-      return {
-        ...candle,
-        wickTop,
-        wickHeight: Math.max(.35, wickBottom - wickTop),
-        bodyTop,
-        bodyHeight: Math.max(.8, bodyBottom - bodyTop),
-      };
-    });
-    return {
-      low,
-      high,
-      labels: [high, high - range / 3, high - range * 2 / 3, low],
-      plotted,
-    };
-  }, [candles]);
+function chartPrecision(price: number) {
+  if (price >= 1000) return 2;
+  if (price >= 1) return 4;
+  if (price >= .01) return 6;
+  return 9;
+}
 
-  if (!chart) return null;
-  const first = candles[0];
-  const middle = candles[Math.floor(candles.length / 2)];
-  const last = candles[candles.length - 1];
+function MarketChart({
+  candles,
+  datasetKey,
+  historyLoading,
+  hasMoreHistory,
+  onNeedMore,
+}: {
+  candles: Candle[];
+  datasetKey: string;
+  historyLoading: boolean;
+  hasMoreHistory: boolean;
+  onNeedMore: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const datasetKeyRef = useRef("");
+  const previousLengthRef = useRef(0);
+  const onNeedMoreRef = useRef(onNeedMore);
+
+  useEffect(() => {
+    onNeedMoreRef.current = onNeedMore;
+  }, [onNeedMore]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const chart = createChart(container, {
+      autoSize: true,
+      height: 398,
+      layout: {
+        background: { type: ColorType.Solid, color: "#071321" },
+        textColor: "#718096",
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+        fontSize: 10,
+      },
+      grid: {
+        vertLines: { color: "#142235" },
+        horzLines: { color: "#1b2a3d" },
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { color: "#8052a7", labelBackgroundColor: "#6f3e96" },
+        horzLine: { color: "#8052a7", labelBackgroundColor: "#6f3e96" },
+      },
+      rightPriceScale: {
+        borderColor: "#243247",
+        scaleMargins: { top: .1, bottom: .12 },
+      },
+      timeScale: {
+        borderColor: "#243247",
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 5,
+        barSpacing: 8,
+        minBarSpacing: 2,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: { time: true, price: true },
+        axisDoubleClickReset: { time: true, price: true },
+      },
+    });
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: "#44dca6",
+      downColor: "#f45f73",
+      wickUpColor: "#44dca6",
+      wickDownColor: "#f45f73",
+      borderVisible: false,
+      priceLineColor: "#9d58d7",
+    });
+    const handleVisibleRange = (range: { from: Logical; to: Logical } | null) => {
+      if (!range) return;
+      const bars = series.barsInLogicalRange(range);
+      if (bars && bars.barsBefore < 50) onNeedMoreRef.current();
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleRange);
+    chartRef.current = chart;
+    seriesRef.current = series;
+
+    return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleRange);
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series || candles.length === 0) return;
+    const data: CandlestickData<UTCTimestamp>[] = candles.map((candle) => ({
+      time: Math.floor(candle.time / 1000) as UTCTimestamp,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    }));
+    const precision = chartPrecision(candles[candles.length - 1].close);
+    series.applyOptions({
+      priceFormat: { type: "price", precision, minMove: 10 ** -precision },
+    });
+
+    const previousRange = chart.timeScale().getVisibleLogicalRange();
+    const sameDataset = datasetKeyRef.current === datasetKey;
+    const insertedBars = sameDataset ? Math.max(0, data.length - previousLengthRef.current) : 0;
+    series.setData(data);
+
+    if (!sameDataset) {
+      chart.timeScale().setVisibleLogicalRange({
+        from: Math.max(0, data.length - 90) as Logical,
+        to: (data.length + 4) as Logical,
+      });
+    } else if (previousRange && insertedBars > 0) {
+      chart.timeScale().setVisibleLogicalRange({
+        from: (previousRange.from + insertedBars) as Logical,
+        to: (previousRange.to + insertedBars) as Logical,
+      });
+    }
+
+    datasetKeyRef.current = datasetKey;
+    previousLengthRef.current = data.length;
+  }, [candles, datasetKey]);
+
+  function zoom(multiplier: number) {
+    const timeScale = chartRef.current?.timeScale();
+    const range = timeScale?.getVisibleLogicalRange();
+    if (!timeScale || !range) return;
+    const midpoint = (range.from + range.to) / 2;
+    const halfSpan = Math.max(3, ((range.to - range.from) / 2) * multiplier);
+    timeScale.setVisibleLogicalRange({
+      from: (midpoint - halfSpan) as Logical,
+      to: (midpoint + halfSpan) as Logical,
+    });
+  }
+
+  function showLatest() {
+    const timeScale = chartRef.current?.timeScale();
+    if (!timeScale || candles.length === 0) return;
+    timeScale.setVisibleLogicalRange({
+      from: Math.max(0, candles.length - 90) as Logical,
+      to: (candles.length + 4) as Logical,
+    });
+  }
 
   return (
-    <div className="market-chart-plot" aria-label="Candlestick price chart">
-      <div className="market-chart-grid" aria-hidden="true"><i /><i /><i /><i /></div>
-      <div className="market-price-axis" aria-hidden="true">
-        {chart.labels.map((label) => <span key={label}>{formatPrice(label)}</span>)}
+    <div className="market-chart-plot" aria-label="Interactive candlestick price chart">
+      <div ref={containerRef} className="market-chart-canvas" />
+      <div className="market-chart-controls" aria-label="Chart controls">
+        <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => zoom(.7)}>＋</button>
+        <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => zoom(1.4)}>−</button>
+        <button type="button" className="latest" onClick={showLatest}>Latest</button>
       </div>
-      <div className="market-candle-layer" aria-hidden="true">
-        {chart.plotted.map((candle) => {
-          const rising = candle.close >= candle.open;
-          return (
-            <span className={`market-candle-slot ${rising ? "rising" : "falling"}`} key={candle.time}>
-              <i style={{ top: `${candle.wickTop}%`, height: `${candle.wickHeight}%` }} />
-              <b style={{ top: `${candle.bodyTop}%`, height: `${candle.bodyHeight}%` }} />
-            </span>
-          );
-        })}
-      </div>
-      <div className="market-time-axis" aria-hidden="true"><span>{formatTime(first.time)}</span><span>{formatTime(middle.time)}</span><span>{formatTime(last.time)}</span></div>
+      <div className="market-chart-help">Scroll or pinch to zoom · Drag to move · Older candles load at the left</div>
+      {historyLoading ? <div className="market-history-status"><span className="market-loader" /> Loading older candles…</div> : null}
+      {!hasMoreHistory ? <div className="market-history-status complete">Start of available history</div> : null}
     </div>
   );
 }
@@ -199,14 +325,28 @@ export default function MarketsView() {
   const [interval, setInterval] = useState("15m");
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [marketsError, setMarketsError] = useState("");
   const [chartError, setChartError] = useState("");
   const [marketRequest, setMarketRequest] = useState(0);
   const [chartRequest, setChartRequest] = useState(0);
   const [asOf, setAsOf] = useState(0);
+  const candlesRef = useRef<Candle[]>([]);
+  const historyLoadingRef = useRef(false);
+  const datasetKey = selected ? `${selected.symbol}:${interval}` : "";
+  const datasetKeyRef = useRef(datasetKey);
   const deferredQuery = useDeferredValue(query.trim().toUpperCase());
   const favoritesSnapshot = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getServerFavoritesSnapshot);
   const favorites = useMemo(() => parseFavorites(favoritesSnapshot), [favoritesSnapshot]);
+
+  useEffect(() => {
+    candlesRef.current = candles;
+  }, [candles]);
+
+  useEffect(() => {
+    datasetKeyRef.current = datasetKey;
+  }, [datasetKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -258,15 +398,18 @@ export default function MarketsView() {
   useEffect(() => {
     if (!selected) return;
     const controller = new AbortController();
+    historyLoadingRef.current = false;
     async function loadChart() {
+      setHistoryLoading(false);
+      setHasMoreHistory(true);
       setChartLoading(true);
       setChartError("");
       try {
-        const params = new URLSearchParams({ symbol: selected.symbol, interval, limit: "120" });
+        const params = new URLSearchParams({ symbol: selected.symbol, interval, limit: String(KLINE_PAGE_SIZE) });
         const response = await fetch(`${BINANCE_MARKET_DATA}/api/v3/klines?${params}`, { signal: controller.signal });
         if (!response.ok) throw new Error("Unable to load this Binance chart.");
         const rows = await response.json() as BinanceKline[];
-        setCandles(rows.map((row) => ({
+        const nextCandles = rows.map((row) => ({
           time: row[0],
           open: Number(row[1]),
           high: Number(row[2]),
@@ -274,7 +417,10 @@ export default function MarketsView() {
           close: Number(row[4]),
           volume: Number(row[5]),
           closeTime: row[6],
-        })));
+        }));
+        candlesRef.current = nextCandles;
+        setCandles(nextCandles);
+        setHasMoreHistory(rows.length === KLINE_PAGE_SIZE);
       } catch (error) {
         if (controller.signal.aborted) return;
         setChartError(error instanceof Error ? error.message : "Unable to load this chart.");
@@ -286,6 +432,46 @@ export default function MarketsView() {
     void loadChart();
     return () => controller.abort();
   }, [selected, interval, chartRequest]);
+
+  const loadOlderCandles = useCallback(async () => {
+    const currentCandles = candlesRef.current;
+    if (!selected || currentCandles.length === 0 || historyLoadingRef.current || !hasMoreHistory) return;
+    const requestKey = `${selected.symbol}:${interval}`;
+    historyLoadingRef.current = true;
+    setHistoryLoading(true);
+    try {
+      const params = new URLSearchParams({
+        symbol: selected.symbol,
+        interval,
+        endTime: String(currentCandles[0].time - 1),
+        limit: String(KLINE_PAGE_SIZE),
+      });
+      const response = await fetch(`${BINANCE_MARKET_DATA}/api/v3/klines?${params}`);
+      if (!response.ok) throw new Error("Unable to load older Binance candles.");
+      const rows = await response.json() as BinanceKline[];
+      if (datasetKeyRef.current !== requestKey) return;
+      const olderCandles = rows.map((row) => ({
+        time: row[0],
+        open: Number(row[1]),
+        high: Number(row[2]),
+        low: Number(row[3]),
+        close: Number(row[4]),
+        volume: Number(row[5]),
+        closeTime: row[6],
+      })).filter((candle) => candle.time < currentCandles[0].time);
+      const nextCandles = [...olderCandles, ...currentCandles];
+      candlesRef.current = nextCandles;
+      setCandles(nextCandles);
+      setHasMoreHistory(rows.length === KLINE_PAGE_SIZE && olderCandles.length > 0);
+    } catch (error) {
+      if (datasetKeyRef.current === requestKey) {
+        setChartError(error instanceof Error ? error.message : "Unable to load older candles.");
+      }
+    } finally {
+      historyLoadingRef.current = false;
+      if (datasetKeyRef.current === requestKey) setHistoryLoading(false);
+    }
+  }, [selected, interval, hasMoreHistory]);
 
   const filteredMarkets = useMemo(() => {
     const result = markets.filter((market) => {
@@ -395,7 +581,7 @@ export default function MarketsView() {
               <div className="market-chart-frame">
                 {chartLoading ? <div className="market-chart-loading"><span className="market-loader" />Loading {selected.symbol} candles…</div> : null}
                 {!chartLoading && chartError ? <div className="market-chart-loading error"><strong>Chart unavailable</strong><span>{chartError}</span><button type="button" onClick={() => setChartRequest((current) => current + 1)}>Try again</button></div> : null}
-                {!chartLoading && !chartError ? <MarketChart candles={candles} /> : null}
+                {!chartLoading && !chartError ? <MarketChart candles={candles} datasetKey={datasetKey} historyLoading={historyLoading} hasMoreHistory={hasMoreHistory} onNeedMore={loadOlderCandles} /> : null}
               </div>
               <div className="market-stat-grid">
                 <span><small>24h high</small><strong>{formatPrice(selected.highPrice)}</strong></span>
