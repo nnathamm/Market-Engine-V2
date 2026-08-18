@@ -353,6 +353,24 @@ function MarketChart({
   );
 }
 
+function CoinIcon({ symbol }: { symbol: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <i aria-hidden="true">
+      {failed ? symbol.slice(0, 2) : (
+        <img
+          src={`https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`}
+          alt=""
+          width={22}
+          height={22}
+          style={{ objectFit: "contain" }}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </i>
+  );
+}
+
 export default function MarketsView() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selected, setSelected] = useState<Market | null>(null);
@@ -614,7 +632,7 @@ export default function MarketsView() {
               return (
                 <div className={`market-list-row ${selected?.symbol === market.symbol ? "active" : ""}`} key={market.symbol}>
                   <button className="market-row-select" type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => setSelected(market)}>
-                    <span className="market-pair"><i aria-hidden="true">{market.baseAsset.slice(0, 2)}</i><span><strong>{market.baseAsset}</strong><small>/{market.quoteAsset}</small></span></span>
+                    <span className="market-pair"><CoinIcon symbol={market.baseAsset} /><span><strong>{market.baseAsset}</strong><small>/{market.quoteAsset}</small></span></span>
                     <span className="market-row-price"><strong>{formatPrice(market.lastPrice, market.pricePrecision)}</strong><small>{formatVolume(market.quoteVolume)} {market.quoteAsset}</small></span>
                     <b className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</b>
                   </button>
@@ -633,7 +651,7 @@ export default function MarketsView() {
           ) : (
             <>
               <header className="market-chart-header">
-                <div className="market-selected-pair"><i aria-hidden="true">{selected.baseAsset.slice(0, 2)}</i><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>WEEX perpetual · {selected.symbol}</p></span></div>
+                <div className="market-selected-pair"><CoinIcon symbol={selected.baseAsset} /><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>WEEX perpetual · {selected.symbol}</p></span></div>
                 <div className="market-last-price"><small>Last price</small><strong>{formatPrice(selected.lastPrice, selected.pricePrecision)}</strong><b className={selectedChange >= 0 ? "positive" : "negative"}>{selectedChange >= 0 ? "+" : ""}{selectedChange.toFixed(2)}%</b></div>
               </header>
               <div className="market-chart-toolbar">
