@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type CoinResult = { id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string; image?: string };
-type DbToken = { id: number; symbol: string; label: string | null; created_at: string };
+type MarketEntry = { id: string; symbol: string; name: string; priceUsd: number; changePercent24Hr: number; rank: number; image: string };
+type DbToken = {
+  id: number; symbol: string; label: string | null; created_at: string;
+  coingecko_id: string | null; image_url: string | null; full_name: string | null;
+  cached_price: number | null; cached_change_24h: number | null; cached_rank: number | null;
+};
 type DbWallet = { id: number; address: string; label: string | null; chain: string | null; notes: string | null; created_at: string };
 
 type TrackingTab = "tokens" | "wallets";
@@ -18,6 +23,7 @@ type TokenRow = {
   change: number;
   activity: string;
   tone: string;
+  image?: string;
 };
 
 type WalletRow = {
@@ -72,7 +78,7 @@ function TrackingDialog({ kind, close, finish, onSave }: {
   kind: Exclude<DialogKind, null>;
   close: () => void;
   finish: (message: string) => void;
-  onSave?: (data: Record<string, string>) => Promise<void>;
+  onSave?: (data: Record<string, string | number | null>) => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CoinResult[]>([]);
@@ -119,7 +125,17 @@ function TrackingDialog({ kind, close, finish, onSave }: {
     try {
       if (kind === "tokens") {
         const symbol = (selectedCoin?.symbol ?? search.trim()).toUpperCase();
-        if (symbol && onSave) await onSave({ symbol, label });
+        if (symbol && onSave) await onSave({
+          symbol, label,
+          ...(selectedCoin ? {
+            coingecko_id: selectedCoin.id,
+            image_url: selectedCoin.image ?? null,
+            full_name: selectedCoin.name,
+            cached_price: parseFloat(selectedCoin.priceUsd),
+            cached_change_24h: parseFloat(selectedCoin.changePercent24Hr),
+            cached_rank: parseInt(selectedCoin.rank, 10),
+          } : {}),
+        });
         finish(symbol ? `${symbol} added to your tracked tokens.` : "Token added to your watchlist.");
       } else {
         const address = walletAddress.trim();
@@ -270,13 +286,40 @@ export default function AssetTrackingView() {
   const existingSymbols = useMemo(() => new Set(TOKENS.map(t => t.symbol)), []);
   const existingAddresses = useMemo(() => new Set(WALLETS.map(w => w.address)), []);
 
+  const [marketData, setMarketData] = useState<Map<string, MarketEntry>>(new Map());
+
+  useEffect(() => {
+    const ids = dbTokens.filter(t => t.coingecko_id).map(t => t.coingecko_id!).join(",");
+    if (!ids) return;
+    fetch(`/api/coins/market?ids=${encodeURIComponent(ids)}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: MarketEntry[]) => setMarketData(new Map(data.map(d => [d.id, d]))))
+      .catch(() => {});
+  }, [dbTokens]);
+
   const allTokens = useMemo(() => {
-    const dbRows: TokenRow[] = dbTokens.filter(t => !existingSymbols.has(t.symbol)).map(t => ({
-      symbol: t.symbol, name: t.label || t.symbol, pair: `${t.symbol} / USDT`,
-      networks: 1, price: "—", change: 0, activity: "Just added", tone: "violet",
-    }));
+    const dbRows: TokenRow[] = dbTokens.filter(t => !existingSymbols.has(t.symbol)).map(t => {
+      const m = t.coingecko_id ? marketData.get(t.coingecko_id) : undefined;
+      const rawPrice = m?.priceUsd ?? t.cached_price;
+      const price = rawPrice != null
+        ? (rawPrice >= 1
+          ? `$${rawPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : `$${rawPrice.toPrecision(4)}`)
+        : "—";
+      return {
+        symbol: t.symbol,
+        name: m?.name || t.full_name || t.label || t.symbol,
+        pair: `${t.symbol} / USDT`,
+        networks: 1,
+        price,
+        change: m?.changePercent24Hr ?? t.cached_change_24h ?? 0,
+        activity: m ? "Live" : "Just added",
+        tone: "violet",
+        image: m?.image || t.image_url || undefined,
+      };
+    });
     return [...dbRows, ...TOKENS];
-  }, [dbTokens, existingSymbols]);
+  }, [dbTokens, existingSymbols, marketData]);
 
   const allWallets = useMemo(() => {
     const dbRows: WalletRow[] = dbWallets.filter(w => !existingAddresses.has(w.address)).map(w => ({
@@ -291,12 +334,13 @@ export default function AssetTrackingView() {
   const tokens = useMemo(() => allTokens.filter(t => `${t.name} ${t.symbol} ${t.pair}`.toLowerCase().includes(query.toLowerCase())), [allTokens, query]);
   const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
 
-  const saveToken = useCallback(async (data: Record<string, string>) => {
+
+  const saveToken = useCallback(async (data: Record<string, string | number | null>) => {
     await fetch("/api/tracked/tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     await refreshTokens();
   }, [refreshTokens]);
 
-  const saveWallet = useCallback(async (data: Record<string, string>) => {
+  const saveWallet = useCallback(async (data: Record<string, string | number | null>) => {
     await fetch("/api/tracked/wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     await refreshWallets();
   }, [refreshWallets]);
@@ -325,7 +369,7 @@ export default function AssetTrackingView() {
             {tab === "tokens" ? (
               <div className="tracking-table token-table">
                 <div className="tracking-table-head"><span>Token / Pair</span><span>Networks</span><span>Price</span><span>24H Change</span><span>Last Activity</span><span>Actions</span></div>
-                {tokens.map((token) => <button className={`tracking-table-row ${selectedToken.symbol === token.symbol ? "selected" : ""}`} type="button" key={token.symbol} onClick={() => setSelectedToken(token)}><span className="tracking-name-cell"><AssetBadge label={token.symbol} tone={token.tone} /><b>{token.name}<small>{token.pair}</small></b></span><span>{token.networks} networks</span><strong>{token.price}</strong><Change value={token.change} /><span className="tracking-activity"><i />{token.activity}</span><span className="tracking-row-actions">◉ ↗ •••</span></button>)}
+                {tokens.map((token) => <button className={`tracking-table-row ${selectedToken.symbol === token.symbol ? "selected" : ""}`} type="button" key={token.symbol} onClick={() => setSelectedToken(token)}><span className="tracking-name-cell">{token.image ? <img src={token.image} alt={token.symbol} className="tracking-coin-img" /> : <AssetBadge label={token.symbol} tone={token.tone} />}<b>{token.name}<small>{token.pair}</small></b></span><span>{token.networks} networks</span><strong>{token.price}</strong><Change value={token.change} /><span className="tracking-activity"><i />{token.activity}</span><span className="tracking-row-actions">◉ ↗ •••</span></button>)}
                 {!tokens.length && <div className="tracking-empty">No watched tokens match that search.</div>}
               </div>
             ) : (
