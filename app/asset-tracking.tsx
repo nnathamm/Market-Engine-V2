@@ -137,7 +137,7 @@ function TrackingDialog({ kind, close, finish, onSave }: {
 
   return (
     <div className="tracking-modal-backdrop" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && close()}>
-      <form className="tracking-dialog" role="dialog" aria-modal="true" aria-labelledby="tracking-dialog-title" onSubmit={submit}>
+      <form id="Addnewtoken" className="tracking-dialog" role="dialog" aria-modal="true" aria-labelledby="tracking-dialog-title" onSubmit={submit}>
         <header>
           <div><span className="tracking-dialog-mark" aria-hidden="true">◎</span><h2 id="tracking-dialog-title">Add New {kind === "tokens" ? "Token" : "Wallet"}</h2></div>
           <button type="button" aria-label="Close dialog" onClick={close}>×</button>
