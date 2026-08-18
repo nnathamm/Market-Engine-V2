@@ -118,11 +118,11 @@ button { color: inherit; }
 .master-profile-trigger strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
 .master-profile-trigger small { color: #9d72c8; font-size: 9px; }
 .master-profile-trigger > i { color: #b966ff; font-style: normal; font-size: 18px; }
-.inner-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; min-height: 111px; }
+.inner-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; min-height: 76px; }
 .inner-title, .list-header { display: flex; align-items: center; gap: 24px; }
-.inner-title h1, .list-header h1 { margin: 0; font-size: 34px; letter-spacing: -.035em; font-weight: 750; }
-.inner-title p, .list-header p { margin: 4px 0 0; color: #bac4d4; font-size: 17px; letter-spacing: -.01em; }
-.inner-title .signal-mark, .list-header .signal-mark { width: 74px; transform: scale(.88); transform-origin: left center; margin-right: -5px; }
+.inner-title h1, .list-header h1 { margin: 0; font-size: 26px; letter-spacing: -.03em; font-weight: 750; }
+.inner-title p, .list-header p { margin: 3px 0 0; color: #bac4d4; font-size: 13px; letter-spacing: -.01em; }
+.inner-title .signal-mark, .list-header .signal-mark { width: 54px; transform: scale(.88); transform-origin: left center; margin-right: -5px; }
 .header-actions { display: flex; gap: 14px; }
 .header-actions button { min-width: 159px; height: 54px; padding: 0 26px; border-radius: 9px; cursor: pointer; font-weight: 650; }
 .outline-button, .cancel-button { border: 1px solid var(--line); background: rgba(4, 13, 25, .68); }
