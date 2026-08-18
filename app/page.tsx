@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import MarketsView from "./markets";
 
-type View = "create" | "signals" | "order-flow" | "notifications" | "profile";
+type View = "create" | "signals" | "markets" | "order-flow" | "notifications" | "profile";
 type DropdownOption = { value: string; label: string };
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
@@ -37,6 +38,7 @@ const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
 const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
   ["create", "＋", "Create Signal", "Build a new trading signal"],
   ["signals", "☷", "View Signals", "Manage existing signals"],
+  ["markets", "◉", "Markets", "Browse live Binance Spot markets"],
   ["order-flow", "⇄", "Order Flow", "Configure order-flow analysis"],
   ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
   ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],
@@ -46,18 +48,17 @@ const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]>
   ["⌂", "Dashboard", null],
   ["＋", "Create Signal", "create"],
   ["◇", "Signals", "signals"],
-  ["⌁", "Chart", null],
   ["⊗", "Backtesting", null],
   ["▣", "Trades", null],
   ["▥", "Analytics", null],
 ];
 
-const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [string, string]> = [
-  ["◉", "Markets"],
-  ["▤", "Data Feeds"],
-  ["♧", "Users"],
-  ["♢", "Alerts"],
-  ["⌘", "Integrations"],
+const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
+  ["◉", "Markets", "markets"],
+  ["▤", "Data Feeds", null],
+  ["♧", "Users", null],
+  ["♢", "Alerts", null],
+  ["⌘", "Integrations", null],
 ];
 
 const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [string, View | null]> = [
@@ -281,8 +282,8 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
           ))}
 
           <h2>System</h2>
-          {SIDEBAR_SYSTEM_NAV.map(([icon, label]) => (
-            <button type="button" tabIndex={tabIndex} disabled key={label}><span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span><small>Soon</small></button>
+          {SIDEBAR_SYSTEM_NAV.map(([icon, label, destination]) => (
+            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}><span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}</button>
           ))}
 
           <div className="application-settings-label"><span className="application-sidebar-icon" aria-hidden="true">⌘</span><strong>Settings</strong></div>
@@ -900,6 +901,7 @@ export default function Home() {
           <div className="application-view">
             {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
             {view === "signals" && <SignalsView />}
+            {view === "markets" && <MarketsView />}
             {view === "order-flow" && <OrderFlowView />}
             {view === "notifications" && <NotificationsView />}
             {view === "profile" && <ProfileView setView={setView} />}

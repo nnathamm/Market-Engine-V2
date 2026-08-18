@@ -28,9 +28,12 @@ test("server-renders the Signal Control single page", async () => {
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
-test("keeps the application UI-only", async () => {
-  const [page, styles, hosting, packageJson] = await Promise.all([
+test("keeps exchange access read-only and loads charts on demand", async () => {
+  const [page, marketsPage, marketsRoute, candlesRoute, styles, hosting, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/markets.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/markets/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/markets/candles/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -60,7 +63,7 @@ test("keeps the application UI-only", async () => {
   assert.match(styles, /\.ui-custom-duration-fields\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s);
   assert.match(styles, /\.ui-dropdown-menu\.align-above\s*\{[^}]*top:\s*auto;[^}]*bottom:\s*52px/s);
   assert.match(styles, /\.ui-dropdown-menu\.cooldown-menu\s*\{[^}]*width:\s*360px;[^}]*max-width:\s*calc\(100vw - 40px\)/s);
-  assert.match(page, /type View = "create" \| "signals" \| "order-flow" \| "notifications" \| "profile"/);
+  assert.match(page, /type View = "create" \| "signals" \| "markets" \| "order-flow" \| "notifications" \| "profile"/);
   assert.doesNotMatch(page, /function HomeView|view === "home"|setView\("home"\)/);
   assert.doesNotMatch(styles, /\.home-screen|\.home-header|\.home-main|\.choice-card/);
   assert.match(page, /function OrderFlowView[\s\S]*Order Flow Settings[\s\S]*Timeframe Configuration[\s\S]*Minimum Imbalance Threshold[\s\S]*Minimum Confidence Score/);
@@ -76,9 +79,10 @@ test("keeps the application UI-only", async () => {
   assert.match(page, /type="checkbox" checked=\{checked\} aria-label=\{ariaLabel\}/);
   assert.match(styles, /\.notifications-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.notification-switch input:checked \+ span/s);
-  assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
-  assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Create Signal[\s\S]*Signals[\s\S]*Chart[\s\S]*Backtesting[\s\S]*Trades[\s\S]*Analytics/);
-  assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*Markets[\s\S]*Data Feeds[\s\S]*Users[\s\S]*Alerts[\s\S]*Integrations/);
+  assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Markets[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
+  assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Create Signal[\s\S]*Signals[\s\S]*Backtesting[\s\S]*Trades[\s\S]*Analytics/);
+  assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
+  assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["◉", "Markets", "markets"\][\s\S]*Data Feeds[\s\S]*Users[\s\S]*Alerts[\s\S]*Integrations/);
   assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);
   assert.match(page, /function ProfileView[\s\S]*Master ADMIN Profile[\s\S]*Executive control account[\s\S]*Full site configuration control[\s\S]*Override lower-tier permissions[\s\S]*Modify, suspend, or delete accounts[\s\S]*Notification Settings[\s\S]*Manage Accounts/);
@@ -93,6 +97,16 @@ test("keeps the application UI-only", async () => {
   assert.match(styles, /\.application-sidebar-scroll\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto/s);
   assert.match(styles, /\.profile-layout\s*\{[^}]*grid-template-columns:/s);
   assert.doesNotMatch(styles, /\.master-profile-menu/);
+  assert.match(page, /view === "markets" && <MarketsView \/>/);
+  assert.match(marketsPage, /Browse Binance Spot pairs and load any chart on demand/);
+  assert.match(marketsPage, /fetch\("\/api\/markets"[\s\S]*fetch\(`\/api\/markets\/candles\?\$\{params\}`/);
+  assert.match(marketsPage, /if \(!selected\) return;[\s\S]*loadChart/);
+  assert.match(marketsPage, /Candle data is not downloaded until you make a selection/);
+  assert.match(marketsRoute, /https:\/\/data-api\.binance\.vision[\s\S]*\/api\/v3\/exchangeInfo[\s\S]*\/api\/v3\/ticker\/24hr\?type=MINI/);
+  assert.match(candlesRoute, /SYMBOL_PATTERN[\s\S]*ALLOWED_INTERVALS[\s\S]*\/api\/v3\/klines/);
+  assert.doesNotMatch(`${marketsRoute}\n${candlesRoute}`, /\/api\/v3\/(order|account)|X-MBX-APIKEY|secretKey/i);
+  assert.match(styles, /\.markets-layout\s*\{[^}]*grid-template-columns:/s);
+  assert.match(styles, /\.market-list\s*\{[^}]*overflow-y:\s*auto/s);
   assert.doesNotMatch(styles, /\.of-page\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.of-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(680px, 1fr\) 311px/s);
   assert.match(styles, /\.of-gauge-arc\s*\{[^}]*conic-gradient/s);
