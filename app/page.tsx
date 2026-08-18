@@ -282,7 +282,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
           <img src="/logo.png" alt="Stop Loss" style={{ height: "73px", width: "auto", objectFit: "contain", margin: "0 auto", display: "block", padding: "12px 0" }} />
         </button>
 
-        <nav className="application-sidebar-nav" aria-label="EdgeSignals pages">
+        <nav className="application-sidebar-nav" aria-label="Main navigation">
           {SIDEBAR_PRIMARY_NAV.map(([icon, label, destination]) => (
             <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
               <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
@@ -324,7 +324,7 @@ function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: 
       <button className={`application-menu-trigger ${sidebarOpen ? "open" : ""}`} type="button" aria-label={sidebarOpen ? "Collapse navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={toggleSidebar}>
         <span aria-hidden="true"><i /><i /><i /></span>
       </button>
-      <div className="application-page-context"><small>EdgeSignals</small><strong>{currentPage[2]}</strong></div>
+      <div className="application-page-context"><strong>{currentPage[2]}</strong></div>
 
       <button className="master-profile-trigger" type="button" aria-current={activeView === "profile" ? "page" : undefined} onClick={() => setView("profile")}>
         <span className="master-avatar">MA</span>
