@@ -773,7 +773,6 @@ export default function AssetTrackingView() {
                       <Change value={token.change} />
                       <span className="tracking-activity"><i />{token.activity}</span>
                       <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
-                        <span className="tracking-action-monitor" title="Monitoring active">◉</span>
                         <a className="tracking-action-btn" href={geckoUrl} target="_blank" rel="noreferrer" title="View on CoinGecko" onClick={e => e.stopPropagation()}>↗</a>
                         {token.db_id != null && (
                           <span className="tracking-action-menu-wrap">
@@ -821,7 +820,6 @@ export default function AssetTrackingView() {
                       <span style={{ color: statusColor, fontSize: 12 }}>{statusDot} {wallet.status ? wallet.status.replace(/_/g, " ") : "—"}</span>
                       <span className="tracking-activity"><i />{wallet.activity}</span>
                       <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
-                        <span className="tracking-action-monitor" title="Monitoring active" style={{ color: statusColor }}>◉</span>
                         <a className="tracking-action-btn" href={explorerUrl} target="_blank" rel="noreferrer" title="View in explorer" onClick={e => e.stopPropagation()}>↗</a>
                         {wallet.portfolio_id != null && (
                           <span className="tracking-action-menu-wrap">
