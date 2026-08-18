@@ -305,7 +305,7 @@ export default function AssetTrackingView() {
         pair: `${t.symbol} / USDT`,
         networks: 1,
         price,
-        change: m?.changePercent24Hr ?? t.cached_change_24h ?? 0,
+        change: m?.changePercent24Hr ?? (t.cached_change_24h != null ? Number(t.cached_change_24h) : 0),
         activity: m ? "Live" : "Just added",
         tone: "violet",
         image: m?.image || t.image_url || undefined,
