@@ -42,6 +42,7 @@ type TokenRow = {
   image?: string;
   coingecko_id?: string;
   db_id?: number;
+  rank?: number;
 };
 
 type WalletRow = {
@@ -257,29 +258,136 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
 }
 
 function TokenIntelligence({ token }: { token: TokenRow }) {
+  const geckoUrl = token.coingecko_id
+    ? `https://www.coingecko.com/en/coins/${token.coingecko_id}`
+    : null;
   return (
     <aside className="tracking-intelligence">
       <header><span>Selected Token Intelligence</span><button type="button" aria-label="Close selected token">×</button></header>
-      <div className="tracking-selected-identity"><AssetBadge label={token.symbol} tone={token.tone} /><div><h2>{token.name} {token.symbol}</h2><small>{token.pair} · {token.networks} networks</small></div><b className="tracking-active-pill">● Active</b></div>
-      <div className="tracking-hero-stats"><span><small>Reference Price</small><strong>{token.price}</strong><Change value={token.change} /></span><span><small>Last Activity</small><strong className="tracking-activity"><i /> {token.activity}</strong></span></div>
-      <div className="tracking-detail-actions"><button className="tracking-primary" type="button">Open Market</button><button type="button">View Contract ↗</button></div>
-      <div className="tracking-facts"><span><small>Networks</small><strong>{token.networks}</strong></span><span><small>Pair</small><strong>{token.pair}</strong></span><span><small>Status</small><strong>Watching</strong></span></div>
-      <section className="tracking-side-card"><h3>Monitoring Summary</h3><p>This interface is ready to show price moves, holder activity, and alerts after an asset-intelligence provider is connected.</p><div className="tracking-side-list"><span><AssetBadge label="24H" tone="violet" /><b>Price movement<small>Reference change shown in the preview</small></b><Change value={token.change} /></span><span><AssetBadge label="NET" tone="blue" /><b>Network coverage<small>{token.networks} chains represented</small></b><em>Ready</em></span><span><AssetBadge label="AL" tone="teal" /><b>Alert state<small>Prepared for signal notifications</small></b><em>On</em></span></div></section>
-      <section className="tracking-side-card"><h3>Recent Activity (24H)</h3><div className="tracking-activity-list"><span><i className="receive">↓</i><b>Large buy detected<small>Preview transaction</small></b><em className="tracking-positive">+{token.symbol}</em></span><span><i className="send">↑</i><b>Exchange transfer<small>Preview transaction</small></b><em className="tracking-negative">-{token.symbol}</em></span></div></section>
+      <div className="tracking-selected-identity">
+        {token.image
+          ? <img src={token.image} alt={token.symbol} width={28} height={28} className="tracking-coin-img" />
+          : <AssetBadge label={token.symbol} tone={token.tone} />}
+        <div><h2>{token.name} {token.symbol}</h2><small>{token.pair} · {token.networks} network{token.networks !== 1 ? "s" : ""}</small></div>
+        <b className="tracking-active-pill">● Active</b>
+      </div>
+      <div className="tracking-hero-stats">
+        <span><small>Price</small><strong>{token.price}</strong><Change value={token.change} /></span>
+        <span><small>Last Activity</small><strong className="tracking-activity"><i /> {token.activity}</strong></span>
+      </div>
+      <div className="tracking-detail-actions">
+        {geckoUrl
+          ? <a className="tracking-primary tracking-action-link" href={geckoUrl} target="_blank" rel="noreferrer">Open on CoinGecko ↗</a>
+          : <button className="tracking-primary" type="button" disabled>Open Market</button>}
+        <button type="button">View Contract ↗</button>
+      </div>
+      <div className="tracking-facts">
+        <span><small>Networks</small><strong>{token.networks}</strong></span>
+        <span><small>Pair</small><strong>{token.pair}</strong></span>
+        {token.rank != null && <span><small>Rank</small><strong>#{token.rank}</strong></span>}
+        <span><small>Status</small><strong>Watching</strong></span>
+      </div>
+      <section className="tracking-side-card">
+        <h3>Monitoring Summary</h3>
+        <p>This interface is ready to show price moves, holder activity, and alerts after an asset-intelligence provider is connected.</p>
+        <div className="tracking-side-list">
+          <span><AssetBadge label="24H" tone="violet" /><b>Price movement<small>24h change from market data</small></b><Change value={token.change} /></span>
+          <span><AssetBadge label="NET" tone="blue" /><b>Network coverage<small>{token.networks} chain{token.networks !== 1 ? "s" : ""} represented</small></b><em>Ready</em></span>
+          <span><AssetBadge label="AL" tone="teal" /><b>Alert state<small>Prepared for signal notifications</small></b><em>On</em></span>
+        </div>
+      </section>
+      <section className="tracking-side-card">
+        <h3>Recent Activity (24H)</h3>
+        <p className="tracking-no-data">Live transaction activity requires a connected asset-intelligence provider.</p>
+      </section>
     </aside>
   );
 }
 
-function WalletIntelligence({ wallet }: { wallet: WalletRow }) {
+function WalletIntelligence({ wallet, portfolioWallet }: { wallet: WalletRow; portfolioWallet?: PortfolioWallet }) {
+  const explorerUrl = wallet.addressType === "solana" || wallet.chain === "Solana"
+    ? `https://solscan.io/account/${wallet.address}`
+    : `https://etherscan.io/address/${wallet.address}`;
+
+  const totalUsd = portfolioWallet?.summary?.totalValueUsd ?? 0;
+  const topHoldings = portfolioWallet?.holdings
+    ? [...portfolioWallet.holdings]
+        .filter(h => (h.valueUsd ?? 0) > 0)
+        .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0))
+        .slice(0, 5)
+    : [];
+
+  const firstSeen = portfolioWallet?.createdAt
+    ? new Date(portfolioWallet.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "—";
+  const tokensHeld = portfolioWallet?.summary?.totalTokens ?? "—";
+  const chainsCount = portfolioWallet?.networks?.length ?? "—";
+
+  const toneForSymbol = (symbol: string | null) => {
+    const s = (symbol ?? "").toUpperCase();
+    if (s === "ETH") return "violet";
+    if (s === "BTC") return "orange";
+    if (s.startsWith("USD")) return "teal";
+    if (s === "BNB") return "gold";
+    return "blue";
+  };
+
   return (
     <aside className="tracking-intelligence">
       <header><span>Selected Wallet Intelligence</span><button type="button" aria-label="Close selected wallet">×</button></header>
-      <div className="tracking-selected-identity"><AssetBadge label={wallet.short} tone={wallet.tone} /><div><h2>{wallet.name}</h2><small>{wallet.address}</small></div><b className="tracking-active-pill">● Active</b></div>
-      <div className="tracking-hero-stats"><span><small>Total Holdings (USD)</small><strong>{wallet.holdings}</strong><Change value={wallet.change} /></span><span><small>Last Activity</small><strong className="tracking-activity"><i /> {wallet.activity}</strong></span></div>
-      <div className="tracking-detail-actions"><button className="tracking-primary" type="button">View Intelligence ↗</button><button type="button">Open in Explorer ↗</button></div>
-      <div className="tracking-facts"><span><small>First Seen</small><strong>3 years ago</strong></span><span><small>Transactions</small><strong>24,389</strong></span><span><small>Tokens Held</small><strong>1,248</strong></span><span><small>Chains</small><strong>12</strong></span></div>
-      <section className="tracking-side-card"><h3>Top Holdings</h3><div className="tracking-holdings"><span><AssetBadge label="ETH" tone="violet" /><b>ETH</b><strong>$982.45M</strong><em>39.3%</em></span><span><AssetBadge label="USDT" tone="teal" /><b>USDT</b><strong>$432.21M</strong><em>17.8%</em></span><span><AssetBadge label="BTC" tone="orange" /><b>BTC</b><strong>$317.88M</strong><em>13.1%</em></span><span><AssetBadge label="BNB" tone="gold" /><b>BNB</b><strong>$216.74M</strong><em>8.9%</em></span><span><AssetBadge label="USDC" tone="blue" /><b>USDC</b><strong>$178.66M</strong><em>7.3%</em></span></div></section>
-      <section className="tracking-side-card"><h3>Recent Activity (24H) <button type="button">View all</button></h3><div className="tracking-activity-list"><span><i className="receive">↓</i><b>Received<small>From 0x3f4A...7c2B</small></b><em className="tracking-positive">+1,250 ETH</em></span><span><i className="send">↑</i><b>Sent<small>To 0x71c8...9e72</small></b><em className="tracking-negative">-3,000 USDT</em></span><span><i className="receive">↓</i><b>Received<small>From 0x8b2d...1f44</small></b><em className="tracking-positive">+750 BTC</em></span></div></section>
+      <div className="tracking-selected-identity">
+        <AssetBadge label={wallet.short} tone={wallet.tone} />
+        <div><h2>{wallet.name}</h2><small>{wallet.address}</small></div>
+        <b className="tracking-active-pill">● {wallet.status ? wallet.status.replace(/_/g, " ") : "Active"}</b>
+      </div>
+      <div className="tracking-hero-stats">
+        <span><small>Total Holdings (USD)</small><strong>{wallet.holdings}</strong></span>
+        <span><small>Last Activity</small><strong className="tracking-activity"><i /> {wallet.activity}</strong></span>
+      </div>
+      <div className="tracking-detail-actions">
+        <a className="tracking-primary tracking-action-link" href={explorerUrl} target="_blank" rel="noreferrer">Open in Explorer ↗</a>
+        <button type="button">View Intelligence ↗</button>
+      </div>
+      <div className="tracking-facts">
+        <span><small>Added</small><strong>{firstSeen}</strong></span>
+        <span><small>Tokens Held</small><strong>{tokensHeld}</strong></span>
+        <span><small>Chains</small><strong>{chainsCount}</strong></span>
+        <span><small>Chain</small><strong>{wallet.chain}</strong></span>
+      </div>
+      <section className="tracking-side-card">
+        <h3>Top Holdings</h3>
+        {topHoldings.length > 0 ? (
+          <div className="tracking-holdings">
+            {topHoldings.map((h, i) => {
+              const sym = h.symbol ?? "?";
+              const pct = totalUsd > 0 && h.valueUsd != null
+                ? ((h.valueUsd / totalUsd) * 100).toFixed(1)
+                : null;
+              const valStr = h.valueUsd != null
+                ? `$${h.valueUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : "—";
+              return (
+                <span key={i}>
+                  <AssetBadge label={sym.slice(0, 4)} tone={toneForSymbol(sym)} />
+                  <b>{sym}</b>
+                  <strong>{valStr}</strong>
+                  {pct != null && <em>{pct}%</em>}
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="tracking-no-data">
+            {portfolioWallet?.status === "PENDING_IMPORT" || portfolioWallet?.status === "IMPORTING"
+              ? "Holdings are being imported…"
+              : "No holdings data available yet."}
+          </p>
+        )}
+      </section>
+      <section className="tracking-side-card">
+        <h3>Recent Activity (24H)</h3>
+        <p className="tracking-no-data">Live transaction activity requires a connected asset-intelligence provider.</p>
+      </section>
     </aside>
   );
 }
@@ -354,6 +462,7 @@ export default function AssetTrackingView() {
         image: m?.image || t.image_url || undefined,
         coingecko_id: t.coingecko_id || undefined,
         db_id: t.id,
+        rank: m?.rank ?? (t.cached_rank != null ? Number(t.cached_rank) : undefined),
       };
     });
     return dbRows;
@@ -595,7 +704,7 @@ export default function AssetTrackingView() {
         </main>
         {tab === "tokens"
           ? selectedToken ? <TokenIntelligence token={selectedToken} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>
-          : selectedWallet ? <WalletIntelligence wallet={selectedWallet} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a wallet to see intelligence here.</p></aside>}
+          : selectedWallet ? <WalletIntelligence wallet={selectedWallet} portfolioWallet={portfolioWallets.find(pw => pw.id === selectedWallet.portfolio_id)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a wallet to see intelligence here.</p></aside>}
       </div>
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}
       {dialog && <TrackingDialog kind={dialog} close={() => setDialog(null)} finish={finishDialog} onSave={dialog === "tokens" ? saveToken : saveWallet} />}

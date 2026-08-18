@@ -673,6 +673,8 @@ button { color: inherit; }
 .tracking-side-card h3 { min-height: 42px; margin: 0; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; color: #9da9ba; border-bottom: 1px solid #1c293b; text-transform: uppercase; font-size: 9px; letter-spacing: .035em; }
 .tracking-side-card h3 button { color: #ad53fa; border: 0; background: transparent; cursor: pointer; text-transform: uppercase; font-size: 7px; }
 .tracking-side-card > p { margin: 13px 14px; color: #98a5b6; font-size: 9px; line-height: 1.55; }
+.tracking-no-data { margin: 13px 14px; color: #5a6a7e; font-size: 9px; font-style: italic; line-height: 1.55; }
+.tracking-action-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .tracking-holdings, .tracking-activity-list, .tracking-side-list { padding: 10px 14px; display: grid; gap: 10px; }
 .tracking-holdings > span { display: grid; grid-template-columns: 27px 1fr auto 40px; align-items: center; gap: 8px; }
 .tracking-holdings .tracking-asset-badge, .tracking-side-list .tracking-asset-badge { width: 25px; height: 25px; flex-basis: 25px; font-size: 5px; }
