@@ -148,7 +148,7 @@ function TrackingDialog({ kind, close, finish, onSave }: {
           <>
             <label className="tracking-dialog-field">
               <span>Search Token or Paste Contract</span>
-              <div className="tracking-input-with-icon" style={{ position: "relative" }}>
+              <div className="tracking-input-with-icon">
                 <input
                   type="search"
                   value={search}
@@ -158,30 +158,30 @@ function TrackingDialog({ kind, close, finish, onSave }: {
                   autoFocus
                 />
                 <i aria-hidden="true">{searching ? "…" : "⌕"}</i>
-                {results.length > 0 && (
-                  <ul className="tracking-coin-results" role="listbox">
-                    {results.map(coin => (
-                      <li key={coin.id} role="option" aria-selected={false}>
-                        <button type="button" onClick={() => pickCoin(coin)}>
-                          <CoinIcon symbol={coin.symbol} />
-                          <span className="tracking-coin-info">
-                            <strong>{coin.symbol}</strong>
-                            <small>{coin.name}</small>
-                          </span>
-                          <span className="tracking-coin-meta">
-                            <b>${parseFloat(coin.priceUsd) >= 1
-                              ? parseFloat(coin.priceUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                              : parseFloat(coin.priceUsd).toPrecision(4)}</b>
-                            <em className={parseFloat(coin.changePercent24Hr) >= 0 ? "tracking-positive" : "tracking-negative"}>
-                              {parseFloat(coin.changePercent24Hr) >= 0 ? "+" : ""}{parseFloat(coin.changePercent24Hr).toFixed(2)}%
-                            </em>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
+              {results.length > 0 && (
+                <ul className="tracking-coin-results" role="listbox">
+                  {results.map(coin => (
+                    <li key={coin.id} role="option" aria-selected={false}>
+                      <button type="button" onClick={() => pickCoin(coin)}>
+                        <CoinIcon symbol={coin.symbol} />
+                        <span className="tracking-coin-info">
+                          <strong>{coin.symbol}</strong>
+                          <small>{coin.name}</small>
+                        </span>
+                        <span className="tracking-coin-meta">
+                          <b>${parseFloat(coin.priceUsd) >= 1
+                            ? parseFloat(coin.priceUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : parseFloat(coin.priceUsd).toPrecision(4)}</b>
+                          <em className={parseFloat(coin.changePercent24Hr) >= 0 ? "tracking-positive" : "tracking-negative"}>
+                            {parseFloat(coin.changePercent24Hr) >= 0 ? "+" : ""}{parseFloat(coin.changePercent24Hr).toFixed(2)}%
+                          </em>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <small>Supports a token name, symbol, or contract address.</small>
             </label>
             {selectedCoin && (
