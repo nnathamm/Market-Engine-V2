@@ -311,7 +311,6 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
           ))}
         </nav>
 
-        <p className="application-sidebar-footnote">Additional sections are UI placeholders until their pages are built.</p>
       </div>
     </aside>
   );
