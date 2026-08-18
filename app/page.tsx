@@ -345,7 +345,7 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
 
   return (
     <div className="screen inner-screen create-screen">
-      <header className="inner-header">
+      <header className="inner-header mt-[10px] mb-[10px]">
         <div className="inner-title">
           <SignalMark />
           <div>
