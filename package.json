@@ -9,7 +9,7 @@
     "dev": "next dev -p 5000",
     "build": "next build",
     "start": "next start -p 5000",
-    "test": "node --test tests/rendered-html.test.mjs",
+    "test": "node --test tests/rendered-html.test.mjs tests/coin-icon.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {

@@ -79,6 +79,8 @@ const WICK_LIMIT: Record<string, number> = {
 };
 const FAVORITES_STORAGE_KEY = "edge-signals-market-favorites-v1";
 const FAVORITES_CHANGED_EVENT = "edge-signals-market-favorites-changed";
+
+const TRACKED_STORAGE_KEY = "signal-control:tracked-tokens";
 const CHART_TIMEFRAMES = [
   ["1m", "1m"],
   ["5m", "5m"],
@@ -146,6 +148,15 @@ function parseFavorites(snapshot: string) {
   }
 }
 
+function subscribeTracked(notify: () => void) {
+  const handleStorage = (event: StorageEvent) => { if (event.key === TRACKED_STORAGE_KEY) notify(); };
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(TRACKED_CHANGED_EVENT, notify);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(TRACKED_CHANGED_EVENT, notify);
+  };
+}
 function cleanCandle(row: WeexKline, interval: string): Candle | null {
   const time = Number(row?.[0]);
   const open = Number(row?.[1]);
@@ -419,13 +430,8 @@ export default function MarketsView() {
   const deferredQuery = useDeferredValue(query.trim().toUpperCase());
   const favoritesSnapshot = useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, getServerFavoritesSnapshot);
   const favorites = useMemo(() => parseFavorites(favoritesSnapshot), [favoritesSnapshot]);
-  const [tracked, setTracked] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    fetch("/api/tracked/tokens")
-      .then(r => r.ok ? r.json() : [])
-      .then((rows: Array<{ symbol: string }>) => setTracked(new Set(rows.map(r => r.symbol))))
-      .catch(() => {});
-  }, []);
+  const trackedSnapshot = useSyncExternalStore(subscribeTracked, getTrackedSnapshot, getServerTrackedSnapshot);
+  const tracked = useMemo(() => parseTracked(trackedSnapshot), [trackedSnapshot]);
 
   useEffect(() => {
     candlesRef.current = candles;
@@ -621,18 +627,12 @@ export default function MarketsView() {
     window.dispatchEvent(new Event(FAVORITES_CHANGED_EVENT));
   }
 
-  async function toggleTracked(baseAsset: string) {
-    const isTracked = tracked.has(baseAsset);
+  function toggleTracked(baseAsset: string) {
     const next = new Set(tracked);
-    if (isTracked) next.delete(baseAsset); else next.add(baseAsset);
-    setTracked(next);
-    try {
-      if (isTracked) {
-        await fetch(`/api/tracked/tokens/${baseAsset}`, { method: "DELETE" });
-      } else {
-        await fetch("/api/tracked/tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: baseAsset }) });
-      }
-    } catch { setTracked(tracked); }
+    if (next.has(baseAsset)) next.delete(baseAsset);
+    else next.add(baseAsset);
+    localStorage.setItem(TRACKED_STORAGE_KEY, JSON.stringify([...next]));
+    window.dispatchEvent(new Event(TRACKED_CHANGED_EVENT));
   }
 
   function loadMoreOnScroll(event: React.UIEvent<HTMLDivElement>) {
@@ -681,6 +681,294 @@ export default function MarketsView() {
                   </button>
                   <button className={`market-favorite-toggle ${favorite ? "active" : ""}`} type="button" aria-pressed={favorite} aria-label={`${favorite ? "Remove" : "Add"} ${market.symbol} ${favorite ? "from" : "to"} favorites`} onClick={() => toggleFavorite(market.symbol)}>★</button>
                   <button className={`market-track-toggle ${isTracked ? "active" : ""}`} type="button" aria-pressed={isTracked} aria-label={`${isTracked ? "Stop tracking" : "Track"} ${market.baseAsset}`} onClick={() => toggleTracked(market.baseAsset)}>◎</button>
+                </div>
+              );
+            }) : null}
+            {!marketsLoading && !marketsError && visibleMarkets.length < filteredMarkets.length ? <div className="market-list-progress"><span>Scroll for the next {Math.min(MARKET_PAGE_SIZE, filteredMarkets.length - visibleMarkets.length)} pairs</span><b>{visibleMarkets.length} / {filteredMarkets.length}</b></div> : null}
+          </div>
+          <footer><span>{asOf ? `Prices refreshed ${formatTime(asOf)}` : "Waiting for exchange"}</span><b>Read only</b></footer>
+        </aside>
+
+        <section className="surface market-chart-panel">
+          {!selected ? (
+            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any WEEX USDT perpetual. Candle data is not downloaded until you make a selection.</p></div>
+          ) : (
+            <>
+              <header className="market-chart-header">
+                <div className="market-selected-pair"><CoinIcon symbol={selected.baseAsset} /><span><h2>{selected.baseAsset}<small> / {selected.quoteAsset}</small></h2><p>WEEX perpetual · {selected.symbol}</p></span></div>
+                <div className="market-last-price"><small>Last price</small><strong>{formatPrice(selected.lastPrice, selected.pricePrecision)}</strong><b className={selectedChange >= 0 ? "positive" : "negative"}>{selectedChange >= 0 ? "+" : ""}{selectedChange.toFixed(2)}%</b></div>
+              </header>
+              <div className="market-chart-toolbar">
+                <div className="market-timeframes" aria-label="Chart timeframe">
+                  {CHART_TIMEFRAMES.map(([value, label]) => <button className={interval === value ? "active" : ""} type="button" aria-pressed={interval === value} onClick={() => setInterval(value)} key={value}>{label}</button>)}
+                </div>
+                <div className={`market-live-status ${liveState}`} role="status"><span><i aria-hidden="true" />{liveState === "live" ? "Live" : liveState === "delayed" ? "Reconnecting" : "Connecting"}</span><small>{lastLiveUpdate ? `Updated ${formatTime(lastLiveUpdate)}` : "Waiting for first candle"}</small></div>
+              </div>
+              <div className="market-chart-frame">
+                {chartLoading ? <div className="market-chart-loading"><span className="market-loader" />Loading {selected.symbol} candles…</div> : null}
+                {!chartLoading && chartError ? <div className="market-chart-loading error"><strong>Chart unavailable</strong><span>{chartError}</span><button type="button" onClick={() => setChartRetryRequest((current) => current + 1)}>Try again</button></div> : null}
+                {!chartLoading && !chartError ? <MarketChart candles={candles} datasetKey={datasetKey} historyLoading={historyLoading} hasMoreHistory={hasMoreHistory} onNeedMore={loadOlderCandles} visibleCandles={(HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"]).visible} /> : null}
+              </div>
+              <div className="market-stat-grid">
+                <span><small>24h high</small><strong>{formatPrice(selected.highPrice, selected.pricePrecision)}</strong></span>
+                <span><small>24h low</small><strong>{formatPrice(selected.lowPrice, selected.pricePrecision)}</strong></span>
+                <span><small>24h volume</small><strong>{formatVolume(selected.quoteVolume)} {selected.quoteAsset}</strong></span>
+                <span><small>Chart candles</small><strong>{candles.length || "—"}</strong></span>
+              </div>
+            </>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+}
+
+  useEffect(() => {
+    candlesRef.current = candles;
+  }, [candles]);
+
+  useEffect(() => {
+    datasetKeyRef.current = datasetKey;
+  }, [datasetKey]);
+
+  const applyLatestCandle = useCallback((symbol: string, candle: Candle) => {
+    const updateMarket = (market: Market) => {
+      if (market.symbol !== symbol) return market;
+      const openPrice = numberValue(market.openPrice);
+      return {
+        ...market,
+        lastPrice: String(candle.close),
+        closeTime: Date.now(),
+        changePercent: openPrice > 0 ? ((candle.close - openPrice) / openPrice) * 100 : market.changePercent,
+      };
+    };
+    setSelected((current) => current ? updateMarket(current) : current);
+    setMarkets((current) => current.map(updateMarket));
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadMarkets() {
+      setMarketsLoading(true);
+      setMarketsError("");
+      try {
+        const response = await fetch("/api/weex/markets", { signal: controller.signal, cache: "no-store" });
+        const payload = await response.json() as { markets?: Market[]; error?: string };
+        if (!response.ok) throw new Error(payload.error || "Unable to load WEEX markets.");
+        const nextMarkets = Array.isArray(payload.markets) ? payload.markets : [];
+        setMarkets(nextMarkets);
+        setSelected((current) => current ? nextMarkets.find((market) => market.symbol === current.symbol) ?? current : current);
+        setAsOf(Date.now());
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setMarketsError(error instanceof Error ? error.message : "Unable to load exchange markets.");
+      } finally {
+        if (!controller.signal.aborted) setMarketsLoading(false);
+      }
+    }
+    void loadMarkets();
+    return () => controller.abort();
+  }, [marketRequest]);
+
+  useEffect(() => {
+    if (!selectedSymbol) return;
+    const controller = new AbortController();
+    const requestKey = `${selectedSymbol}:${interval}`;
+    historyLoadingRef.current = false;
+    async function loadChart() {
+      setHistoryLoading(false);
+      setHasMoreHistory(true);
+      setChartLoading(true);
+      setChartError("");
+      setLiveState("connecting");
+      setLastLiveUpdate(0);
+      try {
+        const config = HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"];
+        const params = new URLSearchParams({ symbol: selectedSymbol, interval, limit: String(config.initial) });
+        const response = await fetch(`/api/weex/klines?${params}`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("Unable to load this WEEX chart.");
+        const rows = await response.json() as WeexKline[];
+        const nextCandles = sanitizeRows(rows, interval);
+        if (datasetKeyRef.current !== requestKey) return;
+        candlesRef.current = nextCandles;
+        setCandles(nextCandles);
+        setHasMoreHistory(rows.length === config.initial);
+        const latest = nextCandles.at(-1);
+        if (latest) applyLatestCandle(selectedSymbol, latest);
+        setLastLiveUpdate(Date.now());
+        setLiveState("live");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setChartError(error instanceof Error ? error.message : "Unable to load this chart.");
+        setCandles([]);
+        setLiveState("delayed");
+      } finally {
+        if (!controller.signal.aborted) setChartLoading(false);
+      }
+    }
+    void loadChart();
+    return () => controller.abort();
+  }, [selectedSymbol, interval, chartRetryRequest, applyLatestCandle]);
+
+  useEffect(() => {
+    if (!selectedSymbol || chartLoading || chartError || candlesRef.current.length === 0) return;
+    const requestKey = `${selectedSymbol}:${interval}`;
+    let activeController: AbortController | null = null;
+    let disposed = false;
+    let inFlight = false;
+
+    async function refreshLiveChart() {
+      if (disposed || inFlight || document.visibilityState === "hidden") return;
+      inFlight = true;
+      activeController = new AbortController();
+      try {
+        const params = new URLSearchParams({ symbol: selectedSymbol, interval, limit: "3" });
+        const response = await fetch(`/api/weex/klines?${params}`, { signal: activeController.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("The live WEEX candle feed is temporarily delayed.");
+        const rows = await response.json() as WeexKline[];
+        const freshCandles = sanitizeRows(rows, interval);
+        if (disposed || datasetKeyRef.current !== requestKey || freshCandles.length === 0) return;
+        const nextCandles = mergeCandles(candlesRef.current, freshCandles);
+        candlesRef.current = nextCandles;
+        setCandles(nextCandles);
+        applyLatestCandle(selectedSymbol, freshCandles.at(-1)!);
+        setLastLiveUpdate(Date.now());
+        setLiveState("live");
+      } catch {
+        if (disposed || activeController.signal.aborted) return;
+        setLiveState("delayed");
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    const timer = window.setInterval(refreshLiveChart, LIVE_CHART_POLL_MS);
+    const refreshWhenVisible = () => document.visibilityState === "visible" && void refreshLiveChart();
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      disposed = true;
+      activeController?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [selectedSymbol, interval, chartLoading, chartError, applyLatestCandle]);
+
+  const loadOlderCandles = useCallback(async () => {
+    const currentCandles = candlesRef.current;
+    if (!selectedSymbol || currentCandles.length === 0 || historyLoadingRef.current || !hasMoreHistory) return;
+    const requestKey = `${selectedSymbol}:${interval}`;
+    historyLoadingRef.current = true;
+    setHistoryLoading(true);
+    try {
+      const config = HISTORY_CONFIG[interval] ?? HISTORY_CONFIG["4h"];
+      const params = new URLSearchParams({
+        symbol: selectedSymbol,
+        interval,
+        endTime: String(currentCandles[0].time - 1),
+        limit: String(config.page),
+      });
+      const response = await fetch(`/api/weex/klines?${params}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Unable to load older WEEX candles.");
+      const rows = await response.json() as WeexKline[];
+      if (datasetKeyRef.current !== requestKey) return;
+      const olderCandles = sanitizeRows(rows, interval).filter((candle) => candle.time < currentCandles[0].time);
+      const merged = new Map(currentCandles.map((candle) => [candle.time, candle]));
+      for (const candle of olderCandles) merged.set(candle.time, candle);
+      const nextCandles = [...merged.values()].toSorted((left, right) => left.time - right.time);
+      candlesRef.current = nextCandles;
+      setCandles(nextCandles);
+      setHasMoreHistory(rows.length === config.page && olderCandles.length > 0);
+    } catch (error) {
+      if (datasetKeyRef.current === requestKey) {
+        setChartError(error instanceof Error ? error.message : "Unable to load older candles.");
+      }
+    } finally {
+      historyLoadingRef.current = false;
+      if (datasetKeyRef.current === requestKey) setHistoryLoading(false);
+    }
+  }, [selectedSymbol, interval, hasMoreHistory]);
+
+  const filteredMarkets = useMemo(() => {
+    const result = markets.filter((market) => {
+      const matchesQuery = !deferredQuery || market.symbol.includes(deferredQuery) || market.baseAsset.includes(deferredQuery) || market.quoteAsset.includes(deferredQuery);
+      const matchesFavorite = !favoritesOnly || favorites.has(market.symbol);
+      return matchesQuery && matchesFavorite;
+    });
+    return result.toSorted((left, right) => numberValue(right.quoteVolume) - numberValue(left.quoteVolume));
+  }, [markets, deferredQuery, favoritesOnly, favorites]);
+
+  const visibleMarkets = filteredMarkets.slice(0, visibleCount);
+
+  function updateSearch(value: string) {
+    setQuery(value);
+    setVisibleCount(MARKET_PAGE_SIZE);
+  }
+
+  function toggleFavoritesOnly() {
+    setFavoritesOnly((current) => !current);
+    setVisibleCount(MARKET_PAGE_SIZE);
+  }
+
+  function toggleFavorite(symbol: string) {
+    const next = new Set(favorites);
+    if (next.has(symbol)) next.delete(symbol);
+    else next.add(symbol);
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...next]));
+    window.dispatchEvent(new Event(FAVORITES_CHANGED_EVENT));
+  }
+
+  function toggleTracked(baseAsset: string) {
+    const next = new Set(tracked);
+    if (next.has(baseAsset)) next.delete(baseAsset);
+    else next.add(baseAsset);
+    localStorage.setItem(TRACKED_STORAGE_KEY, JSON.stringify([...next]));
+    window.dispatchEvent(new Event(TRACKED_CHANGED_EVENT));
+  }
+
+  function loadMoreOnScroll(event: React.UIEvent<HTMLDivElement>) {
+    const list = event.currentTarget;
+    const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 140;
+    if (nearBottom && visibleCount < filteredMarkets.length) {
+      setVisibleCount((current) => Math.min(current + MARKET_PAGE_SIZE, filteredMarkets.length));
+    }
+  }
+
+  const selectedChange = selected ? percentChange(selected) : 0;
+
+  return (
+    <div className="screen inner-screen markets-screen">
+      <header className="markets-header">
+        <div className="inner-title">
+          <span className="markets-hero-icon" aria-hidden="true">◉</span>
+          <div><h1>Markets</h1><p>Browse WEEX USDT perpetual markets and load any chart on demand.</p></div>
+        </div>
+        <div className="markets-connection"><span><i aria-hidden="true" /> WEEX connected</span><small>Same public read-only feed as the live engine</small></div>
+      </header>
+
+      <main className="markets-layout">
+        <aside className="surface market-browser-panel">
+          <header><div><h2>Exchange Markets</h2><p>{marketsLoading ? "Loading trading pairs…" : `${visibleMarkets.length.toLocaleString()} of ${filteredMarkets.length.toLocaleString()} pairs loaded`}</p></div><button type="button" disabled={marketsLoading} onClick={() => setMarketRequest((current) => current + 1)} aria-label="Refresh market prices">↻</button></header>
+          <label className="market-search"><span aria-hidden="true">⌕</span><input type="search" value={query} placeholder="Search BTC, SOL, USDT…" aria-label="Search exchange markets" onChange={(event) => updateSearch(event.target.value)} /></label>
+          <div className="market-browser-filters">
+            <div className="market-source-label"><span aria-hidden="true">USDT</span> Perpetual contracts</div>
+            <button className={`market-favorites-filter ${favoritesOnly ? "active" : ""}`} type="button" aria-pressed={favoritesOnly} onClick={toggleFavoritesOnly}><span aria-hidden="true">★</span> Favorites <b>{favorites.size}</b></button>
+          </div>
+          <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span><span aria-label="Favorite">★</span><span aria-label="Track">◎</span></div>
+          <div className="market-list" aria-live="polite" onScroll={loadMoreOnScroll}>
+            {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to WEEX…</div> : null}
+            {!marketsLoading && marketsError ? <div className="market-list-message error"><strong>Market list unavailable</strong><span>{marketsError}</span><button type="button" onClick={() => setMarketRequest((current) => current + 1)}>Try again</button></div> : null}
+            {!marketsLoading && !marketsError && filteredMarkets.length === 0 ? <div className="market-list-message">{favoritesOnly ? "No favorites match these filters yet." : "No trading pairs match these filters."}</div> : null}
+            {!marketsLoading && !marketsError ? visibleMarkets.map((market) => {
+              const change = percentChange(market);
+              const favorite = favorites.has(market.symbol);
+              return (
+                <div className={`market-list-row ${selected?.symbol === market.symbol ? "active" : ""}`} key={market.symbol}>
+                  <button className="market-row-select" type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => setSelected(market)}>
+                    <span className="market-pair"><CoinIcon symbol={market.baseAsset} /><span><strong>{market.baseAsset}</strong><small>/{market.quoteAsset}</small></span></span>
+                    <span className="market-row-price"><strong>{formatPrice(market.lastPrice, market.pricePrecision)}</strong><small>{formatVolume(market.quoteVolume)} {market.quoteAsset}</small></span>
+                    <b className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</b>
+                  </button>
+                  <button className={`market-favorite-toggle ${favorite ? "active" : ""}`} type="button" aria-pressed={favorite} aria-label={`${favorite ? "Remove" : "Add"} ${market.symbol} ${favorite ? "from" : "to"} favorites`} onClick={() => toggleFavorite(market.symbol)}>★</button>
                 </div>
               );
             }) : null}
