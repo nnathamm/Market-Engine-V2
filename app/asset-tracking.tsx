@@ -24,6 +24,8 @@ type TokenRow = {
   activity: string;
   tone: string;
   image?: string;
+  coingecko_id?: string;
+  db_id?: number;
 };
 
 type WalletRow = {
@@ -35,6 +37,7 @@ type WalletRow = {
   change: number;
   activity: string;
   tone: string;
+  db_id?: number;
 };
 
 const TOKENS: TokenRow[] = [
@@ -316,6 +319,8 @@ export default function AssetTrackingView() {
         activity: m ? "Live" : "Just added",
         tone: "violet",
         image: m?.image || t.image_url || undefined,
+        coingecko_id: t.coingecko_id || undefined,
+        db_id: t.id,
       };
     });
     return [...dbRows, ...TOKENS];
@@ -327,6 +332,7 @@ export default function AssetTrackingView() {
       name: w.label || `Wallet ${w.address.slice(0, 6)}…`,
       address: w.address, chain: w.chain || "Unknown",
       holdings: "—", change: 0, activity: "Just added", tone: "gray",
+      db_id: w.id,
     }));
     return [...dbRows, ...WALLETS];
   }, [dbWallets, existingAddresses]);
@@ -344,6 +350,51 @@ export default function AssetTrackingView() {
     await fetch("/api/tracked/wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     await refreshWallets();
   }, [refreshWallets]);
+
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = () => setOpenMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenu]);
+
+  const removeToken = useCallback(async (symbol: string) => {
+    await fetch(`/api/tracked/tokens/${symbol}`, { method: "DELETE" });
+    await refreshTokens();
+    setOpenMenu(null);
+  }, [refreshTokens]);
+
+  const removeWallet = useCallback(async (id: number) => {
+    await fetch(`/api/tracked/wallets/${id}`, { method: "DELETE" });
+    await refreshWallets();
+    setOpenMenu(null);
+  }, [refreshWallets]);
+
+  const editTokenLabel = useCallback(async (symbol: string, currentLabel: string) => {
+    setOpenMenu(null);
+    const next = window.prompt("Edit label:", currentLabel);
+    if (next === null) return;
+    await fetch("/api/tracked/tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol, label: next }) });
+    await refreshTokens();
+  }, [refreshTokens]);
+
+  const editWalletLabel = useCallback(async (address: string, currentLabel: string) => {
+    setOpenMenu(null);
+    const next = window.prompt("Edit label:", currentLabel);
+    if (next === null) return;
+    await fetch("/api/tracked/wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address, label: next }) });
+    await refreshWallets();
+  }, [refreshWallets]);
+
+  const copy = useCallback((text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setToast(`Copied ${label}`);
+      window.setTimeout(() => setToast(""), 2400);
+    });
+    setOpenMenu(null);
+  }, []);
 
   const switchTab = (nextTab: TrackingTab) => { setTab(nextTab); setQuery(""); };
 
@@ -369,13 +420,75 @@ export default function AssetTrackingView() {
             {tab === "tokens" ? (
               <div className="tracking-table token-table">
                 <div className="tracking-table-head"><span>Token / Pair</span><span>Networks</span><span>Price</span><span>24H Change</span><span>Last Activity</span><span>Actions</span></div>
-                {tokens.map((token) => <button className={`tracking-table-row ${selectedToken.symbol === token.symbol ? "selected" : ""}`} type="button" key={token.symbol} onClick={() => setSelectedToken(token)}><span className="tracking-name-cell">{token.image ? <img src={token.image} alt={token.symbol} className="tracking-coin-img" /> : <AssetBadge label={token.symbol} tone={token.tone} />}<b>{token.name}<small>{token.pair}</small></b></span><span>{token.networks} networks</span><strong>{token.price}</strong><Change value={token.change} /><span className="tracking-activity"><i />{token.activity}</span><span className="tracking-row-actions">◉ ↗ •••</span></button>)}
+                {tokens.map((token) => {
+                  const geckoUrl = `https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`;
+                  const menuKey = `t-${token.symbol}`;
+                  return (
+                    <div className={`tracking-table-row ${selectedToken.symbol === token.symbol ? "selected" : ""}`} key={token.symbol} role="row" onClick={() => setSelectedToken(token)}>
+                      <span className="tracking-name-cell">{token.image ? <img src={token.image} alt={token.symbol} className="tracking-coin-img" /> : <AssetBadge label={token.symbol} tone={token.tone} />}<b>{token.name}<small>{token.pair}</small></b></span>
+                      <span>{token.networks} networks</span>
+                      <strong>{token.price}</strong>
+                      <Change value={token.change} />
+                      <span className="tracking-activity"><i />{token.activity}</span>
+                      <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
+                        <span className="tracking-action-monitor" title="Monitoring active">◉</span>
+                        <a className="tracking-action-btn" href={geckoUrl} target="_blank" rel="noreferrer" title="View on CoinGecko" onClick={e => e.stopPropagation()}>↗</a>
+                        {token.db_id != null && (
+                          <span className="tracking-action-menu-wrap">
+                            <button className="tracking-action-btn" type="button" title="More options" onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === menuKey ? null : menuKey); }}>•••</button>
+                            {openMenu === menuKey && (
+                              <div className="tracking-action-menu" onClick={e => e.stopPropagation()}>
+                                <button type="button" onClick={() => editTokenLabel(token.symbol, token.name)}>✎ Edit Label</button>
+                                <button type="button" onClick={() => copy(token.symbol, "symbol")}>⎘ Copy Symbol</button>
+                                <a className="tracking-menu-link" href={`https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View on CoinGecko</a>
+                                <hr />
+                                <button type="button" className="tracking-menu-delete" onClick={() => removeToken(token.symbol)}>🗑 Delete Token</button>
+                              </div>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
                 {!tokens.length && <div className="tracking-empty">No watched tokens match that search.</div>}
               </div>
             ) : (
               <div className="tracking-table wallet-table">
                 <div className="tracking-table-head"><span>Wallet / Label</span><span>Chain</span><span>Holdings (USD)</span><span>24H Change</span><span>Last Activity</span><span>Actions</span></div>
-                {wallets.map((wallet) => <button className={`tracking-table-row ${selectedWallet.address === wallet.address ? "selected" : ""}`} type="button" key={wallet.address} onClick={() => setSelectedWallet(wallet)}><span className="tracking-name-cell"><AssetBadge label={wallet.short} tone={wallet.tone} /><b>{wallet.name}<small>{wallet.address}</small></b></span><span className="tracking-chain">◆ {wallet.chain}</span><strong>{wallet.holdings}</strong><Change value={wallet.change} /><span className="tracking-activity"><i />{wallet.activity}</span><span className="tracking-row-actions">◉ ↗ •••</span></button>)}
+                {wallets.map((wallet) => {
+                  const explorerUrl = wallet.chain === "Solana"
+                    ? `https://solscan.io/account/${wallet.address}`
+                    : `https://etherscan.io/address/${wallet.address}`;
+                  const menuKey = `w-${wallet.address}`;
+                  return (
+                    <div className={`tracking-table-row ${selectedWallet.address === wallet.address ? "selected" : ""}`} key={wallet.address} role="row" onClick={() => setSelectedWallet(wallet)}>
+                      <span className="tracking-name-cell"><AssetBadge label={wallet.short} tone={wallet.tone} /><b>{wallet.name}<small>{wallet.address}</small></b></span>
+                      <span className="tracking-chain">◆ {wallet.chain}</span>
+                      <strong>{wallet.holdings}</strong>
+                      <Change value={wallet.change} />
+                      <span className="tracking-activity"><i />{wallet.activity}</span>
+                      <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
+                        <span className="tracking-action-monitor" title="Monitoring active">◉</span>
+                        <a className="tracking-action-btn" href={explorerUrl} target="_blank" rel="noreferrer" title="View in explorer" onClick={e => e.stopPropagation()}>↗</a>
+                        {wallet.db_id != null && (
+                          <span className="tracking-action-menu-wrap">
+                            <button className="tracking-action-btn" type="button" title="More options" onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === menuKey ? null : menuKey); }}>•••</button>
+                            {openMenu === menuKey && (
+                              <div className="tracking-action-menu" onClick={e => e.stopPropagation()}>
+                                <button type="button" onClick={() => editWalletLabel(wallet.address, wallet.name)}>✎ Edit Label</button>
+                                <button type="button" onClick={() => copy(wallet.address, "address")}>⎘ Copy Address</button>
+                                <a className="tracking-menu-link" href={explorerUrl} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View in Explorer</a>
+                                <hr />
+                                <button type="button" className="tracking-menu-delete" onClick={() => removeWallet(wallet.db_id!)}>🗑 Delete Wallet</button>
+                              </div>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
                 {!wallets.length && <div className="tracking-empty">No watched wallets match that search.</div>}
               </div>
             )}
