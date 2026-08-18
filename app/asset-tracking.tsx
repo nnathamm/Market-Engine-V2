@@ -5,12 +5,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const TRACKED_STORAGE_KEY = "signal-control:tracked-tokens";
 const TRACKED_CHANGED_EVENT = "signal-control:tracked-tokens-changed";
 
-type CoinResult = { id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string; image?: string };
-type MarketEntry = { id: string; symbol: string; name: string; priceUsd: number; changePercent24Hr: number; rank: number; image: string };
+type PriceSource = "coingecko" | "binance" | "dexscreener" | "geckoterminal";
+type CoinResult = {
+  id: string; symbol: string; name: string; priceUsd: string; changePercent24Hr: string; rank: string; image?: string;
+  source: PriceSource; contractAddress?: string; chain?: string; binancePair?: string; pairAddress?: string;
+};
+type LivePrice = { priceUsd: number; changePercent24Hr: number; rank?: number; image?: string; name?: string; source: PriceSource };
 type DbToken = {
   id: number; symbol: string; label: string | null; created_at: string;
   coingecko_id: string | null; image_url: string | null; full_name: string | null;
   cached_price: number | null; cached_change_24h: number | null; cached_rank: number | null;
+  price_source: string | null; contract_address: string | null; chain: string | null;
+  binance_pair: string | null; pair_address: string | null;
 };
 type PortfolioWallet = {
   id: string; address: string; addressType: "evm" | "solana"; label: string;
@@ -126,12 +132,17 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
         if (symbol && onSave) await onSave({
           symbol, label,
           ...(selectedCoin ? {
-            coingecko_id: selectedCoin.id,
+            coingecko_id: selectedCoin.source === "coingecko" ? selectedCoin.id : null,
             image_url: selectedCoin.image ?? null,
             full_name: selectedCoin.name,
             cached_price: parseFloat(selectedCoin.priceUsd),
             cached_change_24h: parseFloat(selectedCoin.changePercent24Hr),
             cached_rank: parseInt(selectedCoin.rank, 10),
+            price_source: selectedCoin.source,
+            contract_address: selectedCoin.contractAddress ?? null,
+            chain: selectedCoin.chain ?? null,
+            binance_pair: selectedCoin.binancePair ?? null,
+            pair_address: selectedCoin.pairAddress ?? null,
           } : {}),
         });
         finish(symbol
@@ -157,10 +168,10 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
     <div className="tracking-modal-backdrop" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && close()}>
       <form id="Addnewtoken" className="tracking-dialog" role="dialog" aria-modal="true" aria-labelledby="tracking-dialog-title" onSubmit={submit}>
         <header>
-          <div><span className="tracking-dialog-mark" aria-hidden="true">◎</span><h2 id="tracking-dialog-title">{mode === "link" ? "Link to CoinGecko" : `Add New ${kind === "tokens" ? "Token" : "Wallet"}`}</h2></div>
+          <div><span className="tracking-dialog-mark" aria-hidden="true">◎</span><h2 id="tracking-dialog-title">{mode === "link" ? "Link Market Data" : `Add New ${kind === "tokens" ? "Token" : "Wallet"}`}</h2></div>
           <button type="button" aria-label="Close dialog" onClick={close}>×</button>
         </header>
-        <p>{mode === "link" ? "Search for this token on CoinGecko to enable live price data." : kind === "tokens" ? "Add a token or trading pair to your monitored assets." : "Add a wallet address to your monitored assets."}</p>
+        <p>{mode === "link" ? "Search for this token to link a live price source (CoinGecko, Binance, DEX Screener, or GeckoTerminal)." : kind === "tokens" ? "Add a token or trading pair to your monitored assets." : "Add a wallet address to your monitored assets."}</p>
 
         {kind === "tokens" ? (
           <>
@@ -179,25 +190,28 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
               </div>
               {results.length > 0 && (
                 <ul className="tracking-coin-results" role="listbox">
-                  {results.map(coin => (
-                    <li key={coin.id} role="option" aria-selected={false}>
-                      <button type="button" onClick={() => pickCoin(coin)}>
-                        <CoinIcon symbol={coin.symbol} imageUrl={coin.image} />
-                        <span className="tracking-coin-info">
-                          <strong>{coin.symbol}</strong>
-                          <small>{coin.name}</small>
-                        </span>
-                        <span className="tracking-coin-meta">
-                          <b>${parseFloat(coin.priceUsd) >= 1
-                            ? parseFloat(coin.priceUsd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                            : parseFloat(coin.priceUsd).toPrecision(4)}</b>
-                          <em className={parseFloat(coin.changePercent24Hr) >= 0 ? "tracking-positive" : "tracking-negative"}>
-                            {parseFloat(coin.changePercent24Hr) >= 0 ? "+" : ""}{parseFloat(coin.changePercent24Hr).toFixed(2)}%
-                          </em>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                  {results.map(coin => {
+                    const p = parseFloat(coin.priceUsd);
+                    const c = parseFloat(coin.changePercent24Hr);
+                    const sourceLabel = coin.source === "binance" ? "Binance" : coin.source === "dexscreener" ? "DEX" : coin.source === "geckoterminal" ? "GeckoTerminal" : "CoinGecko";
+                    return (
+                      <li key={coin.id} role="option" aria-selected={false}>
+                        <button type="button" onClick={() => pickCoin(coin)}>
+                          <CoinIcon symbol={coin.symbol} imageUrl={coin.image} />
+                          <span className="tracking-coin-info">
+                            <strong>{coin.symbol} <span className="tracking-source-badge">{sourceLabel}</span></strong>
+                            <small>{coin.name}{coin.chain ? ` · ${coin.chain}` : ""}</small>
+                          </span>
+                          <span className="tracking-coin-meta">
+                            <b>${p >= 1 ? p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p > 0 ? p.toPrecision(4) : "—"}</b>
+                            <em className={c >= 0 ? "tracking-positive" : "tracking-negative"}>
+                              {c >= 0 ? "+" : ""}{c.toFixed(2)}%
+                            </em>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
               <small>Supports a token name, symbol, or contract address.</small>
@@ -207,7 +221,7 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
                 <CoinIcon symbol={selectedCoin.symbol} imageUrl={selectedCoin.image} />
                 <span>
                   <strong>{selectedCoin.name} <b className="tracking-positive">✓</b></strong>
-                  <small>{selectedCoin.symbol} · Rank #{selectedCoin.rank}</small>
+                  <small>{selectedCoin.symbol} · {selectedCoin.source === "coingecko" && selectedCoin.rank !== "0" ? `Rank #${selectedCoin.rank}` : selectedCoin.source === "binance" ? `Binance · ${selectedCoin.binancePair}` : selectedCoin.source === "dexscreener" ? `DEX · ${selectedCoin.chain}` : `GeckoTerminal · ${selectedCoin.chain}`}</small>
                 </span>
                 <span className="tracking-coin-meta">
                   <b>{priceStr}</b>
@@ -301,26 +315,33 @@ export default function AssetTrackingView() {
   useEffect(() => { refreshTokens(); refreshWallets(); }, [refreshTokens, refreshWallets]);
 
 
-  const [marketData, setMarketData] = useState<Map<string, MarketEntry>>(new Map());
+  const [liveData, setLiveData] = useState<Map<string, LivePrice>>(new Map());
 
   useEffect(() => {
-    const ids = dbTokens.filter(t => t.coingecko_id).map(t => t.coingecko_id!).join(",");
-    if (!ids) return;
-    fetch(`/api/coins/market?ids=${encodeURIComponent(ids)}`)
-      .then(r => r.ok ? r.json() : [])
-      .then((data: MarketEntry[]) => setMarketData(new Map(data.map(d => [d.id, d]))))
+    if (!dbTokens.length) return;
+    fetch("/api/coins/live-prices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tokens: dbTokens }),
+    })
+      .then(r => r.ok ? r.json() : {})
+      .then((data: Record<string, LivePrice>) => setLiveData(new Map(Object.entries(data))))
       .catch(() => {});
   }, [dbTokens]);
 
   const allTokens = useMemo(() => {
     const dbRows: TokenRow[] = dbTokens.map(t => {
-      const m = t.coingecko_id ? marketData.get(t.coingecko_id) : undefined;
+      const m = liveData.get(t.symbol);
       const rawPrice = m?.priceUsd ?? (t.cached_price != null ? Number(t.cached_price) : null);
       const price = rawPrice != null
         ? (rawPrice >= 1
           ? `$${rawPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
           : `$${rawPrice.toPrecision(4)}`)
         : "—";
+      const sourceLabel = m?.source === "binance" ? "Binance"
+        : m?.source === "dexscreener" ? "DEX"
+        : m?.source === "geckoterminal" ? "GeckoTerminal"
+        : m?.source === "coingecko" ? "Live" : null;
       return {
         symbol: t.symbol,
         name: m?.name || t.full_name || t.label || t.symbol,
@@ -328,7 +349,7 @@ export default function AssetTrackingView() {
         networks: 1,
         price,
         change: m?.changePercent24Hr ?? (t.cached_change_24h != null ? Number(t.cached_change_24h) : 0),
-        activity: m ? "Live" : "Just added",
+        activity: sourceLabel ?? "Just added",
         tone: "violet",
         image: m?.image || t.image_url || undefined,
         coingecko_id: t.coingecko_id || undefined,
@@ -336,7 +357,7 @@ export default function AssetTrackingView() {
       };
     });
     return dbRows;
-  }, [dbTokens, marketData]);
+  }, [dbTokens, liveData]);
 
   const allWallets = useMemo(() => {
     const portfolioRows: WalletRow[] = portfolioWallets.map(w => {
@@ -508,7 +529,7 @@ export default function AssetTrackingView() {
                                 <button type="button" onClick={() => copy(token.symbol, "symbol")}>⎘ Copy Symbol</button>
                                 <a className="tracking-menu-link" href={`https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View on CoinGecko</a>
                                 {!token.coingecko_id && (
-                                  <button type="button" onClick={() => { setOpenMenu(null); setLinkTokenSymbol(token.symbol); }}>↗ Link to CoinGecko</button>
+                                  <button type="button" onClick={() => { setOpenMenu(null); setLinkTokenSymbol(token.symbol); }}>↗ Link Market Data</button>
                                 )}
                                 <hr />
                                 <button type="button" className="tracking-menu-delete" onClick={() => removeToken(token.symbol)}>🗑 Delete Token</button>

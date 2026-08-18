@@ -729,6 +729,7 @@ button { color: inherit; }
 .tracking-coin-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tracking-coin-info strong { font-size: 11px; font-weight: 700; color: #eff2f6; }
 .tracking-coin-info small { font-size: 9px; color: #6d7f94; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tracking-source-badge { display: inline-block; font-size: 8px; font-weight: 600; padding: 1px 4px; border-radius: 3px; background: #1e2d3d; color: #5b8db8; border: 1px solid #2a3f54; vertical-align: middle; margin-left: 4px; letter-spacing: 0.3px; }
 .tracking-coin-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .tracking-coin-meta b { font-size: 10px; color: #c8d4e0; }
 .tracking-coin-meta em { font-size: 9px; font-style: normal; }
