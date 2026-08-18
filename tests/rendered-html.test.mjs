@@ -21,10 +21,10 @@ test("server-renders the Signal Control single page", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>Signal Control<\/title>/i);
-  assert.match(html, /Create and manage your trading signals/);
-  assert.match(html, /Welcome to Signal Control/);
   assert.match(html, /Create New Signal/);
-  assert.match(html, /View \/ Edit Signals/);
+  assert.match(html, /Build a new signal with your own rules, time frame, and trigger conditions/);
+  assert.match(html, /Add Condition/);
+  assert.doesNotMatch(html, /Welcome to Signal Control|What would you like to do\?/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
@@ -54,14 +54,15 @@ test("keeps the application UI-only", async () => {
   assert.match(page, /useState\("custom:0:0:5"\)/);
   assert.match(page, /<CooldownChooser value=\{cooldown\} onChange=\{setCooldown\} \/>/);
   assert.match(page, /cooldownSummaryLabel\(cooldown\)/);
-  assert.match(page, /<button className="choice-card create-card"[\s\S]*<button className="choice-card view-card"/);
   assert.match(page, /<InnerNavigation activeView="create"[\s\S]*<InnerNavigation activeView="signals"/);
   assert.match(page, /placeholder=\{searchPlaceholder\}/);
   assert.match(styles, /\.ui-dropdown-options\.scrollable\s*\{[^}]*max-height:\s*186px;[^}]*overflow-y:\s*scroll/s);
   assert.match(styles, /\.ui-custom-duration-fields\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s);
   assert.match(styles, /\.ui-dropdown-menu\.align-above\s*\{[^}]*top:\s*auto;[^}]*bottom:\s*52px/s);
   assert.match(styles, /\.ui-dropdown-menu\.cooldown-menu\s*\{[^}]*width:\s*360px;[^}]*max-width:\s*calc\(100vw - 40px\)/s);
-  assert.match(page, /type View = "home" \| "create" \| "signals" \| "order-flow"/);
+  assert.match(page, /type View = "create" \| "signals" \| "order-flow"/);
+  assert.doesNotMatch(page, /function HomeView|view === "home"|setView\("home"\)/);
+  assert.doesNotMatch(styles, /\.home-screen|\.home-header|\.home-main|\.choice-card/);
   assert.match(page, /function OrderFlowView[\s\S]*Order Flow Settings[\s\S]*Timeframe Configuration[\s\S]*Minimum Imbalance Threshold[\s\S]*Minimum Confidence Score/);
   assert.match(page, /const ORDER_FLOW_TIMEFRAMES = \["1m", "5m", "15m", "30m", "1H", "4H", "1D"\]/);
   assert.match(page, /Reset to Defaults[\s\S]*Save Changes[\s\S]*Order Flow Preview/);

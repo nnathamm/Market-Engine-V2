@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-type View = "home" | "create" | "signals" | "order-flow";
+type View = "create" | "signals" | "order-flow";
 type DropdownOption = { value: string; label: string };
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
@@ -228,18 +228,9 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function BackButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button className="back-button" type="button" onClick={onClick}>
-      <span aria-hidden="true">←</span> Back
-    </button>
-  );
-}
-
 function InnerNavigation({ activeView, setView }: { activeView: "create" | "signals"; setView: (view: View) => void }) {
   return (
     <div className="inner-topbar">
-      <BackButton onClick={() => setView("home")} />
       <nav className="view-navigation" aria-label="Signal Control pages">
         <button className={activeView === "create" ? "active" : ""} type="button" aria-current={activeView === "create" ? "page" : undefined} onClick={() => setView("create")}>
           <span aria-hidden="true">＋</span> Create Signal
@@ -251,49 +242,6 @@ function InnerNavigation({ activeView, setView }: { activeView: "create" | "sign
           <span aria-hidden="true">⇄</span> Order Flow
         </button>
       </nav>
-    </div>
-  );
-}
-
-function HomeView({ setView }: { setView: (view: View) => void }) {
-  return (
-    <div className="screen home-screen">
-      <header className="home-header">
-        <SignalMark />
-        <div>
-          <h1>Signal Control</h1>
-          <p>Create and manage your trading signals</p>
-        </div>
-      </header>
-
-      <main className="home-main">
-        <div className="home-intro">
-          <h2>Welcome to Signal Control</h2>
-          <p>Choose where you want to start.</p>
-        </div>
-
-        <div className="choice-grid">
-          <button className="choice-card create-card" type="button" aria-label="Create a new signal" onClick={() => setView("create")}>
-            <span className="choice-icon plus-icon" aria-hidden="true">+</span>
-            <span className="choice-title">Create New Signal</span>
-            <span className="choice-copy">Build a new signal with your own<br />rules, time frame, and<br />trigger conditions.</span>
-            <span className="choice-action primary-choice">
-              <span aria-hidden="true">＋</span> Create Signal
-            </span>
-          </button>
-
-          <button className="choice-card view-card" type="button" aria-label="View and edit signals" onClick={() => setView("signals")}>
-            <span className="choice-icon list-icon" aria-hidden="true">
-              <i /><i /><i />
-            </span>
-            <span className="choice-title">View / Edit Signals</span>
-            <span className="choice-copy">View, edit, and manage all of your<br />existing signals in one place.</span>
-            <span className="choice-action secondary-choice">
-              View Signals <span aria-hidden="true">→</span>
-            </span>
-          </button>
-        </div>
-      </main>
     </div>
   );
 }
@@ -457,7 +405,7 @@ const DEFAULT_ORDER_FLOW_VALUES: OrderFlowValues = {
 };
 
 const ORDER_FLOW_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
-  ["⌂", "Dashboard", "home"],
+  ["⌂", "Dashboard", "create"],
   ["◈", "Signals", "signals"],
   ["⌁", "Chart", null],
   ["⊗", "Backtesting", null],
@@ -478,7 +426,7 @@ const ORDER_FLOW_TIMEFRAMES = ["1m", "5m", "15m", "30m", "1H", "4H", "1D"] as co
 function FlowSidebar({ setView }: { setView: (view: View) => void }) {
   return (
     <aside className="of-sidebar">
-      <button className="of-brand" type="button" onClick={() => setView("home")}>
+      <button className="of-brand" type="button" onClick={() => setView("create")}>
         <span className="of-brand-mark" aria-hidden="true" />
         <strong>EdgeSignals</strong>
       </button>
@@ -729,12 +677,11 @@ function ConditionModal({ close }: { close: () => void }) {
 }
 
 export default function Home() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>("create");
   const [conditionOpen, setConditionOpen] = useState(false);
 
   return (
     <main className="signal-control-app">
-      {view === "home" && <HomeView setView={setView} />}
       {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
       {view === "signals" && <SignalsView setView={setView} />}
       {view === "order-flow" && <OrderFlowView setView={setView} />}
