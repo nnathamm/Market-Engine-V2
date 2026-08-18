@@ -279,8 +279,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
     <aside className="application-sidebar" aria-hidden={!open}>
       <div className="application-sidebar-scroll">
         <button className="application-brand bg-[#060f1c]" type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
-          <span className="application-brand-mark" aria-hidden="true" />
-          <strong>EdgeSignals</strong>
+          <img src="/logo.png" alt="Stop Loss" style={{ height: "52px", width: "auto", objectFit: "contain" }} />
         </button>
 
         <nav className="application-sidebar-nav" aria-label="EdgeSignals pages">
