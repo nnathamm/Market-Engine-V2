@@ -34,6 +34,13 @@ const TIMEFRAME_OPTIONS: DropdownOption[] = [
 
 const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
 
+const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
+  ["create", "＋", "Create Signal", "Build a new trading signal"],
+  ["signals", "☷", "View Signals", "Manage existing signals"],
+  ["order-flow", "⇄", "Order Flow", "Configure order-flow analysis"],
+  ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
+];
+
 function cooldownSummaryLabel(value: string) {
   if (!value.startsWith("custom:")) return "not set";
 
@@ -229,22 +236,44 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
 }
 
 function InnerNavigation({ activeView, setView }: { activeView: View; setView: (view: View) => void }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const currentPage = PAGE_NAVIGATION.find(([view]) => view === activeView) ?? PAGE_NAVIGATION[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
+
   return (
     <div className="inner-topbar">
-      <nav className="view-navigation" aria-label="Signal Control pages">
-        <button className={activeView === "create" ? "active" : ""} type="button" aria-current={activeView === "create" ? "page" : undefined} onClick={() => setView("create")}>
-          <span aria-hidden="true">＋</span> Create Signal
+      <div className="hamburger-navigation" ref={rootRef}>
+        <button className={`hamburger-trigger ${open ? "open" : ""}`} type="button" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen((current) => !current)} onKeyDown={(event) => event.key === "Escape" && setOpen(false)}>
+          <span className="hamburger-icon" aria-hidden="true"><i /><i /><i /></span>
+          <span className="hamburger-current"><small>Menu</small><strong>{currentPage[2]}</strong></span>
+          <span className="hamburger-chevron" aria-hidden="true">⌄</span>
         </button>
-        <button className={activeView === "signals" ? "active" : ""} type="button" aria-current={activeView === "signals" ? "page" : undefined} onClick={() => setView("signals")}>
-          <span aria-hidden="true">☷</span> View Signals
-        </button>
-        <button className={activeView === "order-flow" ? "active" : ""} type="button" aria-current={activeView === "order-flow" ? "page" : undefined} onClick={() => setView("order-flow")}>
-          <span aria-hidden="true">⇄</span> Order Flow
-        </button>
-        <button className={activeView === "notifications" ? "active" : ""} type="button" aria-current={activeView === "notifications" ? "page" : undefined} onClick={() => setView("notifications")}>
-          <span aria-hidden="true">♢</span> Notifications
-        </button>
-      </nav>
+        {open ? (
+          <nav className="page-menu" id={menuId} aria-label="Signal Control pages">
+            <header><strong>Pages</strong><span>Go to</span></header>
+            {PAGE_NAVIGATION.map(([view, icon, label, description]) => (
+              <button className={activeView === view ? "active" : ""} type="button" aria-current={activeView === view ? "page" : undefined} key={view} onKeyDown={(event) => event.key === "Escape" && setOpen(false)} onClick={() => {
+                setView(view);
+                setOpen(false);
+              }}>
+                <span className="page-menu-icon" aria-hidden="true">{icon}</span>
+                <span><strong>{label}</strong><small>{description}</small></span>
+                <b aria-hidden="true">{activeView === view ? "✓" : "›"}</b>
+              </button>
+            ))}
+          </nav>
+        ) : null}
+      </div>
     </div>
   );
 }
