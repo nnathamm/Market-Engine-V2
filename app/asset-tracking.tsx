@@ -49,27 +49,6 @@ type WalletRow = {
   addressType?: "evm" | "solana";
 };
 
-const TOKENS: TokenRow[] = [
-  { symbol: "ETH", name: "Ethereum", pair: "ETH / USD", networks: 3, price: "$3,842.16", change: 4.21, activity: "2m ago", tone: "violet" },
-  { symbol: "USDT", name: "Tether", pair: "USDT / USD", networks: 5, price: "$1.00", change: 0.16, activity: "7m ago", tone: "teal" },
-  { symbol: "BTC", name: "Bitcoin", pair: "BTC / USD", networks: 2, price: "$64,190.30", change: -1.34, activity: "11m ago", tone: "orange" },
-  { symbol: "SOL", name: "Solana", pair: "SOL / USD", networks: 2, price: "$128.47", change: 6.72, activity: "9m ago", tone: "indigo" },
-  { symbol: "LINK", name: "Chainlink", pair: "LINK / USD", networks: 4, price: "$13.88", change: 2.11, activity: "15m ago", tone: "blue" },
-  { symbol: "ARB", name: "Arbitrum", pair: "ARB / USD", networks: 3, price: "$0.44", change: -0.45, activity: "18m ago", tone: "sky" },
-  { symbol: "UNI", name: "Uniswap", pair: "UNI / USD", networks: 2, price: "$6.12", change: 3.88, activity: "21m ago", tone: "pink" },
-  { symbol: "SUI", name: "Sui", pair: "SUI / USD", networks: 2, price: "$0.92", change: 5.21, activity: "31m ago", tone: "cyan" },
-];
-
-const WALLETS: WalletRow[] = [
-  { short: "BN", name: "Binance: Hot Wallet 0x28C6", address: "0x28C6c06298d514Db089934071355E5743bf21d60", chain: "Ethereum", holdings: "$2.43B", change: 4.21, activity: "2m ago", tone: "gold" },
-  { short: "JT", name: "Jump Trading: 0x1756", address: "0x1756599cAEbE663aD60a29D4e7af2d5a6c95aD63", chain: "Ethereum", holdings: "$1.67B", change: -1.18, activity: "7m ago", tone: "silver" },
-  { short: "C", name: "Coinbase: Custody 0xF977", address: "0xF977814e90dA44bFA03b6295A0616a897441aceC", chain: "Ethereum", holdings: "$1.21B", change: 2.75, activity: "11m ago", tone: "blue" },
-  { short: "OK", name: "OKX: Hot Wallet", address: "0x29b38cA47a17cFCc24a6f6a6d4F8d2c6b6d5A2f8", chain: "Arbitrum", holdings: "$842.35M", change: 0.93, activity: "15m ago", tone: "black" },
-  { short: "W", name: "Wintermute: 0x9a19", address: "0x9a190d33D7bF0E4fE03bA8eC17C8c9c4Bf2f6a6e", chain: "Ethereum", holdings: "$652.91M", change: -0.67, activity: "18m ago", tone: "teal" },
-  { short: "M", name: "MetaMask: Deployer", address: "0xDfb9e3c1a2a4C5f3D9e8A1b2C3d4E5f678901234", chain: "Polygon", holdings: "$118.46M", change: 3.31, activity: "23m ago", tone: "violet" },
-  { short: "G", name: "Gnosis Safe: Treasury", address: "0x1234567890abcdef1234567890abcdef12345678", chain: "Ethereum", holdings: "$97.12M", change: -2.11, activity: "27m ago", tone: "gray" },
-  { short: "D", name: "Dragonfly Capital: 0x88A", address: "0x88a41e0fA3a5eA9f7b8C5c8f3dB2a1d4E6f7a8b9", chain: "Base", holdings: "$45.88M", change: 1.04, activity: "31m ago", tone: "yellow" },
-];
 
 function AssetBadge({ label, tone }: { label: string; tone: string }) {
   return <span className={`tracking-asset-badge ${tone}`} aria-hidden="true">{label}</span>;
@@ -284,8 +263,8 @@ export default function AssetTrackingView() {
   const [dbTokens, setDbTokens] = useState<DbToken[]>([]);
   const [portfolioWallets, setPortfolioWallets] = useState<PortfolioWallet[]>([]);
   const [alchemyConfigured, setAlchemyConfigured] = useState(true);
-  const [selectedToken, setSelectedToken] = useState(TOKENS[0]);
-  const [selectedWallet, setSelectedWallet] = useState(WALLETS[0]);
+  const [selectedToken, setSelectedToken] = useState<TokenRow | null>(null);
+  const [selectedWallet, setSelectedWallet] = useState<WalletRow | null>(null);
   const [toast, setToast] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -299,8 +278,6 @@ export default function AssetTrackingView() {
 
   useEffect(() => { refreshTokens(); refreshWallets(); }, [refreshTokens, refreshWallets]);
 
-  const existingSymbols = useMemo(() => new Set(TOKENS.map(t => t.symbol)), []);
-  const existingAddresses = useMemo(() => new Set(WALLETS.map(w => w.address)), []);
 
   const [marketData, setMarketData] = useState<Map<string, MarketEntry>>(new Map());
 
@@ -314,7 +291,7 @@ export default function AssetTrackingView() {
   }, [dbTokens]);
 
   const allTokens = useMemo(() => {
-    const dbRows: TokenRow[] = dbTokens.filter(t => !existingSymbols.has(t.symbol)).map(t => {
+    const dbRows: TokenRow[] = dbTokens.map(t => {
       const m = t.coingecko_id ? marketData.get(t.coingecko_id) : undefined;
       const rawPrice = m?.priceUsd ?? t.cached_price;
       const price = rawPrice != null
@@ -336,13 +313,11 @@ export default function AssetTrackingView() {
         db_id: t.id,
       };
     });
-    return [...dbRows, ...TOKENS];
-  }, [dbTokens, existingSymbols, marketData]);
+    return dbRows;
+  }, [dbTokens, marketData]);
 
   const allWallets = useMemo(() => {
-    const portfolioRows: WalletRow[] = portfolioWallets
-      .filter(w => !existingAddresses.has(w.address))
-      .map(w => {
+    const portfolioRows: WalletRow[] = portfolioWallets.map(w => {
         const totalUsd = w.summary?.totalValueUsd ?? 0;
         const holdings = totalUsd > 0
           ? `$${totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -376,11 +351,14 @@ export default function AssetTrackingView() {
           addressType: w.addressType,
         };
       });
-    return [...portfolioRows, ...WALLETS];
-  }, [portfolioWallets, existingAddresses]);
+    return portfolioRows;
+  }, [portfolioWallets]);
 
   const tokens = useMemo(() => allTokens.filter(t => `${t.name} ${t.symbol} ${t.pair}`.toLowerCase().includes(query.toLowerCase())), [allTokens, query]);
   const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
+
+  useEffect(() => { if (!selectedToken && allTokens.length) setSelectedToken(allTokens[0]); }, [allTokens, selectedToken]);
+  useEffect(() => { if (!selectedWallet && allWallets.length) setSelectedWallet(allWallets[0]); }, [allWallets, selectedWallet]);
 
 
   const saveToken = useCallback(async (data: Record<string, string | number | null>) => {
@@ -476,7 +454,7 @@ export default function AssetTrackingView() {
                   const geckoUrl = `https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`;
                   const menuKey = `t-${token.symbol}`;
                   return (
-                    <div className={`tracking-table-row ${selectedToken.symbol === token.symbol ? "selected" : ""}`} key={token.symbol} role="row" onClick={() => setSelectedToken(token)}>
+                    <div className={`tracking-table-row ${selectedToken?.symbol === token.symbol ? "selected" : ""}`} key={token.symbol} role="row" onClick={() => setSelectedToken(token)}>
                       <span className="tracking-name-cell">{token.image ? <img src={token.image} alt={token.symbol} className="tracking-coin-img" /> : <AssetBadge label={token.symbol} tone={token.tone} />}<b>{token.name}<small>{token.pair}</small></b></span>
                       <span>{token.networks} networks</span>
                       <strong>{token.price}</strong>
@@ -521,7 +499,7 @@ export default function AssetTrackingView() {
                   const statusDot = wallet.status === "LIVE" ? "●" : wallet.status === "LIVE_WITH_WARNINGS" ? "◐" : wallet.status === "ERROR" ? "✕" : wallet.status === "IMPORTING" ? "⟳" : "○";
                   const statusColor = wallet.status === "LIVE" ? "#7dd87d" : wallet.status === "ERROR" ? "#e05555" : "#8899aa";
                   return (
-                    <div className={`tracking-table-row ${selectedWallet.address === wallet.address ? "selected" : ""}`} key={wallet.address} role="row" onClick={() => setSelectedWallet(wallet)}>
+                    <div className={`tracking-table-row ${selectedWallet?.address === wallet.address ? "selected" : ""}`} key={wallet.address} role="row" onClick={() => setSelectedWallet(wallet)}>
                       <span className="tracking-name-cell"><AssetBadge label={wallet.short} tone={wallet.tone} /><b>{wallet.name}<small>{wallet.address}</small></b></span>
                       <span className="tracking-chain">◆ {wallet.chain}</span>
                       <strong>{wallet.holdings}</strong>
@@ -555,7 +533,9 @@ export default function AssetTrackingView() {
           </div>
           <footer className="tracking-table-footer"><span>Showing 1 to {tab === "tokens" ? tokens.length : wallets.length} of {tab === "tokens" ? allTokens.length : allWallets.length} {tab}</span><div><button type="button">‹</button><button className="active" type="button">1</button><button type="button">2</button><button type="button">›</button></div><button type="button">Show 8 per page ⌄</button></footer>
         </main>
-        {tab === "tokens" ? <TokenIntelligence token={selectedToken} /> : <WalletIntelligence wallet={selectedWallet} />}
+        {tab === "tokens"
+          ? selectedToken ? <TokenIntelligence token={selectedToken} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>
+          : selectedWallet ? <WalletIntelligence wallet={selectedWallet} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a wallet to see intelligence here.</p></aside>}
       </div>
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}
       {dialog && <TrackingDialog kind={dialog} close={() => setDialog(null)} finish={finishDialog} onSave={dialog === "tokens" ? saveToken : saveWallet} />}

@@ -639,6 +639,7 @@ button { color: inherit; }
 .tracking-action-menu hr { margin: 4px 8px; border: 0; border-top: 1px solid #253548; }
 .tracking-menu-delete { color: #e05555 !important; }
 .tracking-menu-delete:hover { background: rgba(220, 60, 60, .12) !important; }
+.tracking-intelligence-empty { display: grid; place-items: center; min-height: 200px; color: #5a6a7e; font-size: 12px; }
 .tracking-api-notice { margin: 0 0 8px; padding: 10px 14px; background: rgba(220,160,40,.08); border: 1px solid rgba(220,160,40,.25); border-radius: 7px; color: #d4a832; font-size: 11px; line-height: 1.5; }
 .tracking-empty { min-height: 250px; display: grid; place-items: center; color: #7d899d; font-size: 12px; }
 .tracking-table-footer { min-height: 61px; padding: 0 15px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; color: #8491a4; font-size: 9px; }
