@@ -29,9 +29,10 @@ test("server-renders the Signal Control single page", async () => {
 });
 
 test("keeps exchange access read-only and loads charts on demand", async () => {
-  const [page, marketsPage, weexMarketsRoute, weexKlinesRoute, styles, hosting, packageJson] = await Promise.all([
+  const [page, marketsPage, assetTrackingPage, weexMarketsRoute, weexKlinesRoute, styles, hosting, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/markets.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/asset-tracking.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/weex/markets/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/weex/klines/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -63,7 +64,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.ui-custom-duration-fields\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s);
   assert.match(styles, /\.ui-dropdown-menu\.align-above\s*\{[^}]*top:\s*auto;[^}]*bottom:\s*52px/s);
   assert.match(styles, /\.ui-dropdown-menu\.cooldown-menu\s*\{[^}]*width:\s*360px;[^}]*max-width:\s*calc\(100vw - 40px\)/s);
-  assert.match(page, /type View = "create" \| "signals" \| "markets" \| "order-flow" \| "notifications" \| "profile"/);
+  assert.match(page, /type View = "create" \| "signals" \| "markets" \| "asset-tracking" \| "order-flow" \| "notifications" \| "profile"/);
   assert.doesNotMatch(page, /function HomeView|view === "home"|setView\("home"\)/);
   assert.doesNotMatch(styles, /\.home-screen|\.home-header|\.home-main|\.choice-card/);
   assert.match(page, /function OrderFlowView[\s\S]*Order Flow Settings[\s\S]*Timeframe Configuration[\s\S]*Minimum Imbalance Threshold[\s\S]*Minimum Confidence Score/);
@@ -79,11 +80,12 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /type="checkbox" checked=\{checked\} aria-label=\{ariaLabel\}/);
   assert.match(styles, /\.notifications-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.notification-switch input:checked \+ span/s);
-  assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Markets[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
+  assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Markets[\s\S]*Asset Tracking[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
   assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Create Signal[\s\S]*Signals[\s\S]*Backtesting[\s\S]*Trades[\s\S]*Analytics/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
   assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["◉", "Markets", "markets"\][\s\S]*Data Feeds[\s\S]*Users[\s\S]*Alerts[\s\S]*Integrations/);
   assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
+  assert.match(page, /const SIDEBAR_MONITORING_NAV:[\s\S]*Asset Tracking[\s\S]*Watchlists[\s\S]*Notifications/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);
   assert.match(page, /function ProfileView[\s\S]*Master ADMIN Profile[\s\S]*Executive control account[\s\S]*Full site configuration control[\s\S]*Override lower-tier permissions[\s\S]*Modify, suspend, or delete accounts[\s\S]*Notification Settings[\s\S]*Manage Accounts/);
   assert.match(page, /className="master-profile-trigger"[\s\S]*aria-current=\{activeView === "profile" \? "page" : undefined\}[\s\S]*onClick=\{\(\) => setView\("profile"\)\}/);
@@ -99,6 +101,18 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.doesNotMatch(styles, /\.master-profile-menu/);
   assert.match(page, /lazy\(\(\) => import\("\.\/markets"\)\)/);
   assert.match(page, /view === "markets" && <Suspense[\s\S]*<MarketsView \/>[\s\S]*<\/Suspense>/);
+  assert.match(page, /lazy\(\(\) => import\("\.\/asset-tracking"\)\)/);
+  assert.match(page, /view === "asset-tracking" && <Suspense[\s\S]*<AssetTrackingView \/>[\s\S]*<\/Suspense>/);
+  assert.match(assetTrackingPage, /Monitor Center[\s\S]*Watched Tokens[\s\S]*Watched Wallets/);
+  assert.match(assetTrackingPage, /Add Token[\s\S]*Add Wallet[\s\S]*Import List/);
+  assert.match(assetTrackingPage, /Selected Token Intelligence[\s\S]*Selected Wallet Intelligence/);
+  assert.match(assetTrackingPage, /role="dialog"/);
+  assert.match(assetTrackingPage, /Search Token or Paste Contract/);
+  assert.match(assetTrackingPage, /Wallet Address/);
+  assert.doesNotMatch(assetTrackingPage, /Discovered Tokens/);
+  assert.doesNotMatch(assetTrackingPage, /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource/);
+  assert.match(styles, /\.tracking-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(710px, 1fr\) 355px/s);
+  assert.match(styles, /\.tracking-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)[^}]*overflow-y:\s*auto/s);
   assert.match(marketsPage, /Browse WEEX USDT perpetual markets and load any chart on demand/);
   assert.match(marketsPage, /fetch\("\/api\/weex\/markets"[\s\S]*fetch\(`\/api\/weex\/klines\?\$\{params\}`/);
   assert.doesNotMatch(marketsPage, /data-api\.binance\.vision|Binance Spot/);

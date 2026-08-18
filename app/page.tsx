@@ -3,8 +3,9 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 
 const MarketsView = lazy(() => import("./markets"));
+const AssetTrackingView = lazy(() => import("./asset-tracking"));
 
-type View = "create" | "signals" | "markets" | "order-flow" | "notifications" | "profile";
+type View = "create" | "signals" | "markets" | "asset-tracking" | "order-flow" | "notifications" | "profile";
 type DropdownOption = { value: string; label: string };
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
@@ -39,7 +40,8 @@ const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
 const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
   ["create", "＋", "Create Signal", "Build a new trading signal"],
   ["signals", "☷", "View Signals", "Manage existing signals"],
-  ["markets", "◉", "Markets", "Browse live Binance Spot markets"],
+  ["markets", "◉", "Markets", "Browse live WEEX futures markets"],
+  ["asset-tracking", "◎", "Asset Tracking", "Monitor watched tokens and wallets"],
   ["order-flow", "⇄", "Order Flow", "Configure order-flow analysis"],
   ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
   ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],
@@ -68,6 +70,12 @@ const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [string, View | null]> = [
   ["Risk", null],
   ["Order Flow", "order-flow"],
   ["Logs", null],
+];
+
+const SIDEBAR_MONITORING_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
+  ["◎", "Asset Tracking", "asset-tracking"],
+  ["▱", "Watchlists", null],
+  ["♢", "Notifications", "notifications"],
 ];
 
 function cooldownSummaryLabel(value: string) {
@@ -295,6 +303,13 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
               </button>
             ))}
           </div>
+
+          <h2>Monitoring</h2>
+          {SIDEBAR_MONITORING_NAV.map(([icon, label, destination]) => (
+            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
+              <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
+            </button>
+          ))}
         </nav>
 
         <p className="application-sidebar-footnote">Additional sections are UI placeholders until their pages are built.</p>
@@ -903,6 +918,7 @@ export default function Home() {
             {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
             {view === "signals" && <SignalsView />}
             {view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView /></Suspense>}
+            {view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView /></Suspense>}
             {view === "order-flow" && <OrderFlowView />}
             {view === "notifications" && <NotificationsView />}
             {view === "profile" && <ProfileView setView={setView} />}
