@@ -43,6 +43,7 @@ type TokenRow = {
   coingecko_id?: string;
   db_id?: number;
   rank?: number;
+  price_source?: string | null;
 };
 
 type WalletRow = {
@@ -270,10 +271,11 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
   );
 }
 
-function TokenIntelligence({ token }: { token: TokenRow }) {
+function TokenIntelligence({ token, onLinkMarketData }: { token: TokenRow; onLinkMarketData?: () => void }) {
   const geckoUrl = token.coingecko_id
     ? `https://www.coingecko.com/en/coins/${token.coingecko_id}`
     : null;
+  const missingPriceSource = !token.price_source;
   return (
     <aside className="tracking-intelligence">
       <header><span>Selected Token Intelligence</span><button type="button" aria-label="Close selected token">×</button></header>
@@ -288,6 +290,17 @@ function TokenIntelligence({ token }: { token: TokenRow }) {
         <span><small>Price</small><strong>{token.price}</strong><Change value={token.change} /></span>
         <span><small>Last Activity</small><strong className="tracking-activity"><i /> {token.activity}</strong></span>
       </div>
+      {missingPriceSource && (
+        <div className="tracking-no-price-notice" role="status">
+          <span>
+            <strong>No price source linked</strong>
+            <small>This token was added without a market data match.</small>
+          </span>
+          <button className="tracking-primary" type="button" onClick={onLinkMarketData}>
+            Link market data
+          </button>
+        </div>
+      )}
       <div className="tracking-detail-actions">
         {geckoUrl
           ? <a className="tracking-primary tracking-action-link" href={geckoUrl} target="_blank" rel="noreferrer">Open on CoinGecko ↗</a>
@@ -493,6 +506,7 @@ export default function AssetTrackingView() {
         coingecko_id: t.coingecko_id || undefined,
         db_id: t.id,
         rank: m?.rank ?? (t.cached_rank != null ? Number(t.cached_rank) : undefined),
+        price_source: m?.source ?? t.price_source ?? null,
       };
     });
     return dbRows;
@@ -744,7 +758,7 @@ export default function AssetTrackingView() {
           <footer className="tracking-table-footer"><span>Showing 1 to {tab === "tokens" ? tokens.length : wallets.length} of {tab === "tokens" ? allTokens.length : allWallets.length} {tab}</span><div><button type="button">‹</button><button className="active" type="button">1</button><button type="button">2</button><button type="button">›</button></div><button type="button">Show 8 per page ⌄</button></footer>
         </main>
         {tab === "tokens"
-          ? selectedToken ? <TokenIntelligence token={selectedToken} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>
+          ? selectedToken ? <TokenIntelligence token={selectedToken} onLinkMarketData={() => setLinkTokenSymbol(selectedToken.symbol)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>
           : selectedWallet ? <WalletIntelligence wallet={selectedWallet} portfolioWallet={portfolioWallets.find(pw => pw.id === selectedWallet.portfolio_id)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a wallet to see intelligence here.</p></aside>}
       </div>
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}
