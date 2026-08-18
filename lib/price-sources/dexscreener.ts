@@ -64,7 +64,7 @@ export async function getPriceDexScreener(chain: string, pairAddress: string): P
     if (!pair?.priceUsd) return null;
     return {
       priceUsd: parseFloat(pair.priceUsd),
-      changePercent24Hr: pair.priceChange?.h24 ?? 0,
+      changePercent24Hr: Number(pair.priceChange?.h24 ?? 0),
       image: pair.info?.imageUrl,
       source: "dexscreener",
     };

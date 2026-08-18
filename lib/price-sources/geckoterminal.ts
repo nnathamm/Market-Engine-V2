@@ -81,7 +81,7 @@ export async function getPriceGeckoTerminal(network: string, poolAddress: string
     if (!pool?.attributes.base_token_price_usd) return null;
     return {
       priceUsd: parseFloat(pool.attributes.base_token_price_usd),
-      changePercent24Hr: pool.attributes.price_change_percentage?.h24 ?? 0,
+      changePercent24Hr: Number(pool.attributes.price_change_percentage?.h24 ?? 0),
       source: "geckoterminal",
     };
   } catch {

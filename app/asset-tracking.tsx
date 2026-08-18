@@ -65,7 +65,8 @@ function AssetBadge({ label, tone }: { label: string; tone: string }) {
 }
 
 function Change({ value }: { value: number }) {
-  return <span className={value >= 0 ? "tracking-positive" : "tracking-negative"}>{value >= 0 ? "+" : ""}{value.toFixed(2)}%</span>;
+  const v = isFinite(Number(value)) ? Number(value) : 0;
+  return <span className={v >= 0 ? "tracking-positive" : "tracking-negative"}>{v >= 0 ? "+" : ""}{v.toFixed(2)}%</span>;
 }
 
 function CoinIcon({ symbol, imageUrl }: { symbol: string; imageUrl?: string }) {
@@ -456,7 +457,7 @@ export default function AssetTrackingView() {
         pair: `${t.symbol} / USDT`,
         networks: 1,
         price,
-        change: m?.changePercent24Hr ?? (t.cached_change_24h != null ? Number(t.cached_change_24h) : 0),
+        change: Number(m?.changePercent24Hr ?? (t.cached_change_24h != null ? Number(t.cached_change_24h) : 0)),
         activity: sourceLabel ?? "Just added",
         tone: "violet",
         image: m?.image || t.image_url || undefined,
