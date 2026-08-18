@@ -263,7 +263,6 @@ function CooldownChooser({ value, onChange }: { value: string; onChange: (value:
 function SignalMark({ compact = false }: { compact?: boolean }) {
   return (
     <span className={compact ? "signal-mark compact" : "signal-mark"} aria-hidden="true">
-      <span className="signal-mark-ring ring-one" />
       <span className="signal-mark-ring ring-two" />
       <span className="signal-mark-dot" />
       <span className="signal-mark-stem" />
@@ -447,7 +446,6 @@ function SignalsView() {
   return (
     <div className="screen inner-screen signals-screen">
       <header className="list-header">
-        <SignalMark />
         <div><h1>View / Edit Signals</h1><p>View, edit, and manage all of your existing signals.</p></div>
       </header>
 
