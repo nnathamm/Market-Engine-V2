@@ -323,7 +323,7 @@ function TokenIntelligence({ token, onLinkMarketData }: { token: TokenRow; onLin
       )}
       <div className="tracking-detail-actions">
         {geckoUrl
-          ? <a className="tracking-primary tracking-action-link" href={geckoUrl} target="_blank" rel="noreferrer">Open on CoinGecko ↗</a>
+          ? <a className="tracking-detail-action-link" href={geckoUrl} target="_blank" rel="noreferrer">Open on CoinGecko ↗</a>
           : <button className="tracking-primary" type="button" disabled>Open Market</button>}
         <button type="button">View Contract ↗</button>
       </div>
