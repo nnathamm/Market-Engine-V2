@@ -81,6 +81,11 @@ button { color: inherit; }
 .application-sidebar-nav::-webkit-scrollbar { width: 8px; }
 .application-sidebar-nav::-webkit-scrollbar-track { background: #07111e; }
 .application-sidebar-nav::-webkit-scrollbar-thumb { border: 2px solid #07111e; border-radius: 9px; background: #3a3a3a; }
+
+.create-layout, .signals-panel, .of-workspace, .profile-layout, .notifications-layout, .tracking-workspace, .markets-layout { scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
+.create-layout::-webkit-scrollbar, .signals-panel::-webkit-scrollbar, .of-workspace::-webkit-scrollbar, .profile-layout::-webkit-scrollbar, .notifications-layout::-webkit-scrollbar, .tracking-workspace::-webkit-scrollbar, .markets-layout::-webkit-scrollbar { width: 8px; }
+.create-layout::-webkit-scrollbar-track, .signals-panel::-webkit-scrollbar-track, .of-workspace::-webkit-scrollbar-track, .profile-layout::-webkit-scrollbar-track, .notifications-layout::-webkit-scrollbar-track, .tracking-workspace::-webkit-scrollbar-track, .markets-layout::-webkit-scrollbar-track { background: #07111e; }
+.create-layout::-webkit-scrollbar-thumb, .signals-panel::-webkit-scrollbar-thumb, .of-workspace::-webkit-scrollbar-thumb, .profile-layout::-webkit-scrollbar-thumb, .notifications-layout::-webkit-scrollbar-thumb, .tracking-workspace::-webkit-scrollbar-thumb, .markets-layout::-webkit-scrollbar-thumb { border: 2px solid #07111e; border-radius: 9px; background: #3a3a3a; }
 .application-brand { position: sticky; top: 0; z-index: 1; width: 100%; height: 70px; padding: 0 22px; display: flex; align-items: center; gap: 14px; color: #f3f5f8; border: 0; border-bottom: 1px solid #1e2b3c; background: #07101d; cursor: pointer; text-align: left; }
 .application-brand strong { font-size: 22px; letter-spacing: -.035em; }
 .application-brand-mark { position: relative; width: 32px; height: 32px; flex: 0 0 32px; border: 7px solid #9543ff; border-radius: 9px; transform: rotate(30deg); }
