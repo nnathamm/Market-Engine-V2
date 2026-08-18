@@ -510,8 +510,19 @@ export default function AssetTrackingView() {
   const tokens = useMemo(() => allTokens.filter(t => `${t.name} ${t.symbol} ${t.pair}`.toLowerCase().includes(query.toLowerCase())), [allTokens, query]);
   const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
 
-  useEffect(() => { if (!selectedToken && allTokens.length) setSelectedToken(allTokens[0]); }, [allTokens, selectedToken]);
-  useEffect(() => { if (!selectedWallet && allWallets.length) setSelectedWallet(allWallets[0]); }, [allWallets, selectedWallet]);
+  useEffect(() => {
+    if (!allTokens.length) return;
+    if (!selectedToken) { setSelectedToken(allTokens[0]); return; }
+    const updated = allTokens.find(t => t.symbol === selectedToken.symbol);
+    if (updated) setSelectedToken(updated);
+  }, [allTokens]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!allWallets.length) return;
+    if (!selectedWallet) { setSelectedWallet(allWallets[0]); return; }
+    const updated = allWallets.find(w => w.address === selectedWallet.address);
+    if (updated) setSelectedWallet(updated);
+  }, [allWallets]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   const saveToken = useCallback(async (data: Record<string, string | number | null>) => {
