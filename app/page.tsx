@@ -421,7 +421,15 @@ const ORDER_FLOW_SYSTEM_NAV = [
   ["⌘", "Integrations"],
 ] as const;
 
-const ORDER_FLOW_TIMEFRAMES = ["1m", "5m", "15m", "30m", "1H", "4H", "1D"] as const;
+const ORDER_FLOW_TIMEFRAME_OPTIONS: DropdownOption[] = [
+  { value: "1m", label: "1 Minute (1m)" },
+  { value: "5m", label: "5 Minutes (5m)" },
+  { value: "15m", label: "15 Minutes (15m)" },
+  { value: "30m", label: "30 Minutes (30m)" },
+  { value: "1H", label: "1 Hour (1H)" },
+  { value: "4H", label: "4 Hours (4H)" },
+  { value: "1D", label: "1 Day (1D)" },
+];
 
 function FlowSidebar({ setView }: { setView: (view: View) => void }) {
   return (
@@ -587,10 +595,14 @@ function OrderFlowView({ setView }: { setView: (view: View) => void }) {
               <button type="button" role="tab" aria-selected="false">Global Settings</button>
             </div>
             <div className="of-timeframe-bar">
-              <div className="of-timeframes" aria-label="Select timeframe">
-                {ORDER_FLOW_TIMEFRAMES.map((option) => (
-                  <button className={timeframe === option ? "active" : ""} type="button" key={option} onClick={() => setTimeframe(option)}>{option}</button>
-                ))}
+              <div className="of-timeframe-select">
+                <UiDropdown
+                  label="Timeframe"
+                  value={timeframe}
+                  options={ORDER_FLOW_TIMEFRAME_OPTIONS}
+                  onChange={setTimeframe}
+                  searchPlaceholder="Search timeframes..."
+                />
               </div>
               <label className="of-enable"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /><span />Enable Order Flow</label>
             </div>

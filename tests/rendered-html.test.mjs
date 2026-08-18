@@ -64,7 +64,9 @@ test("keeps the application UI-only", async () => {
   assert.doesNotMatch(page, /function HomeView|view === "home"|setView\("home"\)/);
   assert.doesNotMatch(styles, /\.home-screen|\.home-header|\.home-main|\.choice-card/);
   assert.match(page, /function OrderFlowView[\s\S]*Order Flow Settings[\s\S]*Timeframe Configuration[\s\S]*Minimum Imbalance Threshold[\s\S]*Minimum Confidence Score/);
-  assert.match(page, /const ORDER_FLOW_TIMEFRAMES = \["1m", "5m", "15m", "30m", "1H", "4H", "1D"\]/);
+  assert.match(page, /const ORDER_FLOW_TIMEFRAME_OPTIONS:[\s\S]*value: "1m"[\s\S]*value: "5m"[\s\S]*value: "15m"[\s\S]*value: "30m"[\s\S]*value: "1H"[\s\S]*value: "4H"[\s\S]*value: "1D"/);
+  assert.match(page, /className="of-timeframe-select"[\s\S]*<UiDropdown[\s\S]*options=\{ORDER_FLOW_TIMEFRAME_OPTIONS\}[\s\S]*searchPlaceholder="Search timeframes\.\.\."/);
+  assert.doesNotMatch(page, /className="of-timeframes"/);
   assert.match(page, /Reset to Defaults[\s\S]*Save Changes[\s\S]*Order Flow Preview/);
   assert.match(page, /Bullish Confidence/);
   assert.match(page, /setView\("order-flow"\)/);
