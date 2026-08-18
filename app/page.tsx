@@ -320,7 +320,7 @@ function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: 
   const currentPage = PAGE_NAVIGATION.find(([view]) => view === activeView) ?? PAGE_NAVIGATION[0];
 
   return (
-    <header className="application-topbar">
+    <header id="Windowheader" className="application-topbar">
       <button className={`application-menu-trigger ${sidebarOpen ? "open" : ""}`} type="button" aria-label={sidebarOpen ? "Collapse navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={toggleSidebar}>
         <span aria-hidden="true">{sidebarOpen ? "‹" : "›"}</span>
       </button>
