@@ -98,9 +98,12 @@ button { color: inherit; }
 .application-sidebar-nav > button:disabled:hover { color: #9ca9bc; background: transparent; }
 .application-sidebar-subnav { display: grid; gap: 2px; margin: -1px 0 5px 42px; }
 .application-sidebar-subnav button { min-height: 34px; padding: 0 10px; display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 7px; color: #7f8da2; border: 0; border-left: 1px solid #26354a; background: transparent; cursor: pointer; text-align: left; font-size: 12px; }
+.application-sidebar-subnav-icon { display: grid; place-items: center; }
+.application-sidebar-subnav-icon svg { width: 16px; height: 16px; display: block; }
 .application-sidebar-subnav button:hover, .application-sidebar-subnav button:focus-visible, .application-sidebar-subnav button.active { color: #f3f5f8; background: #111d2e; outline: 0; }
 .application-sidebar-subnav button.active { border-left-color: #b45dff; }
-.application-sidebar-icon { width: 28px; color: #aab6c8; text-align: center; font-size: 21px; }
+.application-sidebar-icon { width: 28px; color: #aab6c8; display: grid; place-items: center; }
+.application-sidebar-icon svg { width: 21px; height: 21px; display: block; }
 .application-sidebar-nav > button.active .application-sidebar-icon { color: #b45dff; }
 .application-sidebar-nav button small { color: #596679; text-transform: uppercase; font-size: 8px; font-weight: 700; letter-spacing: .06em; }
 .application-sidebar-nav > h2 { margin: 22px 18px 9px; color: #93a0b3; text-transform: uppercase; font-size: 11px; letter-spacing: .12em; }

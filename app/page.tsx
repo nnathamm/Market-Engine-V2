@@ -67,7 +67,6 @@ const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [SidebarIconName, string, View
 const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
   ["markets", "Markets", "markets"],
   ["users", "Users", null],
-  ["alerts", "Alerts", null],
   ["integrations", "Integrations", null],
 ];
 
