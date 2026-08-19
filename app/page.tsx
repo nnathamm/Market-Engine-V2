@@ -401,48 +401,22 @@ function SummaryIcon({ children, tone = "purple" }: { children: React.ReactNode;
   return <span className={`summary-icon ${tone}`} aria-hidden="true">{children}</span>;
 }
 
-function CreateView({ setView, openCondition, master = false }: { setView: (view: View) => void; openCondition: () => void; master?: boolean }) {
+function CreateView({ setView, openCondition }: { setView: (view: View) => void; openCondition: () => void }) {
   const [timeFrame, setTimeFrame] = useState("15m");
   const [cooldown, setCooldown] = useState("custom:0:0:5");
-  const [signalName, setSignalName] = useState("");
-  const [notice, setNotice] = useState("");
-
-  async function saveSignal(status: "draft" | "published") {
-    if (!master) {
-      setNotice("Personal signal form saved for this session.");
-      return;
-    }
-    if (!signalName.trim()) {
-      setNotice("Enter a signal name first.");
-      return;
-    }
-    const response = await fetch("/api/master-signals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: signalName,
-        status,
-        definition: { timeFrame, cooldown, source: "create-signal-builder" },
-      }),
-    });
-    const payload = await response.json() as { error?: string };
-    setNotice(response.ok
-      ? (status === "published" ? "Master Signal published to the Signal Library." : "Master Signal saved as a draft.")
-      : payload.error ?? "Unable to save Master Signal.");
-  }
 
   return (
     <div className="screen inner-screen create-screen">
       <header className="inner-header mt-[10px] mb-[10px]">
         <div className="inner-title">
           <div>
-            <h1>{master ? "Create Master Signal" : "Create New Signal"}</h1>
-            <p>{master ? "Build a system-wide signal with the same rules, time frame, and trigger conditions." : "Build a new signal with your own rules, time frame, and trigger conditions."}</p>
+            <h1>Create New Signal</h1>
+            <p>Build a new signal with your own rules, time frame, and trigger conditions.</p>
           </div>
         </div>
         <div className="header-actions">
-          <button className="outline-button" type="button" onClick={() => void saveSignal("draft")}>Save as Draft</button>
-          <button className="purple-button" type="button" onClick={() => void saveSignal("published")}>{master ? "Publish Master Signal" : "Create Signal"}</button>
+          <button className="outline-button" type="button">Save as Draft</button>
+          <button className="purple-button" type="button">Create Signal</button>
         </div>
       </header>
 
@@ -453,12 +427,11 @@ function CreateView({ setView, openCondition, master = false }: { setView: (view
             <div className="two-fields">
               <label className="form-field">
                 <span>Signal Name <b>*</b></span>
-                <input type="text" value={signalName} onChange={(event) => setSignalName(event.target.value)} placeholder={master ? "e.g., Master Momentum Confirmation" : "e.g., Bollinger Squeeze 15 Minute"} />
+                <input type="text" placeholder="e.g., Bollinger Squeeze 15 Minute" />
               </label>
               <UiDropdown label="Time Frame" required value={timeFrame} options={TIMEFRAME_OPTIONS} onChange={setTimeFrame} searchPlaceholder="Search timeframes..." />
             </div>
             <div className="info-strip"><span>ⓘ</span> Choose a name and time frame for your signal.</div>
-            {notice && <p className="master-builder-notice" role="status">{notice}</p>}
           </section>
 
           <section className="surface conditions-section">
