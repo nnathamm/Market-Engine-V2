@@ -454,6 +454,10 @@ export default function AssetTrackingView() {
   const [portfolioWallets, setPortfolioWallets] = useState<PortfolioWallet[]>([]);
   const [alchemyConfigured, setAlchemyConfigured] = useState(true);
   const [selectedToken, setSelectedToken] = useState<TokenRow | null>(null);
+  // Always-current snapshot of selectedToken for reading inside async callbacks
+  // without adding selectedToken to their dependency arrays.
+  const selectedTokenRef = useRef<TokenRow | null>(null);
+  useEffect(() => { selectedTokenRef.current = selectedToken; }, [selectedToken]);
   const [selectedWallet, setSelectedWallet] = useState<WalletRow | null>(null);
   const [toast, setToast] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -644,10 +648,21 @@ export default function AssetTrackingView() {
   const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
 
   useEffect(() => {
-    if (!allTokens.length) return;
-    if (!selectedToken) { setSelectedToken(allTokens[0]); return; }
+    if (!selectedToken) {
+      // No selection yet (initial load or post-delete): pick the first token.
+      if (allTokens.length) setSelectedToken(allTokens[0]);
+      return;
+    }
     const updated = allTokens.find(t => t.symbol === selectedToken.symbol);
-    if (updated) setSelectedToken(updated);
+    if (updated) {
+      // Keep the selected token in sync with live prices / db changes.
+      setSelectedToken(updated);
+    } else {
+      // The selected token is no longer in the list (was just deleted).
+      // Clear the panel; the next allTokens change will auto-select the first
+      // remaining token via the !selectedToken branch above.
+      setSelectedToken(null);
+    }
   }, [allTokens]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -713,15 +728,26 @@ export default function AssetTrackingView() {
   const removeToken = useCallback(async (symbol: string) => {
     const res = await fetch(`/api/tracked/tokens/${encodeURIComponent(symbol)}`, { method: "DELETE" });
     if (!res.ok) return; // retain state if the server rejected the deletion
-    // Synchronously evict the symbol from the ref so any in-flight live-price
-    // request that resolves before refreshTokens completes cannot reinsert it.
+    // Evict from the ref so any in-flight live-price request that resolves
+    // before refreshTokens completes cannot reinsert this symbol.
     trackedSymbolsRef.current.delete(symbol);
+    // Batch all three evictions into a single React render so no intermediate
+    // frame can show a stale price for the deleted token:
+    //   1. Remove from dbTokens → allTokens re-derives without this entry.
+    //   2. Remove from liveData → price is not readable even via the Map.
+    //   3. Clear selectedToken if it was the deleted one → intelligence panel
+    //      closes in the same commit; the sync effect will auto-select the
+    //      first remaining token on the next allTokens identity change.
+    setDbTokens(prev => prev.filter(t => t.symbol !== symbol));
     setLiveData(prev => {
       if (!prev.has(symbol)) return prev;
       const next = new Map(prev);
       next.delete(symbol);
       return next;
     });
+    if (selectedTokenRef.current?.symbol === symbol) {
+      setSelectedToken(null);
+    }
     await refreshTokens();
     setOpenMenu(null);
   }, [refreshTokens]);
