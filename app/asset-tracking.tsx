@@ -298,61 +298,65 @@ function TokenIntelligence({ token, priceLoading, onLinkMarketData }: { token: T
   const missingPriceSource = !token.price_source;
   return (
     <aside className="tracking-intelligence">
-      <div id="selected-token-identity" className="tracking-selected-identity">
-        {token.image
-          ? <img src={token.image} alt={token.symbol} width={28} height={28} className="tracking-coin-img" />
-          : <AssetBadge label={token.symbol} tone={token.tone} />}
-        <div><h2>{token.name} {token.symbol}</h2><small>{token.pair} · {token.networks} network{token.networks !== 1 ? "s" : ""}</small></div>
-        <b className="tracking-active-pill">● Active</b>
-      </div>
-      <div className="tracking-hero-stats">
-        <span>
-          <small>Price</small>
-          <strong className={priceLoading ? "" : "tracking-price-loaded"}>
-            {priceLoading
-              ? <span className="tracking-price-skeleton" aria-label="Loading price…" />
-              : token.price}
-          </strong>
-          <Change value={token.change} />
-        </span>
-        <span><small>Last Activity</small><strong className="tracking-activity"><i /> {token.activity}</strong></span>
-      </div>
-      {missingPriceSource && (
-        <div className="tracking-no-price-notice" role="status">
+      <div className="tracking-intelligence-sticky">
+        <div id="selected-token-identity" className="tracking-selected-identity">
+          {token.image
+            ? <img src={token.image} alt={token.symbol} width={28} height={28} className="tracking-coin-img" />
+            : <AssetBadge label={token.symbol} tone={token.tone} />}
+          <div><h2>{token.name} {token.symbol}</h2><small>{token.pair} · {token.networks} network{token.networks !== 1 ? "s" : ""}</small></div>
+          <b className="tracking-active-pill">● Active</b>
+        </div>
+        <div className="tracking-hero-stats">
           <span>
-            <strong>No price source linked</strong>
-            <small>This token was added without a market data match.</small>
+            <small>Price</small>
+            <strong className={priceLoading ? "" : "tracking-price-loaded"}>
+              {priceLoading
+                ? <span className="tracking-price-skeleton" aria-label="Loading price…" />
+                : token.price}
+            </strong>
+            <Change value={token.change} />
           </span>
-          <button className="tracking-primary" type="button" onClick={onLinkMarketData}>
-            Link market data
-          </button>
+          <span><small>Last Activity</small><strong className="tracking-activity"><i /> {token.activity}</strong></span>
         </div>
-      )}
-      <div className="tracking-detail-actions">
-        {geckoUrl
-          ? <a className="tracking-detail-action-link" href={geckoUrl} target="_blank" rel="noreferrer">Open on CoinGecko ↗</a>
-          : <button className="tracking-primary" type="button" disabled>Open Market</button>}
-        <button type="button">View Contract ↗</button>
-      </div>
-      <div id="token-facts-grid" className="tracking-facts">
-        <span><small>Networks</small><strong>{token.networks}</strong></span>
-        <span><small>Pair</small><strong>{token.pair}</strong></span>
-        {token.rank != null && <span><small>Rank</small><strong>#{token.rank}</strong></span>}
-        <span><small>Status</small><strong>Watching</strong></span>
-      </div>
-      <section className="tracking-side-card">
-        <h3>Monitoring Summary</h3>
-        <p>This interface is ready to show price moves, holder activity, and alerts after an asset-intelligence provider is connected.</p>
-        <div className="tracking-side-list">
-          <span><AssetBadge label="24H" tone="violet" /><b>Price movement<small>24h change from market data</small></b><Change value={token.change} /></span>
-          <span><AssetBadge label="NET" tone="blue" /><b>Network coverage<small>{token.networks} chain{token.networks !== 1 ? "s" : ""} represented</small></b><em>Ready</em></span>
-          <span><AssetBadge label="AL" tone="teal" /><b>Alert state<small>Prepared for signal notifications</small></b><em>On</em></span>
+        {missingPriceSource && (
+          <div className="tracking-no-price-notice" role="status">
+            <span>
+              <strong>No price source linked</strong>
+              <small>This token was added without a market data match.</small>
+            </span>
+            <button className="tracking-primary" type="button" onClick={onLinkMarketData}>
+              Link market data
+            </button>
+          </div>
+        )}
+        <div className="tracking-detail-actions">
+          {geckoUrl
+            ? <a className="tracking-detail-action-link" href={geckoUrl} target="_blank" rel="noreferrer">Open on CoinGecko ↗</a>
+            : <button className="tracking-primary" type="button" disabled>Open Market</button>}
+          <button type="button">View Contract ↗</button>
         </div>
-      </section>
-      <section className="tracking-side-card">
-        <h3>Recent Activity (24H)</h3>
-        <p className="tracking-no-data">Live transaction activity requires a connected asset-intelligence provider.</p>
-      </section>
+      </div>
+      <div className="tracking-intelligence-scroll">
+        <div id="token-facts-grid" className="tracking-facts">
+          <span><small>Networks</small><strong>{token.networks}</strong></span>
+          <span><small>Pair</small><strong>{token.pair}</strong></span>
+          {token.rank != null && <span><small>Rank</small><strong>#{token.rank}</strong></span>}
+          <span><small>Status</small><strong>Watching</strong></span>
+        </div>
+        <section className="tracking-side-card">
+          <h3>Monitoring Summary</h3>
+          <p>This interface is ready to show price moves, holder activity, and alerts after an asset-intelligence provider is connected.</p>
+          <div className="tracking-side-list">
+            <span><AssetBadge label="24H" tone="violet" /><b>Price movement<small>24h change from market data</small></b><Change value={token.change} /></span>
+            <span><AssetBadge label="NET" tone="blue" /><b>Network coverage<small>{token.networks} chain{token.networks !== 1 ? "s" : ""} represented</small></b><em>Ready</em></span>
+            <span><AssetBadge label="AL" tone="teal" /><b>Alert state<small>Prepared for signal notifications</small></b><em>On</em></span>
+          </div>
+        </section>
+        <section className="tracking-side-card">
+          <h3>Recent Activity (24H)</h3>
+          <p className="tracking-no-data">Live transaction activity requires a connected asset-intelligence provider.</p>
+        </section>
+      </div>
     </aside>
   );
 }
@@ -387,27 +391,30 @@ function WalletIntelligence({ wallet, portfolioWallet }: { wallet: WalletRow; po
 
   return (
     <aside className="tracking-intelligence">
-      <div className="tracking-selected-identity">
-        <AssetBadge label={wallet.short} tone={wallet.tone} />
-        <div><h2>{wallet.name}</h2><small>{wallet.address}</small></div>
-        <b className="tracking-active-pill">● {wallet.status ? wallet.status.replace(/_/g, " ") : "Active"}</b>
+      <div className="tracking-intelligence-sticky">
+        <div className="tracking-selected-identity">
+          <AssetBadge label={wallet.short} tone={wallet.tone} />
+          <div><h2>{wallet.name}</h2><small>{wallet.address}</small></div>
+          <b className="tracking-active-pill">● {wallet.status ? wallet.status.replace(/_/g, " ") : "Active"}</b>
+        </div>
+        <div className="tracking-hero-stats">
+          <span><small>Total Holdings (USD)</small><strong>{wallet.holdings}</strong></span>
+          <span><small>Last Activity</small><strong className="tracking-activity"><i /> {wallet.activity}</strong></span>
+        </div>
+        <div className="tracking-detail-actions">
+          <a className="tracking-primary tracking-action-link" href={explorerUrl} target="_blank" rel="noreferrer">Open in Explorer ↗</a>
+          <button type="button">View Intelligence ↗</button>
+        </div>
       </div>
-      <div className="tracking-hero-stats">
-        <span><small>Total Holdings (USD)</small><strong>{wallet.holdings}</strong></span>
-        <span><small>Last Activity</small><strong className="tracking-activity"><i /> {wallet.activity}</strong></span>
-      </div>
-      <div className="tracking-detail-actions">
-        <a className="tracking-primary tracking-action-link" href={explorerUrl} target="_blank" rel="noreferrer">Open in Explorer ↗</a>
-        <button type="button">View Intelligence ↗</button>
-      </div>
-      <div className="tracking-facts">
-        <span><small>Added</small><strong>{firstSeen}</strong></span>
-        <span><small>Tokens Held</small><strong>{tokensHeld}</strong></span>
-        <span><small>Chains</small><strong>{chainsCount}</strong></span>
-        <span><small>Chain</small><strong>{wallet.chain}</strong></span>
-      </div>
-      <section className="tracking-side-card">
-        <h3>Top Holdings</h3>
+      <div className="tracking-intelligence-scroll">
+        <div className="tracking-facts">
+          <span><small>Added</small><strong>{firstSeen}</strong></span>
+          <span><small>Tokens Held</small><strong>{tokensHeld}</strong></span>
+          <span><small>Chains</small><strong>{chainsCount}</strong></span>
+          <span><small>Chain</small><strong>{wallet.chain}</strong></span>
+        </div>
+        <section className="tracking-side-card">
+          <h3>Top Holdings</h3>
         {topHoldings.length > 0 ? (
           <div className="tracking-holdings">
             {topHoldings.map((h, i) => {
@@ -435,11 +442,12 @@ function WalletIntelligence({ wallet, portfolioWallet }: { wallet: WalletRow; po
               : "No holdings data available yet."}
           </p>
         )}
-      </section>
-      <section className="tracking-side-card">
-        <h3>Recent Activity (24H)</h3>
-        <p className="tracking-no-data">Live transaction activity requires a connected asset-intelligence provider.</p>
-      </section>
+        </section>
+        <section className="tracking-side-card">
+          <h3>Recent Activity (24H)</h3>
+          <p className="tracking-no-data">Live transaction activity requires a connected asset-intelligence provider.</p>
+        </section>
+      </div>
     </aside>
   );
 }

@@ -654,7 +654,9 @@ button { color: inherit; }
 .tracking-table-footer button { height: 33px; min-width: 33px; padding: 0 9px; color: #8d9aac; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 10px; }
 .tracking-table-footer button.active { color: #fff; border-color: #7441ae; background: linear-gradient(145deg, #6f2bc1, #321963); }
 .tracking-table-footer > button { justify-self: end; border-color: #253348; background: #0c1624; }
-.tracking-intelligence { align-self: start; max-height: calc(100vh - 250px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
+.tracking-intelligence { align-self: start; max-height: calc(100vh - 250px); overflow: hidden; display: flex; flex-direction: column; }
+.tracking-intelligence-sticky { flex-shrink: 0; }
+.tracking-intelligence-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
 .tracking-intelligence > header { height: 49px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; color: #9facbd; border-bottom: 1px solid #202d3e; text-transform: uppercase; font-size: 9px; font-weight: 650; letter-spacing: .04em; }
 .tracking-intelligence > header button { color: #9facbd; border: 0; background: transparent; cursor: pointer; font-size: 19px; }
 .tracking-selected-identity { min-height: 83px; padding: 13px 13px; display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
