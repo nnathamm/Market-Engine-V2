@@ -1,2 +1,3 @@
 - [Cross-exchange asset identity](cross-exchange-asset-identity.md) — never trust shared tickers or another venue's pair as a saved market mapping; verify and fail closed.
 - [Capability access control](capability-access-control.md) — protected features require capabilities in both UI and server routes; preserve a safe administrator bootstrap.
+- [Clerk development session handoff](clerk-development-session-handoff.md) — OAuth can briefly show a client session before Replit’s proxied server receives its session cookie.
