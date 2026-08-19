@@ -30,6 +30,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Keep the development-only Next.js portal from covering the app preview. */
+nextjs-portal { display: none !important; }
+
 button, input, select { font: inherit; }
 button { color: inherit; }
 
