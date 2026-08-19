@@ -683,7 +683,7 @@ button { color: inherit; }
 .tracking-facts { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid #1d2a3c; }
 .tracking-facts > span { min-height: 67px; padding: 11px; display: grid; align-content: start; gap: 6px; border-right: 1px solid #1d2a3c; }
 .tracking-facts > span:last-child { border-right: 0; }
-.tracking-facts > span:nth-child(4) { border-top: 1px solid #1d2a3c; }
+.tracking-facts > span:nth-child(n+4) { border-top: 1px solid #1d2a3c; }
 .tracking-facts strong { color: #e2e6ed; font-size: 10px; font-weight: 550; }
 .tracking-side-card { border-bottom: 1px solid #1d2a3c; }
 .tracking-side-card h3 { min-height: 42px; margin: 0; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; color: #9da9ba; border-bottom: 1px solid #1c293b; text-transform: uppercase; font-size: 9px; letter-spacing: .035em; }
