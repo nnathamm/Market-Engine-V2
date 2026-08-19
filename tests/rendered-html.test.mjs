@@ -73,7 +73,11 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /view === "asset-tracking" && <Suspense[\s\S]*<AssetTrackingView \/>[\s\S]*<\/Suspense>/);
   assert.match(assetTrackingPage, /Monitor Center[\s\S]*Watched Tokens[\s\S]*Watched Wallets/);
   assert.match(assetTrackingPage, /Add Token[\s\S]*Add Wallet[\s\S]*Import List/);
-  assert.match(assetTrackingPage, /Selected Token Intelligence[\s\S]*Selected Wallet Intelligence/);
+  assert.doesNotMatch(assetTrackingPage, /Selected Token Intelligence/);
+  assert.doesNotMatch(assetTrackingPage, /Selected Wallet Intelligence/);
+  assert.match(assetTrackingPage, /className="tracking-intelligence"/);
+  assert.match(assetTrackingPage, /tracking-api-notice[\s\S]{0,400}tracking-table-head/);
+  assert.match(styles, /\.tracking-table-body\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(assetTrackingPage, /role="dialog"/);
   assert.match(assetTrackingPage, /Search Token or Paste Contract/);
   assert.match(assetTrackingPage, /Wallet Address/);

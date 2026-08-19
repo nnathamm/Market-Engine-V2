@@ -1078,7 +1078,7 @@ export default function AssetTrackingView() {
                 </div>
               </div>
             ) : (
-              <div className="tracking-table wallet-table">
+              <div className={`tracking-table wallet-table${!alchemyConfigured ? " has-api-notice" : ""}`}>
                 {!alchemyConfigured && (
                   <div className="tracking-api-notice">
                     ⚠ <strong>ALCHEMY_API_KEY not set</strong> — wallets can be added but holdings won&apos;t be fetched until you add the secret.
