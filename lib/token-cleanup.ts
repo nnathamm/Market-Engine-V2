@@ -1,69 +1,116 @@
 import pool from "./db";
 import { runMigrations } from "./db-migrate";
+import { buildTokenIdentityKey, walletNetworkToChain } from "./token-identity";
 
 /**
- * Removes tracked tokens that were auto-imported exclusively from the given
- * wallet and are not held by any other currently-tracked wallet.
+ * Removes a wallet and cleans up its auto-imported tokens atomically.
  *
  * Tokens manually added (wallet_source IS NULL) or sourced from a different
  * wallet are left untouched.
  *
- * @param keepSymbols - Optional set of symbols to preserve rather than delete.
+ * @param options - Optional token IDs (preferred) or legacy symbols to preserve.
  *   Preserved tokens have their wallet_source cleared (set to NULL) so they
  *   are treated as manually tracked going forward.
  */
-export async function removeTokensForWallet(
+export async function removeWalletAndTokens(
   walletId: string,
-  keepSymbols?: Set<string>,
-): Promise<void> {
+  options?: { keepTokenIds?: Set<number>; keepSymbols?: Set<string> },
+): Promise<boolean> {
   await runMigrations();
-
-  // Gather all symbols held by wallets *other* than the one being deleted so we
-  // can avoid removing tokens that another wallet would still show.
-  const { rows: otherWallets } = await pool.query(
-    "SELECT data FROM wallet_portfolio WHERE id != $1",
-    [walletId]
-  );
-
-  const otherSymbols = new Set<string>();
-  for (const row of otherWallets) {
-    const holdings: Array<{ symbol?: string }> =
-      (row.data as { holdings?: Array<{ symbol?: string }> }).holdings ?? [];
-    for (const h of holdings) {
-      if (h.symbol) otherSymbols.add(h.symbol.toUpperCase());
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtext('wallet-token-cleanup'), 0)",
+    );
+    const walletResult = await client.query(
+      "SELECT id FROM wallet_portfolio WHERE id = $1 FOR UPDATE",
+      [walletId],
+    );
+    if (!walletResult.rowCount) {
+      await client.query("COMMIT");
+      return false;
     }
-  }
 
-  // If the caller asked to keep certain symbols, clear their wallet_source so
-  // they become manually tracked tokens rather than being deleted.
-  if (keepSymbols && keepSymbols.size > 0) {
-    const keepList = [...keepSymbols].map(s => s.toUpperCase());
-    const placeholders = keepList.map((_, i) => `$${i + 2}`).join(",");
-    await pool.query(
-      `UPDATE tracked_tokens
-          SET wallet_source = NULL
+    const { rows: ownedTokens } = await client.query(
+      `SELECT id, symbol, chain, contract_address
+         FROM tracked_tokens
         WHERE wallet_source = $1
-          AND symbol IN (${placeholders})`,
-      [walletId, ...keepList]
+        FOR UPDATE`,
+      [walletId],
     );
-  }
+    const { rows: otherWallets } = await client.query(
+      "SELECT id, data FROM wallet_portfolio WHERE id != $1",
+      [walletId],
+    );
 
-  // Build the full set of symbols to skip deletion: other wallets' tokens plus
-  // any the user explicitly chose to keep.
-  const skipSymbols = new Set([...otherSymbols, ...(keepSymbols ?? [])].map(s => s.toUpperCase()));
+    const peerWalletByIdentity = new Map<string, string>();
+    for (const row of otherWallets) {
+      const holdings: Array<{
+        symbol?: string | null;
+        network?: string;
+        contractAddress?: string | null;
+      }> = (row.data as {
+        holdings?: Array<{
+          symbol?: string | null;
+          network?: string;
+          contractAddress?: string | null;
+        }>;
+      }).holdings ?? [];
+      for (const holding of holdings) {
+        if (!holding.symbol) continue;
+        const identity = buildTokenIdentityKey({
+          symbol: holding.symbol,
+          chain: walletNetworkToChain(holding.network ?? ""),
+          contractAddress: holding.contractAddress,
+        });
+        if (!peerWalletByIdentity.has(identity)) {
+          peerWalletByIdentity.set(identity, String(row.id));
+        }
+      }
+    }
 
-  if (skipSymbols.size > 0) {
-    const placeholders = [...skipSymbols].map((_, i) => `$${i + 2}`).join(",");
-    await pool.query(
-      `DELETE FROM tracked_tokens
-       WHERE wallet_source = $1
-         AND symbol NOT IN (${placeholders})`,
-      [walletId, ...skipSymbols]
+    const keepTokenIds = options?.keepTokenIds ?? new Set<number>();
+    const legacyKeepSymbols = new Set(
+      [...(options?.keepSymbols ?? [])].map((symbol) => symbol.toUpperCase()),
     );
-  } else {
-    await pool.query(
-      "DELETE FROM tracked_tokens WHERE wallet_source = $1",
-      [walletId]
-    );
+
+    for (const token of ownedTokens as Array<{
+      id: number;
+      symbol: string;
+      chain: string | null;
+      contract_address: string | null;
+    }>) {
+      if (keepTokenIds.has(token.id) || legacyKeepSymbols.has(token.symbol.toUpperCase())) {
+        await client.query(
+          "UPDATE tracked_tokens SET wallet_source = NULL WHERE id = $1",
+          [token.id],
+        );
+        continue;
+      }
+
+      const identity = buildTokenIdentityKey({
+        symbol: token.symbol,
+        chain: token.chain,
+        contractAddress: token.contract_address,
+      });
+      const peerWalletId = peerWalletByIdentity.get(identity);
+      if (peerWalletId) {
+        await client.query(
+          "UPDATE tracked_tokens SET wallet_source = $2 WHERE id = $1",
+          [token.id, peerWalletId],
+        );
+      } else {
+        await client.query("DELETE FROM tracked_tokens WHERE id = $1", [token.id]);
+      }
+    }
+    await client.query("DELETE FROM wallet_portfolio WHERE id = $1", [walletId]);
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
 }

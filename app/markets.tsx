@@ -20,6 +20,11 @@ import {
   type Logical,
   type UTCTimestamp,
 } from "lightweight-charts";
+import {
+  isMarketInterval,
+  type MarketInterval,
+  type MarketNavigationRequest,
+} from "@/lib/market-navigation";
 
 type Market = {
   symbol: string;
@@ -82,6 +87,7 @@ const FAVORITES_CHANGED_EVENT = "edge-signals-market-favorites-changed";
 
 const TRACKED_STORAGE_KEY = "signal-control:tracked-tokens";
 const TRACKED_CHANGED_EVENT = "signal-control:tracked-tokens-changed";
+const MARKET_INTERVAL_STORAGE_KEY = "signal-control:market-chart-interval";
 const CHART_TIMEFRAMES = [
   ["1m", "1m"],
   ["5m", "5m"],
@@ -423,14 +429,29 @@ function CoinIcon({ symbol }: { symbol: string }) {
   );
 }
 
-export default function MarketsView() {
+type MarketResolvePayload = {
+  resolved?: Market;
+  unavailable?: string;
+  alternatives?: string[];
+  error?: string;
+};
+
+export default function MarketsView({
+  request,
+  onRequestChange,
+  onBackToMonitor,
+}: {
+  request: MarketNavigationRequest | null;
+  onRequestChange: (request: MarketNavigationRequest) => void;
+  onBackToMonitor: () => void;
+}) {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selected, setSelected] = useState<Market | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(MARKET_PAGE_SIZE);
   const [query, setQuery] = useState("");
-  const [interval, setInterval] = useState("15m");
+  const [interval, setInterval] = useState<MarketInterval>("15m");
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -442,8 +463,17 @@ export default function MarketsView() {
   const [asOf, setAsOf] = useState(0);
   const [lastLiveUpdate, setLastLiveUpdate] = useState(0);
   const [liveState, setLiveState] = useState<"connecting" | "live" | "delayed">("connecting");
+  const [requestedMarketState, setRequestedMarketState] = useState<"idle" | "resolving" | "resolved" | "unavailable">("idle");
+  const [requestedMarketMessage, setRequestedMarketMessage] = useState("");
+  const [requestedAlternatives, setRequestedAlternatives] = useState<string[]>([]);
+  const [highlightedSymbol, setHighlightedSymbol] = useState("");
   const candlesRef = useRef<Candle[]>([]);
   const historyLoadingRef = useRef(false);
+  const intervalRef = useRef<MarketInterval>("15m");
+  const resolvedRequestRef = useRef("");
+  const marketListRef = useRef<HTMLDivElement>(null);
+  const marketRowRefs = useRef(new Map<string, HTMLDivElement>());
+  const highlightTimerRef = useRef<number | null>(null);
   const selectedSymbol = selected?.symbol ?? "";
   const datasetKey = selectedSymbol ? `${selectedSymbol}:${interval}` : "";
   const datasetKeyRef = useRef(datasetKey);
@@ -452,6 +482,30 @@ export default function MarketsView() {
   const favorites = useMemo(() => parseFavorites(favoritesSnapshot), [favoritesSnapshot]);
   const trackedSnapshot = useSyncExternalStore(subscribeTracked, getTrackedSnapshot, getServerTrackedSnapshot);
   const tracked = useMemo(() => parseTracked(trackedSnapshot), [trackedSnapshot]);
+  const requestedIdentityKey = request
+    ? [
+        request.tokenId ?? "",
+        request.tokenSymbol,
+        request.exchangeSymbol ?? "",
+        request.exchangeVerified ? "verified" : "",
+        request.chain ?? "",
+        request.contractAddress ?? "",
+        request.coingeckoId ?? "",
+      ].join("|")
+    : "";
+
+  useEffect(() => {
+    const stored = localStorage.getItem(MARKET_INTERVAL_STORAGE_KEY);
+    const nextInterval = request?.interval ?? (isMarketInterval(stored) ? stored : "15m");
+    intervalRef.current = nextInterval;
+    setInterval(nextInterval);
+  }, [request?.interval]);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     candlesRef.current = candles;
@@ -475,6 +529,118 @@ export default function MarketsView() {
     setSelected((current) => current ? updateMarket(current) : current);
     setMarkets((current) => current.map(updateMarket));
   }, []);
+
+  const mergeRequestedMarket = useCallback((market: Market) => {
+    setMarkets((current) => {
+      const existingIndex = current.findIndex((item) => item.symbol === market.symbol);
+      if (existingIndex < 0) return [market, ...current];
+      const next = [...current];
+      next[existingIndex] = market;
+      return next;
+    });
+    setSelected(market);
+    setQuery("");
+    setFavoritesOnly(false);
+    setRequestedMarketState("resolved");
+    setRequestedMarketMessage("");
+    setRequestedAlternatives([]);
+    setHighlightedSymbol(market.symbol);
+    if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = window.setTimeout(() => setHighlightedSymbol(""), 2400);
+  }, []);
+
+  useEffect(() => {
+    if (!request || !requestedIdentityKey) {
+      resolvedRequestRef.current = "";
+      setRequestedMarketState("idle");
+      setRequestedMarketMessage("");
+      setRequestedAlternatives([]);
+      return;
+    }
+    if (resolvedRequestRef.current === requestedIdentityKey) return;
+    resolvedRequestRef.current = requestedIdentityKey;
+    const requested = request;
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      symbol: requested.tokenSymbol,
+      tokenName: requested.tokenName,
+    });
+    if (requested.tokenId) params.set("tokenId", String(requested.tokenId));
+    const trustedSavedExchange = requested.source === "browse"
+      || (
+        requested.exchangeVerified
+        && requested.preferredExchange?.toUpperCase() === "WEEX"
+      );
+    if (requested.exchangeSymbol && trustedSavedExchange) {
+      params.set("exchangeSymbol", requested.exchangeSymbol);
+    }
+    if (requested.preferredExchange) params.set("preferredExchange", requested.preferredExchange);
+    if (requested.chain) params.set("chain", requested.chain);
+    if (requested.contractAddress) params.set("contractAddress", requested.contractAddress);
+    if (requested.coingeckoId) params.set("coingeckoId", requested.coingeckoId);
+
+    setSelected(null);
+    setCandles([]);
+    setRequestedMarketState("resolving");
+    setRequestedMarketMessage("");
+    setRequestedAlternatives([]);
+
+    async function resolveRequestedMarket() {
+      try {
+        const response = await fetch(`/api/weex/resolve?${params}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const payload = await response.json() as MarketResolvePayload;
+        if (controller.signal.aborted) return;
+        if (response.ok && payload.resolved) {
+          mergeRequestedMarket(payload.resolved);
+          let exchangeVerified = requested.source === "browse";
+          if (requested.tokenId) {
+            try {
+              const persistResponse = await fetch(`/api/tracked/tokens/${requested.tokenId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  preferred_exchange: "WEEX",
+                  exchange_symbol: payload.resolved.symbol,
+                }),
+                signal: controller.signal,
+              });
+              if (controller.signal.aborted) return;
+              if (persistResponse.ok) {
+                const persisted = await persistResponse.json() as { exchange_symbol_verified_at?: string | null };
+                exchangeVerified = Boolean(persisted.exchange_symbol_verified_at);
+              }
+            } catch {
+              if (controller.signal.aborted) return;
+            }
+          }
+          onRequestChange({
+            ...requested,
+            exchangeVerified,
+            preferredExchange: exchangeVerified ? "WEEX" : undefined,
+            exchangeSymbol: exchangeVerified ? payload.resolved.symbol : undefined,
+            interval: intervalRef.current,
+          });
+          return;
+        }
+        setRequestedMarketState("unavailable");
+        setRequestedMarketMessage(payload.unavailable || payload.error || `${requested.tokenSymbol}/USDT is not available from the connected exchange.`);
+        setRequestedAlternatives(Array.isArray(payload.alternatives) ? payload.alternatives : []);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setRequestedMarketState("unavailable");
+        setRequestedMarketMessage(
+          `${requested.tokenSymbol}/USDT is not available from the connected exchange.`,
+        );
+      }
+    }
+
+    void resolveRequestedMarket();
+    return () => controller.abort();
+  }, [requestedIdentityKey, request, mergeRequestedMarket, onRequestChange]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -629,9 +795,52 @@ export default function MarketsView() {
 
   const visibleMarkets = filteredMarkets.slice(0, visibleCount);
 
+  useEffect(() => {
+    if (!selectedSymbol) return;
+    const selectedIndex = filteredMarkets.findIndex((market) => market.symbol === selectedSymbol);
+    if (selectedIndex >= visibleCount) setVisibleCount(selectedIndex + 1);
+  }, [filteredMarkets, selectedSymbol, visibleCount]);
+
+  useEffect(() => {
+    if (!highlightedSymbol) return;
+    const frame = window.requestAnimationFrame(() => {
+      marketRowRefs.current.get(highlightedSymbol)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [highlightedSymbol, visibleMarkets.length]);
+
+  useEffect(() => {
+    document.title = selected
+      ? `${selected.symbol} Market | Stop Loss`
+      : "Markets | Stop Loss";
+    return () => { document.title = "Stop Loss"; };
+  }, [selected]);
+
   function updateSearch(value: string) {
     setQuery(value);
     setVisibleCount(MARKET_PAGE_SIZE);
+  }
+
+  function chooseMarket(market: Market) {
+    setSelected(market);
+    setRequestedMarketState("idle");
+    setRequestedMarketMessage("");
+    setRequestedAlternatives([]);
+    onRequestChange({
+      tokenName: market.baseAsset,
+      tokenSymbol: market.baseAsset,
+      preferredExchange: "WEEX",
+      exchangeSymbol: market.symbol,
+      source: "browse",
+      interval,
+    });
+  }
+
+  function chooseInterval(nextInterval: MarketInterval) {
+    intervalRef.current = nextInterval;
+    setInterval(nextInterval);
+    localStorage.setItem(MARKET_INTERVAL_STORAGE_KEY, nextInterval);
+    if (request) onRequestChange({ ...request, interval: nextInterval });
   }
 
   function toggleFavoritesOnly() {
@@ -684,7 +893,7 @@ export default function MarketsView() {
             <button className={`market-favorites-filter ${favoritesOnly ? "active" : ""}`} type="button" aria-pressed={favoritesOnly} onClick={toggleFavoritesOnly}><span aria-hidden="true">★</span> Favorites <b>{favorites.size}</b></button>
           </div>
           <div className="market-list-heading"><span>Pair</span><span>Price</span><span>24h</span><span aria-label="Favorite">★</span><span aria-label="Track">◎</span></div>
-          <div className="market-list" aria-live="polite" onScroll={loadMoreOnScroll}>
+          <div className="market-list" ref={marketListRef} aria-live="polite" onScroll={loadMoreOnScroll}>
             {marketsLoading ? <div className="market-list-message"><span className="market-loader" />Connecting to WEEX…</div> : null}
             {!marketsLoading && marketsError ? <div className="market-list-message error"><strong>Market list unavailable</strong><span>{marketsError}</span><button type="button" onClick={() => setMarketRequest((current) => current + 1)}>Try again</button></div> : null}
             {!marketsLoading && !marketsError && filteredMarkets.length === 0 ? <div className="market-list-message">{favoritesOnly ? "No favorites match these filters yet." : "No trading pairs match these filters."}</div> : null}
@@ -693,8 +902,15 @@ export default function MarketsView() {
               const favorite = favorites.has(market.symbol);
               const isTracked = tracked.has(market.baseAsset);
               return (
-                <div className={`market-list-row ${selected?.symbol === market.symbol ? "active" : ""}`} key={market.symbol}>
-                  <button className="market-row-select" type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => setSelected(market)}>
+                <div
+                  className={`market-list-row ${selected?.symbol === market.symbol ? "active" : ""} ${highlightedSymbol === market.symbol ? "requested" : ""}`}
+                  key={market.symbol}
+                  ref={(node) => {
+                    if (node) marketRowRefs.current.set(market.symbol, node);
+                    else marketRowRefs.current.delete(market.symbol);
+                  }}
+                >
+                  <button className="market-row-select" type="button" aria-pressed={selected?.symbol === market.symbol} onClick={() => chooseMarket(market)}>
                     <span className="market-pair"><CoinIcon symbol={market.baseAsset} /><span><strong>{market.baseAsset}</strong><small>/{market.quoteAsset}</small></span></span>
                     <span className="market-row-price"><strong>{formatPrice(market.lastPrice, market.pricePrecision)}</strong><small>{formatVolume(market.quoteVolume)} {market.quoteAsset}</small></span>
                     <b className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</b>
@@ -711,7 +927,24 @@ export default function MarketsView() {
 
         <section className="surface market-chart-panel">
           {!selected ? (
-            <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any WEEX USDT perpetual. Candle data is not downloaded until you make a selection.</p></div>
+            requestedMarketState === "resolving" ? (
+              <div className="market-chart-empty market-request-state" role="status"><span className="market-loader" /><h2>Finding {request?.tokenSymbol} on WEEX</h2><p>Checking the saved market identity before loading a chart.</p></div>
+            ) : requestedMarketState === "unavailable" ? (
+              <div className="market-chart-empty market-request-state unavailable" role="alert">
+                <span aria-hidden="true">!</span>
+                <h2>Market unavailable</h2>
+                <p>{requestedMarketMessage}</p>
+                {requestedAlternatives.length > 0 && (
+                  <div className="market-request-alternatives">
+                    <strong>Other verified WEEX pairs</strong>
+                    {requestedAlternatives.map((symbol) => <span key={symbol}>{symbol.replace(/([A-Z0-9]+)(USDC|USD|BTC|ETH|EUR)$/, "$1 / $2")}</span>)}
+                  </div>
+                )}
+                <button className="market-back-monitor" type="button" onClick={onBackToMonitor}>← Back to Monitor Center</button>
+              </div>
+            ) : (
+              <div className="market-chart-empty"><span aria-hidden="true">⌁</span><h2>Choose a coin to load its chart</h2><p>Select any WEEX USDT perpetual. Candle data is not downloaded until you make a selection.</p></div>
+            )
           ) : (
             <>
               <header className="market-chart-header">
@@ -720,7 +953,7 @@ export default function MarketsView() {
               </header>
               <div className="market-chart-toolbar">
                 <div className="market-timeframes" aria-label="Chart timeframe">
-                  {CHART_TIMEFRAMES.map(([value, label]) => <button className={interval === value ? "active" : ""} type="button" aria-pressed={interval === value} onClick={() => setInterval(value)} key={value}>{label}</button>)}
+                  {CHART_TIMEFRAMES.map(([value, label]) => <button className={interval === value ? "active" : ""} type="button" aria-pressed={interval === value} onClick={() => chooseInterval(value)} key={value}>{label}</button>)}
                 </div>
                 <div className={`market-live-status ${liveState}`} role="status"><span><i aria-hidden="true" />{liveState === "live" ? "Live" : liveState === "delayed" ? "Reconnecting" : "Connecting"}</span><small>{lastLiveUpdate ? `Updated ${formatTime(lastLiveUpdate)}` : "Waiting for first candle"}</small></div>
               </div>

@@ -3,12 +3,13 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("keeps exchange access read-only and loads charts on demand", async () => {
-  const [page, marketsPage, assetTrackingPage, weexMarketsRoute, weexKlinesRoute, styles, packageJson] = await Promise.all([
+  const [page, marketsPage, assetTrackingPage, weexMarketsRoute, weexKlinesRoute, weexMarketsHelper, styles, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/markets.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/asset-tracking.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/weex/markets/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/weex/klines/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/weex-markets.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
@@ -57,20 +58,21 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);
   assert.match(page, /function ProfileView[\s\S]*Master ADMIN Profile[\s\S]*Executive control account[\s\S]*Full site configuration control[\s\S]*Override lower-tier permissions[\s\S]*Modify, suspend, or delete accounts[\s\S]*Notification Settings[\s\S]*Manage Accounts/);
   assert.match(page, /className="master-profile-trigger"[\s\S]*aria-current=\{activeView === "profile" \? "page" : undefined\}[\s\S]*onClick=\{\(\) => setView\("profile"\)\}/);
-  assert.match(page, /view === "profile" && <ProfileView setView=\{setView\} \/>/);
+  assert.match(page, /view === "profile" && <ProfileView setView=\{navigate\} \/>/);
   assert.doesNotMatch(page, /master-profile-menu|profileOpen|profileMenuId/);
   assert.doesNotMatch(page, /function InnerNavigation|function FlowSidebar/);
   assert.doesNotMatch(styles, /\.view-navigation/);
   assert.doesNotMatch(styles, /\.page-menu|\.hamburger-trigger|\.of-sidebar/);
   assert.match(styles, /\.application-shell\s*\{[^}]*grid-template-columns:\s*var\(--sidebar-width\) minmax\(0, 1fr\)/s);
   assert.match(styles, /\.application-shell\.sidebar-open\s*\{[^}]*--sidebar-width:\s*292px/s);
-  assert.match(styles, /\.application-sidebar-scroll\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto/s);
+  assert.match(styles, /\.application-sidebar-scroll\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden/s);
+  assert.match(styles, /\.application-sidebar-nav\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(styles, /\.profile-layout\s*\{[^}]*grid-template-columns:/s);
   assert.doesNotMatch(styles, /\.master-profile-menu/);
   assert.match(page, /lazy\(\(\) => import\("\.\/markets"\)\)/);
-  assert.match(page, /view === "markets" && <Suspense[\s\S]*<MarketsView \/>[\s\S]*<\/Suspense>/);
+  assert.match(page, /view === "markets" && <Suspense[\s\S]*<MarketsView request=\{marketRequest\}[\s\S]*onRequestChange=\{updateMarketRequest\}[\s\S]*<\/Suspense>/);
   assert.match(page, /lazy\(\(\) => import\("\.\/asset-tracking"\)\)/);
-  assert.match(page, /view === "asset-tracking" && <Suspense[\s\S]*<AssetTrackingView \/>[\s\S]*<\/Suspense>/);
+  assert.match(page, /view === "asset-tracking" && <Suspense[\s\S]*<AssetTrackingView onOpenInMarkets=\{openTokenInMarkets\}[\s\S]*<\/Suspense>/);
   assert.match(assetTrackingPage, /Monitor Center[\s\S]*Watched Tokens[\s\S]*Watched Wallets/);
   assert.match(assetTrackingPage, /Add Token[\s\S]*Add Wallet[\s\S]*Import List/);
   assert.doesNotMatch(assetTrackingPage, /Selected Token Intelligence/);
@@ -82,14 +84,15 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(assetTrackingPage, /Search Token or Paste Contract/);
   assert.match(assetTrackingPage, /Wallet Address/);
   assert.doesNotMatch(assetTrackingPage, /Discovered Tokens/);
-  assert.doesNotMatch(assetTrackingPage, /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource/);
-  assert.match(styles, /\.tracking-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(710px, 1fr\) 355px/s);
+  assert.doesNotMatch(assetTrackingPage, /fetch\s*\(\s*["'`]https?:|XMLHttpRequest|WebSocket|EventSource/);
+  assert.match(styles, /Monitor Center refinement[\s\S]*\.tracking-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(370px, 390px\)/s);
   assert.match(styles, /\.tracking-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)[^}]*overflow-y:\s*auto/s);
   assert.match(marketsPage, /Browse WEEX USDT perpetual markets and load any chart on demand/);
   assert.match(marketsPage, /fetch\("\/api\/weex\/markets"[\s\S]*fetch\(`\/api\/weex\/klines\?\$\{params\}`/);
   assert.doesNotMatch(marketsPage, /data-api\.binance\.vision|Binance Spot/);
-  assert.match(weexMarketsRoute, /https:\/\/api-contract\.weex\.com[\s\S]*\/capi\/v3\/market\/exchangeInfo[\s\S]*\/capi\/v2\/market\/tickers/);
-  assert.match(weexMarketsRoute, /replace\(\/\^CMT_\/[\s\S]*changeRatio \* 100[\s\S]*pricePrecision/);
+  assert.match(weexMarketsRoute, /fetchWeexMarkets[\s\S]*rawSymbol[\s\S]*marketType: "USDT perpetuals"/);
+  assert.match(weexMarketsHelper, /https:\/\/api-contract\.weex\.com[\s\S]*\/capi\/v3\/market\/exchangeInfo[\s\S]*\/capi\/v2\/market\/tickers/);
+  assert.match(weexMarketsHelper, /replace\(\/\^CMT_\/[\s\S]*changeRatio \* 100[\s\S]*pricePrecision/);
   assert.match(weexKlinesRoute, /\/capi\/v3\/market\/klines[\s\S]*\/capi\/v3\/market\/historyKlines/);
   assert.match(weexKlinesRoute, /priceType", "LAST"/);
   assert.doesNotMatch(weexMarketsRoute + weexKlinesRoute, /apiKey|secretKey|Authorization|\/order|\/account/i);
@@ -161,10 +164,13 @@ test("removing a token prunes stale live-price data and guards against in-flight
   // The removeToken function must: (1) check res.ok before touching state,
   // (2) prune liveData immediately, and (3) only then await refreshTokens —
   // all three in that order.
-  assert.match(
-    assetTrackingPage,
-    /if \(!res\.ok\) return[\s\S]{0,400}next\.delete\(symbol\)[\s\S]{0,200}await refreshTokens\(\)/,
-  );
+  const removeStart = assetTrackingPage.indexOf("const removeToken");
+  const okGuard = assetTrackingPage.indexOf("if (!res.ok) return", removeStart);
+  const liveEviction = assetTrackingPage.indexOf("next.delete(token.symbol)", okGuard);
+  const refresh = assetTrackingPage.indexOf("await refreshTokens()", liveEviction);
+  assert.ok(removeStart >= 0 && okGuard > removeStart, "removeToken must guard failed DELETE responses");
+  assert.ok(liveEviction > okGuard, "removeToken must evict stale live-price data after a successful DELETE");
+  assert.ok(refresh > liveEviction, "removeToken must refresh persisted tokens after local live-price eviction");
 });
 
 test("last-updated timestamp only advances on a genuine successful price fetch", async () => {

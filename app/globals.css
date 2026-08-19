@@ -939,3 +939,305 @@ button { color: inherit; }
   .of-insights { margin-top: 14px; display: grid; grid-template-columns: 1fr; }
   .of-card.preview-card, .of-card.about-card { min-height: 0; }
 }
+
+/* Monitor Center refinement
+   Keep the intelligence rail comfortably readable without letting it compete
+   with the monitored-assets table. The table and rail retain separate scroll
+   surfaces at desktop widths. */
+.tracking-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(370px, 390px);
+  gap: 18px;
+  overflow: hidden;
+}
+.tracking-main-panel,
+.tracking-intelligence {
+  min-width: 0;
+}
+.tracking-table-wrap {
+  overflow-x: hidden;
+}
+.tracking-table {
+  min-width: 0;
+}
+.tracking-table-head,
+.tracking-table-row {
+  grid-template-columns: minmax(190px, 2fr) minmax(92px, .82fr) minmax(92px, .86fr) minmax(82px, .72fr) minmax(78px, .68fr) 82px;
+}
+.tracking-table-head {
+  padding-inline: 18px;
+  color: #9aa7ba;
+  font-size: 10px;
+  letter-spacing: .055em;
+}
+.tracking-table-row {
+  min-height: 76px;
+  padding-inline: 18px;
+  font-size: 13px;
+}
+.tracking-name-cell > b {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+.tracking-name-cell small {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.3;
+  font-size: 10px;
+}
+.tracking-chain {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+  font-size: 10px;
+}
+.tracking-activity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.25;
+}
+.tracking-intelligence {
+  max-height: calc(100dvh - 250px);
+}
+.tracking-selected-identity {
+  min-height: 96px;
+  padding: 16px 17px;
+  gap: 12px;
+}
+.tracking-selected-identity h2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  font-size: 16px;
+}
+.tracking-selected-identity small {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  font-size: 10px;
+}
+.tracking-wallet-address {
+  word-break: break-all;
+}
+.tracking-active-pill {
+  white-space: nowrap;
+  font-size: 9px;
+}
+.tracking-hero-stats {
+  min-height: 92px;
+  padding-inline: 17px;
+}
+.tracking-hero-stats small,
+.tracking-facts small {
+  font-size: 10px;
+}
+.tracking-hero-stats strong {
+  font-size: 22px;
+  line-height: 1.15;
+}
+.tracking-hero-stats .tracking-positive,
+.tracking-hero-stats .tracking-negative {
+  font-size: 10px;
+}
+.tracking-hero-stats .tracking-activity {
+  font-size: 12px;
+}
+.tracking-detail-actions {
+  min-height: 70px;
+  padding: 12px 17px;
+  gap: 10px;
+}
+.tracking-detail-actions button,
+.tracking-detail-action-link {
+  height: 40px;
+  padding-inline: 10px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.tracking-facts > span {
+  min-height: 76px;
+  padding: 13px;
+}
+.tracking-facts strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.tracking-side-card h3 {
+  min-height: 48px;
+  padding-inline: 17px;
+  font-size: 11px;
+}
+.tracking-side-card > p {
+  margin-inline: 17px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.tracking-holdings,
+.tracking-activity-list,
+.tracking-side-list {
+  padding-inline: 17px;
+}
+.tracking-side-list b {
+  font-size: 11px;
+}
+.tracking-side-list small {
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+/* A requested market is briefly promoted in the exchange list. Unavailable
+   requests use the same visual grammar as the chart's delayed state. */
+.market-list-row.requested {
+  position: relative;
+  background: linear-gradient(90deg, rgba(118, 65, 182, .36), rgba(23, 35, 57, .72));
+  box-shadow: inset 3px 0 #c27aff, inset 0 1px rgba(194, 122, 255, .24), inset 0 -1px rgba(194, 122, 255, .18);
+  animation: market-request-highlight 2.4s ease-out both;
+}
+.market-list-row.requested .market-row-select strong {
+  color: #f3e6ff;
+}
+.market-request-state {
+  min-height: 620px;
+  padding: 44px 30px;
+  background: radial-gradient(circle at 50% 42%, rgba(92, 47, 145, .12), transparent 52%);
+}
+.market-request-state h2 {
+  margin-bottom: 0;
+}
+.market-request-state.unavailable > span {
+  color: #f2c368;
+  border-color: #80622d;
+  background: rgba(104, 76, 25, .18);
+}
+.market-request-state.unavailable p {
+  max-width: 560px;
+  overflow-wrap: anywhere;
+}
+.market-request-alternatives {
+  width: min(100%, 430px);
+  margin-top: 22px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #293951;
+  border-radius: 9px;
+  background: rgba(8, 20, 35, .7);
+  text-align: left;
+}
+.market-request-alternatives strong {
+  color: #aebbd0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.market-request-alternatives button,
+.market-back-monitor {
+  min-height: 36px;
+  padding: 0 12px;
+  color: #d8b3ff;
+  border: 1px solid #5a3b7d;
+  border-radius: 7px;
+  background: #17162d;
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+}
+.market-request-alternatives button:hover,
+.market-request-alternatives button:focus-visible,
+.market-back-monitor:hover,
+.market-back-monitor:focus-visible {
+  border-color: #a968db;
+  outline: 0;
+  background: #24183e;
+}
+.market-back-monitor {
+  margin-top: 20px;
+  text-align: center;
+}
+@keyframes market-request-highlight {
+  0% { opacity: .72; transform: translateX(-3px); }
+  18% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 1350px) and (min-width: 1101px) {
+  .tracking-workspace {
+    grid-template-columns: minmax(0, 1fr) 350px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .tracking-workspace {
+    overflow: visible;
+  }
+  .tracking-intelligence {
+    max-height: none;
+  }
+  .tracking-table {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .tracking-workspace {
+    gap: 12px;
+  }
+  .tracking-table-head,
+  .tracking-table-row {
+    grid-template-columns: minmax(0, 1.8fr) repeat(4, minmax(0, .75fr)) 62px;
+    column-gap: 6px;
+  }
+  .tracking-table-head {
+    padding-inline: 10px;
+    font-size: 8px;
+  }
+  .tracking-table-row {
+    min-height: 72px;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+  .tracking-name-cell {
+    gap: 8px;
+  }
+  .tracking-asset-badge {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+    font-size: 7px;
+  }
+  .tracking-chain {
+    padding-inline: 5px;
+    font-size: 8px;
+  }
+  .tracking-intelligence {
+    overflow: hidden;
+  }
+  .tracking-selected-identity {
+    padding: 14px 12px;
+  }
+  .tracking-hero-stats {
+    padding-inline: 12px;
+  }
+  .tracking-hero-stats > span + span {
+    padding-left: 12px;
+  }
+  .tracking-detail-actions {
+    padding-inline: 12px;
+  }
+  .market-request-state {
+    min-height: 520px;
+    padding-inline: 18px;
+  }
+}

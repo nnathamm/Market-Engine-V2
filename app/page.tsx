@@ -1,12 +1,19 @@
 "use client";
 
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  readMarketRequest,
+  writeMarketRequest,
+  type MarketNavigationRequest,
+} from "@/lib/market-navigation";
 
 const MarketsView = lazy(() => import("./markets"));
 const AssetTrackingView = lazy(() => import("./asset-tracking"));
 
 type View = "create" | "signals" | "markets" | "asset-tracking" | "order-flow" | "notifications" | "profile";
 type DropdownOption = { value: string; label: string };
+
+const VIEWS = new Set<View>(["create", "signals", "markets", "asset-tracking", "order-flow", "notifications", "profile"]);
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1s", label: "1 Second (1s)" },
@@ -900,23 +907,66 @@ function ConditionModal({ close }: { close: () => void }) {
 
 export default function Home() {
   const [view, setView] = useState<View>("create");
+  const [marketRequest, setMarketRequest] = useState<MarketNavigationRequest | null>(null);
   const [conditionOpen, setConditionOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const applyLocation = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedView = params.get("view");
+    const nextView = requestedView && VIEWS.has(requestedView as View)
+      ? requestedView as View
+      : "create";
+    setView(nextView);
+    setMarketRequest(nextView === "markets" ? readMarketRequest(params) : null);
+  }, []);
+
+  useEffect(() => {
+    applyLocation();
+    window.addEventListener("popstate", applyLocation);
+    return () => window.removeEventListener("popstate", applyLocation);
+  }, [applyLocation]);
+
+  const updateLocation = useCallback((
+    nextView: View,
+    nextMarketRequest: MarketNavigationRequest | null,
+    mode: "push" | "replace" = "push",
+  ) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", nextView);
+    writeMarketRequest(params, nextView === "markets" ? nextMarketRequest : null);
+    const nextUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+    window.history[mode === "push" ? "pushState" : "replaceState"]({}, "", nextUrl);
+    setView(nextView);
+    setMarketRequest(nextView === "markets" ? nextMarketRequest : null);
+  }, []);
+
+  const navigate = useCallback((nextView: View) => {
+    updateLocation(nextView, null);
+  }, [updateLocation]);
+
+  const openTokenInMarkets = useCallback((request: MarketNavigationRequest) => {
+    updateLocation("markets", request);
+  }, [updateLocation]);
+
+  const updateMarketRequest = useCallback((request: MarketNavigationRequest) => {
+    updateLocation("markets", request, "replace");
+  }, [updateLocation]);
 
   return (
     <div className="signal-control-app">
       <div className={`application-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
-        <SidebarNavigation activeView={view} open={sidebarOpen} setView={setView} />
+        <SidebarNavigation activeView={view} open={sidebarOpen} setView={navigate} />
         <div className="application-stage">
-          <ApplicationTopbar activeView={view} sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((current) => !current)} setView={setView} />
+          <ApplicationTopbar activeView={view} sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((current) => !current)} setView={navigate} />
           <div className="application-view">
-            {view === "create" && <CreateView setView={setView} openCondition={() => setConditionOpen(true)} />}
+            {view === "create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} />}
             {view === "signals" && <SignalsView />}
-            {view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView /></Suspense>}
-            {view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView /></Suspense>}
+            {view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView request={marketRequest} onRequestChange={updateMarketRequest} onBackToMonitor={() => navigate("asset-tracking")} /></Suspense>}
+            {view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView onOpenInMarkets={openTokenInMarkets} /></Suspense>}
             {view === "order-flow" && <OrderFlowView />}
             {view === "notifications" && <NotificationsView />}
-            {view === "profile" && <ProfileView setView={setView} />}
+            {view === "profile" && <ProfileView setView={navigate} />}
           </div>
         </div>
       </div>

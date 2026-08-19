@@ -1,0 +1,1 @@
+- [Cross-exchange asset identity](cross-exchange-asset-identity.md) — never trust shared tickers or another venue's pair as a saved market mapping; verify and fail closed.
