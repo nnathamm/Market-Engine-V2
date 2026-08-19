@@ -810,7 +810,20 @@ export default function AssetTrackingView() {
                     <div className={`tracking-table-row ${selectedToken?.symbol === token.symbol ? "selected" : ""}`} key={token.symbol} role="row" onClick={() => setSelectedToken(token)}>
                       <span className="tracking-name-cell">{token.image ? <img src={token.image} alt={token.symbol} className="tracking-coin-img" /> : <AssetBadge label={token.symbol} tone={token.tone} />}<b>{token.name}<small>{token.pair}</small></b></span>
                       <span>{token.networks} networks</span>
-                      <strong>{token.price}</strong>
+                      <strong>
+                        {!token.price_source && token.price === "—"
+                          ? (
+                            <button
+                              className="tracking-no-source-badge"
+                              type="button"
+                              title="No price source linked — click to link market data"
+                              onClick={e => { e.stopPropagation(); setLinkTokenSymbol(token.symbol); }}
+                            >
+                              ⚠ No source
+                            </button>
+                          )
+                          : token.price}
+                      </strong>
                       <Change value={token.change} />
                       <span className="tracking-activity"><i />{token.activity}</span>
                       <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
