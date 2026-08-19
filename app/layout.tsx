@@ -55,7 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             boxShadow: "none",
           },
           headerTitle: {
-            color: "#f7f8fb",
+            display: "none",
           },
           headerSubtitle: {
             color: "#a8b4c6",
