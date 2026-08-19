@@ -46,7 +46,7 @@ const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
 type SidebarIconName =
   | "dashboard" | "signals" | "trades" | "markets" | "users" | "alerts" | "integrations"
   | "general" | "trading" | "risk" | "order-flow" | "logs" | "asset-tracking" | "watchlists"
-  | "notifications" | "create-signal" | "view-signals";
+  | "notifications" | "admin" | "create-signal" | "view-signals";
 
 const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
   ["create", "＋", "Create Signal", "Build a new trading signal"],
@@ -66,6 +66,7 @@ const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [SidebarIconName, string, View
 const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
   ["markets", "Markets", "markets"],
   ["users", "Users", null],
+  ["admin", "Admin", "profile"],
   ["integrations", "Integrations", null],
 ];
 
@@ -98,6 +99,7 @@ const SIDEBAR_ICON_PATHS: Record<SidebarIconName, string> = {
   "asset-tracking": "M12 5c-5 0-9 7-9 7s4 7 9 7 9-7 9-7-4-7-9-7Zm0 10a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z",
   watchlists: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3.1 9.6l6.1-.9L12 3Z",
   notifications: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
+  admin: "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Zm-3 9 2 2 4-4",
   "create-signal": "M12 5v14M5 12h14",
   "view-signals": "M5 6h14M5 12h14M5 18h14",
 };
