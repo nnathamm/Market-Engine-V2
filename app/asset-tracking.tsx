@@ -1104,7 +1104,7 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
     <div className="tracking-page">
       <div className="tracking-scroll-area">
       <header className="tracking-page-header">
-        <div><p className="tracking-breadcrumb">Asset Tracking <b>›</b> <strong>Overview</strong></p><h1>Monitor Center</h1><p>Track watched tokens and wallets from one focused workspace.</p></div>
+        <div><h1>Asset Tracking</h1><p>Track watched tokens and wallets from one focused workspace.</p></div>
         <div className="tracking-header-actions"><button type="button" onClick={() => setDialog("tokens")}>＋ Add Token</button><button type="button" onClick={() => setDialog("wallets")}>＋ Add Wallet</button><button type="button" onClick={() => fileInput.current?.click()}>⇧ Import List</button><input ref={fileInput} type="file" accept=".csv,.txt" aria-label="Import asset list" hidden onChange={() => setToast("Import selected for this interface preview.")} /></div>
       </header>
 
