@@ -1013,7 +1013,6 @@ function AuthenticationScreen() {
     <main className="authentication-screen">
       <section className="authentication-card">
         <span className="authentication-mark" aria-hidden="true" />
-        <p className="eyebrow">Signal Control</p>
         <h1>Access your trading workspace</h1>
         <p>Sign in to open the features your account has been assigned.</p>
         <div className="authentication-actions">
