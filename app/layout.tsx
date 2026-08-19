@@ -50,6 +50,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             border: "1px solid #273952",
             borderRadius: "18px",
             boxShadow: "0 28px 80px rgba(0, 0, 0, .45)",
+            margin: "auto",
           },
           card: {
             backgroundColor: "#091421",

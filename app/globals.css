@@ -74,6 +74,10 @@ nextjs-portal { display: none !important; }
   overflow: hidden !important;
 }
 
+.cl-modalContent {
+  margin: auto !important;
+}
+
 .cl-footer {
   display: none !important;
 }
