@@ -682,7 +682,10 @@ button { color: inherit; }
 .tracking-hero-stats .tracking-activity { color: #d8dee7; font-size: 10px; font-weight: 500; }
 .tracking-detail-actions { min-height: 62px; padding: 10px 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; border-bottom: 1px solid #1d2a3c; }
 .tracking-detail-actions button, .tracking-detail-action-link { min-width: 0; height: 38px; padding: 0 8px; font-size: 9px; display: inline-flex; align-items: center; justify-content: center; color: #e8ebf0; border: 1px solid #2a384b; border-radius: 7px; background: #0b1421; cursor: pointer; font-weight: 600; text-decoration: none; box-sizing: border-box; transition: border-color .15s; }
-.tracking-detail-actions button:hover, .tracking-detail-action-link:hover { border-color: #c0392b; }
+.tracking-detail-actions button:hover, .tracking-detail-action-link:hover,
+.tracking-header-actions button:not(.tracking-primary):hover,
+.tracking-toolbar > div button:not(.tracking-view-toggle):hover,
+.tracking-perpage-wrap > button:hover { border-color: #c0392b; }
 .tracking-no-price-notice { margin: 0; padding: 11px 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #0e1a10; border-bottom: 1px solid #1e3320; }
 .tracking-no-price-notice > span { display: flex; flex-direction: column; gap: 2px; }
 .tracking-no-price-notice strong { font-size: 11px; color: #7dd87d; }
