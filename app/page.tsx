@@ -1014,8 +1014,8 @@ function AuthenticationScreen() {
       <section className="authentication-card">
         <img
           className="authentication-mark"
-          src="/signal-loss.png"
-          alt="Signal Loss"
+          src="/signal-symbol.png"
+          alt="Signal Loss symbol"
         />
         <h1>Access your trading workspace</h1>
         <p>Sign in to open the features your account has been assigned.</p>
