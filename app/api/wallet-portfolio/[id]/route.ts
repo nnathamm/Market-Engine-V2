@@ -28,12 +28,24 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: Params) {
   const { id } = await params;
   try {
+    // Parse optional keepSymbols from the request body.
+    let keepSymbols: Set<string> | undefined;
+    try {
+      const body = (await req.json()) as { keepSymbols?: string[] };
+      if (Array.isArray(body.keepSymbols) && body.keepSymbols.length > 0) {
+        keepSymbols = new Set(body.keepSymbols.map(s => String(s).toUpperCase()));
+      }
+    } catch {
+      // No body or invalid JSON — proceed without keepSymbols.
+    }
+
     // Remove tokens that were auto-imported exclusively from this wallet
     // before removing the wallet so we can still query its peer holdings.
-    await removeTokensForWallet(id);
+    // Tokens in keepSymbols have their wallet_source cleared instead.
+    await removeTokensForWallet(id, keepSymbols);
     const removed = await portfolioService.store.remove(id);
     return NextResponse.json({ ok: removed }, { status: removed ? 200 : 404 });
   } catch (err) {

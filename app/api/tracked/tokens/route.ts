@@ -10,7 +10,7 @@ export async function GET() {
       `SELECT id, symbol, label, coingecko_id, image_url, full_name,
               cached_price, cached_change_24h, cached_rank,
               price_source, contract_address, chain, binance_pair, pair_address,
-              created_at
+              wallet_source, created_at
          FROM tracked_tokens
         ORDER BY created_at DESC`
     );

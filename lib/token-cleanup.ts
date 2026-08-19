@@ -7,8 +7,15 @@ import { runMigrations } from "./db-migrate";
  *
  * Tokens manually added (wallet_source IS NULL) or sourced from a different
  * wallet are left untouched.
+ *
+ * @param keepSymbols - Optional set of symbols to preserve rather than delete.
+ *   Preserved tokens have their wallet_source cleared (set to NULL) so they
+ *   are treated as manually tracked going forward.
  */
-export async function removeTokensForWallet(walletId: string): Promise<void> {
+export async function removeTokensForWallet(
+  walletId: string,
+  keepSymbols?: Set<string>,
+): Promise<void> {
   await runMigrations();
 
   // Gather all symbols held by wallets *other* than the one being deleted so we
@@ -27,13 +34,31 @@ export async function removeTokensForWallet(walletId: string): Promise<void> {
     }
   }
 
-  if (otherSymbols.size > 0) {
-    const placeholders = [...otherSymbols].map((_, i) => `$${i + 2}`).join(",");
+  // If the caller asked to keep certain symbols, clear their wallet_source so
+  // they become manually tracked tokens rather than being deleted.
+  if (keepSymbols && keepSymbols.size > 0) {
+    const keepList = [...keepSymbols].map(s => s.toUpperCase());
+    const placeholders = keepList.map((_, i) => `$${i + 2}`).join(",");
+    await pool.query(
+      `UPDATE tracked_tokens
+          SET wallet_source = NULL
+        WHERE wallet_source = $1
+          AND symbol IN (${placeholders})`,
+      [walletId, ...keepList]
+    );
+  }
+
+  // Build the full set of symbols to skip deletion: other wallets' tokens plus
+  // any the user explicitly chose to keep.
+  const skipSymbols = new Set([...otherSymbols, ...(keepSymbols ?? [])].map(s => s.toUpperCase()));
+
+  if (skipSymbols.size > 0) {
+    const placeholders = [...skipSymbols].map((_, i) => `$${i + 2}`).join(",");
     await pool.query(
       `DELETE FROM tracked_tokens
        WHERE wallet_source = $1
          AND symbol NOT IN (${placeholders})`,
-      [walletId, ...otherSymbols]
+      [walletId, ...skipSymbols]
     );
   } else {
     await pool.query(

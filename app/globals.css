@@ -760,6 +760,17 @@ button { color: inherit; }
 .tracking-dialog > footer { margin-top: 17px; display: flex; justify-content: flex-end; gap: 9px; }
 .tracking-dialog > footer button { height: 38px; font-size: 10px; }
 
+/* Wallet delete dialog — token list */
+.tracking-wallet-delete-tokens { margin: 0 0 10px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #7440a6 #0a1524; }
+.tracking-wallet-delete-token-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #232f40; border-radius: 7px; background: #07111f; cursor: pointer; transition: background .12s; }
+.tracking-wallet-delete-token-row:hover { background: #0b1929; }
+.tracking-wallet-delete-token-row input[type="checkbox"] { flex: 0 0 auto; width: 14px; height: 14px; accent-color: #a044f4; cursor: pointer; }
+.tracking-wallet-delete-token-info { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tracking-wallet-delete-token-info strong { font-size: 12px; font-weight: 650; }
+.tracking-wallet-delete-token-info small { color: #7d8a9e; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tracking-keep-badge { flex: 0 0 auto; font-size: 9px; font-weight: 600; color: #3de7ad; background: rgba(61, 231, 173, .1); border: 1px solid rgba(61, 231, 173, .22); border-radius: 4px; padding: 2px 6px; }
+.tracking-wallet-delete-hint { margin: 4px 0 0; color: #7d8a9e; font-size: 10px; }
+
 /* Condition modal */
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 12px; background: rgba(1, 8, 20, .81); backdrop-filter: blur(5px); }
 .condition-dialog { width: 580px; min-height: min(738px, calc(100vh - 24px)); min-height: min(738px, calc(100dvh - 24px)); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 27px 32px 18px; border: 1px solid #394a64; border-radius: 13px; background: linear-gradient(145deg, #0b1729, #081324); box-shadow: 0 35px 90px rgba(0, 0, 0, .62); }

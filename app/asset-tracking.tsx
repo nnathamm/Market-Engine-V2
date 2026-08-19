@@ -36,7 +36,7 @@ type DbToken = {
   coingecko_id: string | null; image_url: string | null; full_name: string | null;
   cached_price: number | null; cached_change_24h: number | null; cached_rank: number | null;
   price_source: string | null; contract_address: string | null; chain: string | null;
-  binance_pair: string | null; pair_address: string | null;
+  binance_pair: string | null; pair_address: string | null; wallet_source: string | null;
 };
 type PortfolioWallet = {
   id: string; address: string; addressType: "evm" | "solana"; label: string;
@@ -446,6 +446,121 @@ function WalletIntelligence({ wallet, portfolioWallet }: { wallet: WalletRow; po
   );
 }
 
+type WalletDeletePending = {
+  portfolioId: string;
+  tokensToRemove: DbToken[];
+};
+
+function WalletDeleteDialog({
+  pending,
+  onConfirm,
+  onCancel,
+}: {
+  pending: WalletDeletePending;
+  onConfirm: (keepSymbols: string[]) => Promise<void>;
+  onCancel: () => void;
+}) {
+  // Each symbol defaults to unchecked (will be deleted). User checks to keep.
+  const [kept, setKept] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  const toggle = (symbol: string) =>
+    setKept(prev => {
+      const next = new Set(prev);
+      next.has(symbol) ? next.delete(symbol) : next.add(symbol);
+      return next;
+    });
+
+  const handleConfirm = async () => {
+    setDeleting(true);
+    try {
+      await onConfirm([...kept]);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const hasTokens = pending.tokensToRemove.length > 0;
+
+  return (
+    <div
+      className="tracking-modal-backdrop"
+      role="presentation"
+      onMouseDown={e => e.currentTarget === e.target && onCancel()}
+    >
+      <div className="tracking-dialog" role="dialog" aria-modal="true" aria-labelledby="wallet-delete-title">
+        <header>
+          <div>
+            <span className="tracking-dialog-mark" aria-hidden="true">▱</span>
+            <h2 id="wallet-delete-title">Delete Wallet</h2>
+          </div>
+          <button type="button" aria-label="Close dialog" onClick={onCancel}>×</button>
+        </header>
+
+        {hasTokens ? (
+          <>
+            <p>
+              The following tokens were auto-imported from this wallet and will be removed
+              from your watchlist. Check any you want to <strong>keep</strong>.
+            </p>
+            <ul className="tracking-wallet-delete-tokens" role="list">
+              {pending.tokensToRemove.map(t => {
+                const isKept = kept.has(t.symbol);
+                return (
+                  <li key={t.symbol}>
+                    <label className="tracking-wallet-delete-token-row">
+                      <input
+                        type="checkbox"
+                        checked={isKept}
+                        onChange={() => toggle(t.symbol)}
+                      />
+                      <span className="tracking-wallet-delete-token-info">
+                        {t.image_url
+                          ? <img src={t.image_url} alt={t.symbol} width={20} height={20} className="tracking-coin-img" />
+                          : <span className="tracking-coin-letter">{t.symbol.slice(0, 1)}</span>}
+                        <strong>{t.symbol}</strong>
+                        {(t.full_name || t.label) && (
+                          <small>{t.full_name ?? t.label}</small>
+                        )}
+                      </span>
+                      {isKept && <span className="tracking-keep-badge">Keep</span>}
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="tracking-wallet-delete-hint">
+              Kept tokens will remain in your watchlist as manually tracked assets.
+            </p>
+          </>
+        ) : (
+          <p>This wallet has no auto-imported tokens. Removing it will not affect your token watchlist.</p>
+        )}
+
+        <footer>
+          <button className="tracking-cancel" type="button" onClick={onCancel} disabled={deleting}>
+            Cancel
+          </button>
+          <button
+            className="tracking-menu-delete tracking-primary"
+            type="button"
+            onClick={handleConfirm}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting…" : "Delete Wallet"}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 export default function AssetTrackingView() {
   const [tab, setTab] = useState<TrackingTab>("tokens");
   const [dialog, setDialog] = useState<DialogKind>(null);
@@ -717,6 +832,7 @@ export default function AssetTrackingView() {
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [linkTokenSymbol, setLinkTokenSymbol] = useState<string | null>(null);
+  const [walletDeletePending, setWalletDeletePending] = useState<WalletDeletePending | null>(null);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -765,12 +881,38 @@ export default function AssetTrackingView() {
     await refreshTokens();
   }, [refreshTokens]);
 
-  const removeWallet = useCallback(async (portfolioId: string) => {
-    await fetch(`/api/wallet-portfolio/${portfolioId}`, { method: "DELETE" });
+  const removeWallet = useCallback((portfolioId: string) => {
+    // Compute which tokens would be removed by the delete. We replicate the
+    // server logic: tokens sourced from this wallet that are NOT also held by
+    // any other tracked wallet.
+    const otherWallets = portfolioWallets.filter(pw => pw.id !== portfolioId);
+    const otherSymbols = new Set(
+      otherWallets.flatMap(pw =>
+        (pw.holdings ?? [])
+          .map(h => h.symbol?.toUpperCase())
+          .filter((s): s is string => Boolean(s))
+      )
+    );
+    const tokensToRemove = dbTokens.filter(
+      t => t.wallet_source === portfolioId && !otherSymbols.has(t.symbol.toUpperCase())
+    );
+
+    setOpenMenu(null);
+    setWalletDeletePending({ portfolioId, tokensToRemove });
+  }, [portfolioWallets, dbTokens]);
+
+  const confirmRemoveWallet = useCallback(async (keepSymbols: string[]) => {
+    if (!walletDeletePending) return;
+    const { portfolioId } = walletDeletePending;
+    await fetch(`/api/wallet-portfolio/${portfolioId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keepSymbols }),
+    });
+    setWalletDeletePending(null);
     // Refresh both lists: the server removes wallet-sourced tokens during DELETE
     await Promise.all([refreshWallets(), refreshTokens()]);
-    setOpenMenu(null);
-  }, [refreshWallets, refreshTokens]);
+  }, [walletDeletePending, refreshWallets, refreshTokens]);
 
   const refreshWallet = useCallback(async (portfolioId: string) => {
     setOpenMenu(null);
@@ -989,6 +1131,13 @@ export default function AssetTrackingView() {
       </div>
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}
       {dialog && <TrackingDialog kind={dialog} close={() => setDialog(null)} finish={finishDialog} onSave={dialog === "tokens" ? saveToken : saveWallet} />}
+      {walletDeletePending && (
+        <WalletDeleteDialog
+          pending={walletDeletePending}
+          onConfirm={confirmRemoveWallet}
+          onCancel={() => setWalletDeletePending(null)}
+        />
+      )}
       {linkTokenSymbol && (
         <TrackingDialog
           kind="tokens"
