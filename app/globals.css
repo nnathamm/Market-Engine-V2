@@ -49,6 +49,16 @@ nextjs-portal { display: none !important; }
   box-shadow: 0 0 0 0.6px rgba(177, 177, 189, .175) inset !important;
 }
 
+.cl-socialButtonsBlockButton:hover {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 0.6px rgba(239, 68, 68, .45) inset !important;
+}
+
+.cl-formFieldInput::placeholder {
+  color: #d1d5db !important;
+  opacity: 1 !important;
+}
+
 .cl-headerSubtitle::before {
   content: "";
   width: 190px;
