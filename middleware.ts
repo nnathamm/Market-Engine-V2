@@ -7,7 +7,7 @@ export default clerkMiddleware(
   (request) => ({
     publishableKey: publishableKeyFromHost(
       request.headers.get("x-forwarded-host")?.replace(/:\d+$/, "") ?? request.nextUrl.hostname,
-      process.env.CLERK_PUBLISHABLE_KEY,
+      process.env.VITE_CLERK_PUBLISHABLE_KEY,
     ),
     proxyUrl: process.env.CLERK_PROXY_URL,
   }),
