@@ -287,7 +287,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
 
         <nav className="application-sidebar-nav" aria-label="Main navigation">
           {SIDEBAR_PRIMARY_NAV.map(([icon, label, destination]) => (
-            <button id={label === "Signals" ? "signals-nav-button" : undefined} className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
+            <button id={label === "Signals" ? "signals-nav-button" : label === "Create Signal" ? "create-signal-nav-button" : undefined} className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
               <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
             </button>
           ))}
