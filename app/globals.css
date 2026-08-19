@@ -654,9 +654,11 @@ button { color: inherit; }
 .tracking-table-footer button { height: 33px; min-width: 33px; padding: 0 9px; color: #8d9aac; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 10px; }
 .tracking-table-footer button.active { color: #fff; border-color: #7441ae; background: linear-gradient(145deg, #6f2bc1, #321963); }
 .tracking-perpage-wrap { justify-self: end; position: relative; }
-.tracking-perpage-wrap > button { border-color: #253348; background: #0c1624; }
-.tracking-perpage-menu { position: absolute; right: 0; bottom: calc(100% + 6px); display: flex; flex-direction: column; gap: 2px; padding: 5px; background: #0d1927; border: 1px solid #253348; border-radius: 7px; z-index: 10; }
-.tracking-perpage-menu button { width: 100%; justify-content: flex-start; white-space: nowrap; text-align: left; }
+.tracking-perpage-wrap > button { border-color: #253348; background: #0c1624; display: flex; align-items: center; gap: 7px; }
+.tracking-perpage-menu { position: absolute; right: 0; bottom: calc(100% + 5px); min-width: 130px; display: flex; flex-direction: column; padding: 4px; background: #0d1927; border: 1px solid #253348; border-radius: 8px; box-shadow: 0 -8px 24px rgba(0,0,0,.4); z-index: 20; }
+.tracking-perpage-menu button { width: 100%; padding: 7px 11px; white-space: nowrap; text-align: left; border-radius: 5px; color: #b0bccf; }
+.tracking-perpage-menu button:hover { background: #13233a; color: #e2e8f0; }
+.tracking-perpage-menu button.active { color: #c07cff; background: rgba(140,60,255,.1); }
 .tracking-intelligence { align-self: start; max-height: calc(100vh - 250px); overflow: hidden; display: flex; flex-direction: column; }
 .tracking-intelligence-sticky { flex-shrink: 0; }
 .tracking-intelligence-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
