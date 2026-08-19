@@ -595,7 +595,8 @@ button { color: inherit; }
 .tracking-tabs button.active { color: #ad55fa; font-weight: 650; }
 .tracking-tabs button.active::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: #9e49ed; }
 .tracking-toolbar { flex-shrink: 0; min-height: 73px; padding: 12px 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #1e2b3d; }
-.tracking-toolbar > label { width: min(280px, 35%); height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 9px; border: 1px solid #2a384c; border-radius: 7px; background: rgba(4, 14, 26, .72); }
+.tracking-toolbar > label { width: min(280px, 35%); height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 9px; border: 1px solid #2a384c; border-radius: 7px; background: rgba(4, 14, 26, .72); transition: border-color .15s; }
+.tracking-toolbar > label:hover { border-color: #c0392b; }
 .tracking-toolbar > label span { color: #8996a9; font-size: 23px; transform: rotate(-14deg); }
 .tracking-toolbar input { width: 100%; min-width: 0; color: #e7ebf1; border: 0; outline: 0; background: transparent; font-size: 11px; }
 .tracking-toolbar input::placeholder { color: #728095; }
