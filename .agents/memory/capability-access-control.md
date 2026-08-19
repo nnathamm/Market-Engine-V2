@@ -20,3 +20,9 @@ Master signals are owner-authored, system-wide strategies; followers can follow 
 **Why:** The owner confirmed that master signals should act as a live source of truth rather than independent copies.
 
 **How to apply:** Keep the master definition/version separate from each user’s follow relationship and notification preferences. Do not grant followers edit access to the master signal.
+
+Basic, Pro, and Elite are membership tiers for entitlement decisions, separate from Admin/Member roles and owner-only authority; billing is deferred.
+
+**Why:** The owner chose to establish tier-based access now while postponing subscription payments.
+
+**How to apply:** Store tier entitlements independently from capabilities and roles so future billing can change a user’s tier without changing their identity or administrative authority.
