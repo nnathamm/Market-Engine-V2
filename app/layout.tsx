@@ -48,10 +48,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           modalContent: {
             backgroundColor: "#091421",
             border: "1px solid #273952",
+            borderRadius: "18px",
             boxShadow: "0 28px 80px rgba(0, 0, 0, .45)",
           },
           card: {
             backgroundColor: "#091421",
+            borderRadius: "18px",
             boxShadow: "none",
           },
           headerTitle: {
