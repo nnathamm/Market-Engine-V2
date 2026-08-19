@@ -33,7 +33,7 @@ const MOCK_TICKERS = [
 
 /** Build a fake fetch that returns WEEX fixtures. */
 function makeWeexFetch(overrides = {}) {
-  return async (url, _opts) => {
+  return async (url) => {
     if (url.includes("/exchangeInfo")) {
       const body = overrides.exchangeInfo ?? MOCK_EXCHANGE_INFO;
       return { ok: true, json: async () => body, status: 200 };
@@ -45,17 +45,6 @@ function makeWeexFetch(overrides = {}) {
     // Unexpected URL
     return { ok: false, status: 404, json: async () => ({}) };
   };
-}
-
-/** Install a fetch stub for the duration of a test callback. */
-async function withFetch(fetchFn, cb) {
-  const original = globalThis.fetch;
-  globalThis.fetch = fetchFn;
-  try {
-    await cb();
-  } finally {
-    globalThis.fetch = original;
-  }
 }
 
 // ---------------------------------------------------------------------------

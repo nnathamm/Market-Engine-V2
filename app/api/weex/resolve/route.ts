@@ -1,6 +1,5 @@
 import {
   fetchWeexMarkets,
-  findWeexMarket,
   fetchCoinGeckoById,
   fetchCoinGeckoByContract,
   extractWeexUsdtTicker,

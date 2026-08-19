@@ -399,13 +399,12 @@ const CDN_URLS: ((slug: string) => string)[] = [
 const iconCdnFailures = new Map<string, number>();
 
 function CoinIcon({ symbol }: { symbol: string }) {
+  return <CoinIconImage key={symbol.toLowerCase()} symbol={symbol} />;
+}
+
+function CoinIconImage({ symbol }: { symbol: string }) {
   const slug = symbol.toLowerCase();
   const [cdnIndex, setCdnIndex] = useState(() => iconCdnFailures.get(slug) ?? 0);
-
-  // When symbol changes (same component instance reused), sync to the cached failure index for the new slug
-  useEffect(() => {
-    setCdnIndex(iconCdnFailures.get(slug) ?? 0);
-  }, [slug]);
 
   if (cdnIndex >= CDN_URLS.length) {
     return <i aria-hidden="true">{symbol.slice(0, 2)}</i>;
@@ -491,7 +490,8 @@ export default function MarketsView({
     const stored = localStorage.getItem(MARKET_INTERVAL_STORAGE_KEY);
     const nextInterval = request?.interval ?? (isMarketInterval(stored) ? stored : "15m");
     intervalRef.current = nextInterval;
-    setInterval(nextInterval);
+    const timer = window.setTimeout(() => setInterval(nextInterval), 0);
+    return () => window.clearTimeout(timer);
   }, [request?.interval]);
 
   useEffect(() => {
@@ -543,48 +543,51 @@ export default function MarketsView({
   }, []);
 
   useEffect(() => {
-    if (!request || !requestedIdentityKey) {
-      resolvedRequestRef.current = "";
-      setRequestedMarketState("idle");
-      setRequestedMarketMessage("");
-      setRequestedAlternatives([]);
-      return;
-    }
-    if (resolvedRequestRef.current === requestedIdentityKey) return;
-    const requested = request;
-    if (marketsLoading) {
-      setSelected(null);
-      setCandles([]);
-      setRequestedMarketState("resolving");
-      setRequestedMarketMessage("");
-      setRequestedAlternatives([]);
-      return;
-    }
+    const timer = window.setTimeout(() => {
+      if (!request || !requestedIdentityKey) {
+        resolvedRequestRef.current = "";
+        setRequestedMarketState("idle");
+        setRequestedMarketMessage("");
+        setRequestedAlternatives([]);
+        return;
+      }
+      if (resolvedRequestRef.current === requestedIdentityKey) return;
+      const requested = request;
+      if (marketsLoading) {
+        setSelected(null);
+        setCandles([]);
+        setRequestedMarketState("resolving");
+        setRequestedMarketMessage("");
+        setRequestedAlternatives([]);
+        return;
+      }
 
-    if (marketsError) {
+      if (marketsError) {
+        resolvedRequestRef.current = requestedIdentityKey;
+        setRequestedMarketState("unavailable");
+        setRequestedMarketMessage("Unable to load WEEX markets. Try again from the Markets page.");
+        return;
+      }
+
+      const tokenSymbol = requested.tokenSymbol.trim().toUpperCase();
+      const requestedPair = requested.exchangeSymbol?.trim().toUpperCase();
+      const exactPair = requestedPair || `${tokenSymbol}USDT`;
+      const market = markets.find((item) => item.symbol === exactPair)
+        ?? markets.find((item) => item.baseAsset.toUpperCase() === tokenSymbol && item.quoteAsset === "USDT");
+
       resolvedRequestRef.current = requestedIdentityKey;
-      setRequestedMarketState("unavailable");
-      setRequestedMarketMessage("Unable to load WEEX markets. Try again from the Markets page.");
-      return;
-    }
-
-    const tokenSymbol = requested.tokenSymbol.trim().toUpperCase();
-    const requestedPair = requested.exchangeSymbol?.trim().toUpperCase();
-    const exactPair = requestedPair || `${tokenSymbol}USDT`;
-    const market = markets.find((item) => item.symbol === exactPair)
-      ?? markets.find((item) => item.baseAsset.toUpperCase() === tokenSymbol && item.quoteAsset === "USDT");
-
-    resolvedRequestRef.current = requestedIdentityKey;
-    setQuery(tokenSymbol);
-    if (market) {
-      mergeRequestedMarket(market);
       setQuery(tokenSymbol);
-      return;
-    }
+      if (market) {
+        mergeRequestedMarket(market);
+        setQuery(tokenSymbol);
+        return;
+      }
 
-    setRequestedMarketState("unavailable");
-    setRequestedMarketMessage(`${tokenSymbol}/USDT is not listed on WEEX.`);
-    setRequestedAlternatives([]);
+      setRequestedMarketState("unavailable");
+      setRequestedMarketMessage(`${tokenSymbol}/USDT is not listed on WEEX.`);
+      setRequestedAlternatives([]);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [requestedIdentityKey, request, markets, marketsLoading, marketsError, mergeRequestedMarket]);
 
   useEffect(() => {
@@ -738,13 +741,11 @@ export default function MarketsView({
     return result.toSorted((left, right) => numberValue(right.quoteVolume) - numberValue(left.quoteVolume));
   }, [markets, deferredQuery, favoritesOnly, favorites]);
 
-  const visibleMarkets = filteredMarkets.slice(0, visibleCount);
-
-  useEffect(() => {
-    if (!selectedSymbol) return;
-    const selectedIndex = filteredMarkets.findIndex((market) => market.symbol === selectedSymbol);
-    if (selectedIndex >= visibleCount) setVisibleCount(selectedIndex + 1);
-  }, [filteredMarkets, selectedSymbol, visibleCount]);
+  const selectedIndex = filteredMarkets.findIndex((market) => market.symbol === selectedSymbol);
+  const effectiveVisibleCount = selectedIndex >= 0
+    ? Math.max(visibleCount, selectedIndex + 1)
+    : visibleCount;
+  const visibleMarkets = filteredMarkets.slice(0, effectiveVisibleCount);
 
   useEffect(() => {
     if (!highlightedSymbol) return;

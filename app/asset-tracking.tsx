@@ -156,9 +156,9 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
   useEffect(() => {
     if (kind !== "tokens") return;
     const q = search.trim();
-    if (!q) { setResults([]); setSearching(false); return; }
-    setSearching(true);
+    if (!q) return;
     const timer = setTimeout(async () => {
+      setSearching(true);
       try {
         const res = await fetch(`/api/coins/search?q=${encodeURIComponent(q)}`);
         setResults(res.ok ? await res.json() : []);
@@ -247,11 +247,10 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
                   onChange={e => { setSearch(e.target.value); setSelectedCoin(null); setNoPriceWarning(false); }}
                   placeholder="Search by token name, symbol, or contract address..."
                   autoComplete="off"
-                  autoFocus
                 />
-                <i aria-hidden="true">{searching ? "…" : "⌕"}</i>
+                <i aria-hidden="true">{search.trim() && searching ? "…" : "⌕"}</i>
               </div>
-              {results.length > 0 && (
+              {search.trim() && results.length > 0 && (
                 <ul className="tracking-coin-results" role="listbox">
                   {results.map(coin => {
                     const p = parseFloat(coin.priceUsd);
@@ -309,7 +308,7 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
         <label className="tracking-monitor-toggle"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /><span aria-hidden="true" /><b>Start monitoring immediately<small>Prepare this asset for alerts right away.</small></b></label>
         {kind === "tokens" && noPriceWarning && !selectedCoin && (
           <p className="tracking-no-price-warning" role="alert">
-            ⚠ No CoinGecko match selected — price data won't be available. Pick a result from the list to enable live prices, or click "Add anyway" to continue without prices.
+            ⚠ No CoinGecko match selected — price data won&apos;t be available. Pick a result from the list to enable live prices, or click “Add anyway” to continue without prices.
           </p>
         )}
         {saveError && <p className="tracking-save-error" role="alert">⚠ {saveError}</p>}
@@ -519,7 +518,8 @@ function WalletDeleteDialog({
   const toggle = (tokenId: number) =>
     setKept(prev => {
       const next = new Set(prev);
-      next.has(tokenId) ? next.delete(tokenId) : next.add(tokenId);
+      if (next.has(tokenId)) next.delete(tokenId);
+      else next.add(tokenId);
       return next;
     });
 
@@ -555,7 +555,7 @@ function WalletDeleteDialog({
               The following tokens were auto-imported from this wallet and will be removed
               from your watchlist. Check any you want to <strong>keep</strong>.
             </p>
-            <ul className="tracking-wallet-delete-tokens" role="list">
+            <ul className="tracking-wallet-delete-tokens">
               {pending.tokensToRemove.map(t => {
                 const isKept = kept.has(t.id);
                 return (
@@ -659,6 +659,7 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
   const [liveData, setLiveData] = useState<Map<string, LivePrice>>(new Map());
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState<number | null>(null);
+  const [walletClock, setWalletClock] = useState<number | null>(null);
   const [livePriceFetching, setLivePriceFetching] = useState(false);
   // Set to true once any initial live-price fetch has settled; prevents the
   // skeleton from reappearing on later dbTokens changes or periodic refreshes.
@@ -679,12 +680,26 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
   }, [dbTokens]);
 
   useEffect(() => {
-    if (lastUpdated === null) { setSecondsSinceUpdate(null); return; }
-    const tick = () => setSecondsSinceUpdate(Math.floor((Date.now() - lastUpdated.getTime()) / 1000));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    const tick = () => setSecondsSinceUpdate(
+      lastUpdated === null ? null : Math.floor((Date.now() - lastUpdated.getTime()) / 1000),
+    );
+    const initialTick = window.setTimeout(tick, 0);
+    const intervalId = window.setInterval(tick, 1000);
+    return () => {
+      window.clearTimeout(initialTick);
+      window.clearInterval(intervalId);
+    };
   }, [lastUpdated]);
+
+  useEffect(() => {
+    const tick = () => setWalletClock(Date.now());
+    const initialTick = window.setTimeout(tick, 0);
+    const intervalId = window.setInterval(tick, 60_000);
+    return () => {
+      window.clearTimeout(initialTick);
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     if (!dbTokens.length) return;
@@ -804,7 +819,7 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
         const activity = w.status === "IMPORTING" ? "Importing…"
           : w.status === "ERROR" ? "Error"
           : w.status === "PENDING_IMPORT" ? "Pending"
-          : w.lastRefreshAt ? `${Math.round((Date.now() - new Date(w.lastRefreshAt).getTime()) / 60000)}m ago`
+          : w.lastRefreshAt && walletClock !== null ? `${Math.round((walletClock - new Date(w.lastRefreshAt).getTime()) / 60000)}m ago`
           : "Just added";
         const tone = w.status === "ERROR" ? "red" : w.status === "LIVE" ? "teal" : "gray";
         return {
@@ -822,41 +837,47 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
         };
       });
     return portfolioRows;
-  }, [portfolioWallets]);
+  }, [portfolioWallets, walletClock]);
 
   const tokens = useMemo(() => allTokens.filter(t => `${t.name} ${t.symbol} ${t.pair}`.toLowerCase().includes(query.toLowerCase())), [allTokens, query]);
   const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
-
-  // Reset to page 1 whenever the search query changes
-  useEffect(() => { setPage(1); }, [query]);
 
   const pagedTokens = useMemo(() => tokens.slice((page - 1) * perPage, page * perPage), [tokens, page, perPage]);
   const pagedWallets = useMemo(() => wallets.slice((page - 1) * perPage, page * perPage), [wallets, page, perPage]);
 
   useEffect(() => {
-    if (!selectedToken) {
-      // No selection yet (initial load or post-delete): pick the first token.
-      if (allTokens.length) setSelectedToken(allTokens[0]);
-      return;
-    }
-    const updated = allTokens.find(t => t.db_id === selectedToken.db_id)
-      ?? allTokens.find(t => t.symbol === selectedToken.symbol && t.coingecko_id === selectedToken.coingecko_id);
-    if (updated) {
-      // Keep the selected token in sync with live prices / db changes.
-      setSelectedToken(updated);
-    } else {
-      // The selected token is no longer in the list (was just deleted).
-      // Clear the panel; the next allTokens change will auto-select the first
-      // remaining token via the !selectedToken branch above.
-      setSelectedToken(null);
-    }
+    const timer = window.setTimeout(() => {
+      if (!selectedToken) {
+        // No selection yet (initial load or post-delete): pick the first token.
+        if (allTokens.length) setSelectedToken(allTokens[0]);
+        return;
+      }
+      const updated = allTokens.find(t => t.db_id === selectedToken.db_id)
+        ?? allTokens.find(t => t.symbol === selectedToken.symbol && t.coingecko_id === selectedToken.coingecko_id);
+      if (updated) {
+        // Keep the selected token in sync with live prices / db changes.
+        setSelectedToken(updated);
+      } else {
+        // The selected token is no longer in the list (was just deleted).
+        // Clear the panel; the next allTokens change will auto-select the first
+        // remaining token via the !selectedToken branch above.
+        setSelectedToken(null);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [allTokens]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!allWallets.length) return;
-    if (!selectedWallet) { setSelectedWallet(allWallets[0]); return; }
-    const updated = allWallets.find(w => w.address === selectedWallet.address);
-    if (updated) setSelectedWallet(updated);
+    const timer = window.setTimeout(() => {
+      if (!allWallets.length) return;
+      if (!selectedWallet) {
+        setSelectedWallet(allWallets[0]);
+        return;
+      }
+      const updated = allWallets.find(w => w.address === selectedWallet.address);
+      if (updated) setSelectedWallet(updated);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [allWallets]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -1093,6 +1114,7 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
   }, [onOpenInMarkets]);
 
   const switchTab = (nextTab: TrackingTab) => { setTab(nextTab); setQuery(""); setPage(1); };
+  const updateQuery = (value: string) => { setQuery(value); setPage(1); };
 
   const finishDialog = (message: string) => {
     setDialog(null);
@@ -1111,7 +1133,7 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
       <div className="tracking-workspace">
         <main className="tracking-main-panel">
           <div className="tracking-tabs" role="tablist" aria-label="Asset tracking views"><button className={tab === "tokens" ? "active" : ""} type="button" role="tab" aria-selected={tab === "tokens"} onClick={() => switchTab("tokens")}>◎ Watched Tokens</button><button className={tab === "wallets" ? "active" : ""} type="button" role="tab" aria-selected={tab === "wallets"} onClick={() => switchTab("wallets")}>▱ Watched Wallets</button></div>
-          <div className="tracking-toolbar"><label><span aria-hidden="true">⌕</span><input type="search" placeholder={tab === "tokens" ? "Search tokens..." : "Search wallets..."} value={query} onChange={(event) => setQuery(event.target.value)} /></label><div><button type="button">☷ Filters</button></div></div>
+          <div className="tracking-toolbar"><label><span aria-hidden="true">⌕</span><input type="search" placeholder={tab === "tokens" ? "Search tokens..." : "Search wallets..."} value={query} onChange={(event) => updateQuery(event.target.value)} /></label><div><button type="button">☷ Filters</button></div></div>
 
           {tab === "tokens" && secondsSinceUpdate !== null && (
             <p className="tracking-last-updated" aria-live="polite">
@@ -1127,7 +1149,7 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
                   const geckoUrl = token.coingecko_id ? `https://www.coingecko.com/en/coins/${token.coingecko_id}` : null;
                   const menuKey = `t-${token.db_id ?? `${token.symbol}-${token.chain ?? "unknown"}`}`;
                   return (
-                    <div className={`tracking-table-row ${selectedToken?.db_id === token.db_id ? "selected" : ""}`} key={token.db_id ?? menuKey} role="row" onClick={() => setSelectedToken(token)}>
+                    <div className={`tracking-table-row ${selectedToken?.db_id === token.db_id ? "selected" : ""}`} key={token.db_id ?? menuKey} role="row" tabIndex={0} onClick={() => setSelectedToken(token)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedToken(token); } }}>
                       <span className="tracking-name-cell">{token.image ? <img src={token.image} alt={token.symbol} className="tracking-coin-img" /> : <AssetBadge label={token.symbol} tone={token.tone} />}<b>{token.name}<small>{token.pair}</small></b></span>
                       <span>{token.networks} networks</span>
                       <strong>
@@ -1146,24 +1168,24 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
                       </strong>
                       <Change value={token.change} />
                       <span className="tracking-activity"><i />{token.activity}</span>
-                      <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
+                      <span className="tracking-row-actions">
                         {geckoUrl && <a className="tracking-action-btn" href={geckoUrl} target="_blank" rel="noreferrer" title="View on CoinGecko" onClick={e => e.stopPropagation()}>↗</a>}
                         {token.db_id != null && (
                           <span className="tracking-action-menu-wrap">
                             <button className="tracking-action-btn" type="button" title="More options" onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === menuKey ? null : menuKey); }}>•••</button>
                             {openMenu === menuKey && (
-                              <div className="tracking-action-menu" onClick={e => e.stopPropagation()}>
-                                <button type="button" aria-label={`Open ${token.name} in Markets`} onClick={() => openTokenInMarkets(token)}>◉ Open in Markets →</button>
-                                <button type="button" onClick={() => editTokenLabel(token, token.name)}>✎ Edit Label</button>
-                                <button type="button" onClick={() => copy(token.symbol, "symbol")}>⎘ Copy Symbol</button>
-                                {geckoUrl && <a className="tracking-menu-link" href={geckoUrl} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View on CoinGecko</a>}
+                              <div className="tracking-action-menu">
+                                <button type="button" aria-label={`Open ${token.name} in Markets`} onClick={event => { event.stopPropagation(); openTokenInMarkets(token); }}>◉ Open in Markets →</button>
+                                <button type="button" onClick={event => { event.stopPropagation(); editTokenLabel(token, token.name); }}>✎ Edit Label</button>
+                                <button type="button" onClick={event => { event.stopPropagation(); copy(token.symbol, "symbol"); }}>⎘ Copy Symbol</button>
+                                {geckoUrl && <a className="tracking-menu-link" href={geckoUrl} target="_blank" rel="noreferrer" onClick={event => { event.stopPropagation(); setOpenMenu(null); }}>↗ View on CoinGecko</a>}
                                 {(token.coingecko_id || token.price_source) ? (
-                                  <button type="button" onClick={() => { setOpenMenu(null); setLinkTokenTarget(token); }}>⇄ Change price source</button>
+                                  <button type="button" onClick={event => { event.stopPropagation(); setOpenMenu(null); setLinkTokenTarget(token); }}>⇄ Change price source</button>
                                 ) : (
-                                  <button type="button" onClick={() => { setOpenMenu(null); setLinkTokenTarget(token); }}>↗ Link Market Data</button>
+                                  <button type="button" onClick={event => { event.stopPropagation(); setOpenMenu(null); setLinkTokenTarget(token); }}>↗ Link Market Data</button>
                                 )}
                                 <hr />
-                                <button type="button" className="tracking-menu-delete" onClick={() => removeToken(token)}>🗑 Delete Token</button>
+                                <button type="button" className="tracking-menu-delete" onClick={event => { event.stopPropagation(); removeToken(token); }}>🗑 Delete Token</button>
                               </div>
                             )}
                           </span>
@@ -1192,25 +1214,25 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
                   const statusDot = wallet.status === "LIVE" ? "●" : wallet.status === "LIVE_WITH_WARNINGS" ? "◐" : wallet.status === "ERROR" ? "✕" : wallet.status === "IMPORTING" ? "⟳" : "○";
                   const statusColor = wallet.status === "LIVE" ? "#7dd87d" : wallet.status === "ERROR" ? "#e05555" : "#8899aa";
                   return (
-                    <div className={`tracking-table-row ${selectedWallet?.address === wallet.address ? "selected" : ""}`} key={wallet.address} role="row" onClick={() => setSelectedWallet(wallet)}>
+                    <div className={`tracking-table-row ${selectedWallet?.address === wallet.address ? "selected" : ""}`} key={wallet.address} role="row" tabIndex={0} onClick={() => setSelectedWallet(wallet)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedWallet(wallet); } }}>
                       <span className="tracking-name-cell"><AssetBadge label={wallet.short} tone={wallet.tone} /><b>{wallet.name}<small>{wallet.address}</small></b></span>
                       <span className="tracking-chain">◆ {wallet.chain}</span>
                       <strong>{wallet.holdings}</strong>
                       <span style={{ color: statusColor, fontSize: 12 }}>{statusDot} {wallet.status ? wallet.status.replace(/_/g, " ") : "—"}</span>
                       <span className="tracking-activity"><i />{wallet.activity}</span>
-                      <span className="tracking-row-actions" onClick={e => e.stopPropagation()}>
+                      <span className="tracking-row-actions">
                         <a className="tracking-action-btn" href={explorerUrl} target="_blank" rel="noreferrer" title="View in explorer" onClick={e => e.stopPropagation()}>↗</a>
                         {wallet.portfolio_id != null && (
                           <span className="tracking-action-menu-wrap">
                             <button className="tracking-action-btn" type="button" title="More options" onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === menuKey ? null : menuKey); }}>•••</button>
                             {openMenu === menuKey && (
-                              <div className="tracking-action-menu" onClick={e => e.stopPropagation()}>
-                                <button type="button" onClick={() => refreshWallet(wallet.portfolio_id!)}>⟳ Refresh Holdings</button>
-                                <button type="button" onClick={() => editWalletLabel(wallet.portfolio_id!, wallet.name)}>✎ Edit Label</button>
-                                <button type="button" onClick={() => copy(wallet.address, "address")}>⎘ Copy Address</button>
-                                <a className="tracking-menu-link" href={explorerUrl} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View in Explorer</a>
+                              <div className="tracking-action-menu">
+                                <button type="button" onClick={event => { event.stopPropagation(); refreshWallet(wallet.portfolio_id!); }}>⟳ Refresh Holdings</button>
+                                <button type="button" onClick={event => { event.stopPropagation(); editWalletLabel(wallet.portfolio_id!, wallet.name); }}>✎ Edit Label</button>
+                                <button type="button" onClick={event => { event.stopPropagation(); copy(wallet.address, "address"); }}>⎘ Copy Address</button>
+                                <a className="tracking-menu-link" href={explorerUrl} target="_blank" rel="noreferrer" onClick={event => { event.stopPropagation(); setOpenMenu(null); }}>↗ View in Explorer</a>
                                 <hr />
-                                <button type="button" className="tracking-menu-delete" onClick={() => removeWallet(wallet.portfolio_id!)}>🗑 Delete Wallet</button>
+                                <button type="button" className="tracking-menu-delete" onClick={event => { event.stopPropagation(); removeWallet(wallet.portfolio_id!); }}>🗑 Delete Wallet</button>
                               </div>
                             )}
                           </span>
@@ -1276,7 +1298,9 @@ export default function AssetTrackingView({ onOpenInMarkets }: {
           close={() => setLinkTokenTarget(null)}
           finish={(msg) => { setLinkTokenTarget(null); setToast(msg); window.setTimeout(() => setToast(""), 3200); }}
           onSave={async (data) => {
-            const { symbol: _sym, label: _lbl, ...coinFields } = data;
+            const coinFields = Object.fromEntries(
+              Object.entries(data).filter(([key]) => key !== "symbol" && key !== "label"),
+            );
             await linkToken(linkTokenTarget.db_id ?? linkTokenTarget.symbol, coinFields);
           }}
         />
