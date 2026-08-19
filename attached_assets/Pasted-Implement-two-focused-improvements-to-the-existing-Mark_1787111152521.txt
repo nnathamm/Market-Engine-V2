@@ -1,0 +1,204 @@
+Implement two focused improvements to the existing Market-Engine-V2 application. Inspect the current routing, state management, market-data provider, Monitor Center, and Markets components before changing anything. Reuse the existing architecture and visual design. Do not rebuild either page, introduce mock data, or make unrelated changes.
+
+OBJECTIVE 1 — OPEN A MONITORED TOKEN DIRECTLY IN MARKETS
+
+Add a reliable handoff from:
+
+Asset Tracking → Monitor Center → Watched Tokens
+
+to the existing Markets page and chart.
+
+USER FLOW
+
+1. The user selects a token in Watched Tokens.
+2. The existing Selected Token Intelligence panel opens on the right.
+3. Add a prominent button labeled:
+
+   Open in Markets →
+
+4. Add the same action to the token row’s three-dot menu.
+5. When pressed, navigate to Markets and automatically:
+   - Select the corresponding exchange market.
+   - Load its live chart.
+   - Load the token even if it is not among the first 20 currently rendered coins.
+   - Scroll the selected market into view.
+   - Briefly highlight the selected row.
+   - Preserve the user’s last chart timeframe when possible.
+
+Do not make the entire token row redirect. Clicking a row must continue opening the Selected Token Intelligence panel.
+
+TOKEN IDENTIFICATION
+
+Do not rely only on ticker symbols because unrelated tokens can share the same symbol.
+
+Each tracked-token record should support:
+
+- id
+- name
+- symbol
+- chain/network
+- contractAddress
+- coingeckoId
+- preferredExchange
+- exchangeSymbol
+
+Example:
+
+{
+  "id": "openeden",
+  "name": "OpenEden",
+  "symbol": "EDEN",
+  "chain": "ethereum",
+  "contractAddress": "0x24A3D725C37A8D1a66Eb87f0E5D07fE67c120035",
+  "coingeckoId": "openeden",
+  "preferredExchange": "binance",
+  "exchangeSymbol": "EDENUSDT"
+}
+
+Resolve the market in this order:
+
+1. Saved exchangeSymbol
+2. Exact chain + contract-address mapping
+3. CoinGecko ID mapping
+4. Exact symbol + USDT lookup from the connected exchange
+5. Display an unavailable or ambiguous-market message
+
+Never silently open another coin merely because it shares the same symbol.
+
+NAVIGATION
+
+Use the application’s existing routing system. The destination should be refresh-safe and bookmarkable, conceptually similar to:
+
+/markets?symbol=EDENUSDT&token=openeden&source=monitor
+
+If this is a single-page application without URL routes, implement the equivalent using the existing navigation and state system, but preserve the requested market across a browser refresh if the current architecture supports it.
+
+MARKETS-PAGE BEHAVIOR
+
+When Markets receives a requested token:
+
+- Fetch that market directly instead of waiting for infinite scrolling.
+- Add or merge it into the loaded market list without duplicating it.
+- Select it.
+- Load its live candles.
+- Update the page title, selected-market information, and chart.
+- Do not reset the chart after the normal top-20 request finishes.
+- Do not create duplicate WebSocket connections.
+- Clean up the previous market’s stream when switching symbols.
+- Preserve favorites.
+- Preserve lazy loading for normal browsing.
+
+Test at minimum:
+
+- BLESS → BLESSUSDT
+- EDEN → EDENUSDT
+- VELVET → VELVETUSDT
+- A token outside the initially loaded top 20
+- A token without a USDT market
+- Two unrelated tokens sharing a ticker
+- Browser refresh while a requested market is selected
+- Back navigation to Monitor Center
+
+UNAVAILABLE-MARKET STATE
+
+If the connected exchange has no matching market:
+
+- Keep the user on Markets.
+- Do not load an unrelated token.
+- Show:
+
+  “[TOKEN]/USDT is not available from the connected exchange.”
+
+- If another quote pair is genuinely available, display it as an explicit selectable alternative.
+- If no market is available, provide a Back to Monitor Center button.
+- Do not fabricate a chart or price.
+
+OBJECTIVE 2 — IMPROVE THE RIGHT-SIDE INTELLIGENCE PANEL TYPOGRAPHY
+
+The Selected Token Intelligence and Selected Wallet Intelligence panels on the right side of Monitor Center are currently too small and difficult to read.
+
+Increase readability while ensuring all information still fits properly.
+
+DESKTOP PANEL LAYOUT
+
+Use a responsive width similar to:
+
+width: clamp(360px, 29vw, 460px)
+
+Do not let the panel crush the main table. At narrower widths, allow the panel to overlay or stack according to the application’s existing responsive design.
+
+Use approximately this typography scale, adjusted to match the existing design system:
+
+- Panel title: 18–20px, semibold/bold
+- Primary monetary value: 20–24px, bold
+- Section headings: 13–14px, semibold, uppercase only where currently used
+- Normal body text: 14–15px
+- Labels and secondary metadata: 12.5–13.5px
+- Buttons: 14px
+- Wallet addresses: 12.5–13px monospace
+- Line height: approximately 1.4–1.55
+
+Do not use text smaller than 12px for meaningful information.
+
+FIT AND OVERFLOW REQUIREMENTS
+
+- Keep all sections readable without horizontal overflow.
+- Allow the panel body to scroll vertically when content exceeds the viewport.
+- Keep the panel header and close button visible if practical.
+- Wrap explanatory text naturally.
+- Truncate long wallet addresses in the visible layout while preserving the full address for copying and tooltips.
+- Use tabular numerals for prices and balances.
+- Keep buttons large enough to read and click.
+- Prevent values from colliding with labels.
+- Do not reduce text until it becomes unreadable just to avoid scrolling.
+- Do not remove any information to make it fit.
+- Preserve the dark navy, purple, blue, green, and red visual language already used by the site.
+
+RESPONSIVE BEHAVIOR
+
+- Large desktop: right-side panel beside the table.
+- Medium screens: slightly narrower panel or overlay drawer.
+- Mobile/small screens: full-width drawer or stacked panel.
+- No clipped text, off-screen close button, or horizontal page scrolling.
+
+Apply the typography improvements consistently to:
+
+- Selected Token Intelligence
+- Selected Wallet Intelligence
+- Top Holdings
+- Recent Activity
+- Price and portfolio summaries
+- Network, rank, status, and pair fields
+- Action buttons and warning/error states
+
+ACCESSIBILITY
+
+- Maintain sufficient text/background contrast.
+- Preserve visible keyboard focus states.
+- Add accessible names to Open in Markets buttons.
+- Ensure buttons remain usable by keyboard.
+- Use title/tooltips for truncated addresses and long token names.
+- Do not use color as the only indication of status or price direction.
+
+CONSTRAINTS
+
+- Preserve all existing functionality and saved records.
+- Do not replace real data with placeholders.
+- Do not alter wallet-balance calculations as part of this task.
+- Do not add a new Markets page; use the existing one.
+- Do not remove lazy loading, favorites, live chart updates, chart zooming, or historical navigation.
+- Do not change unrelated pages.
+- Follow the existing component, styling, and TypeScript patterns.
+- Avoid duplicated market-fetching logic; create a reusable market-resolution/navigation function.
+- Keep secrets server-side.
+- Do not expose API keys to the browser.
+
+Before finishing:
+
+1. Run the existing type checker, tests, and production build.
+2. Fix any errors introduced by these changes.
+3. Test the complete Monitor Center → Markets flow manually.
+4. Confirm the target token loads when it is outside the first 20 results.
+5. Confirm an unknown token shows the unavailable state rather than the wrong chart.
+6. Check both intelligence panels at desktop, tablet, and mobile widths.
+7. Summarize the files changed, routing behavior, market-resolution logic, and test results.
