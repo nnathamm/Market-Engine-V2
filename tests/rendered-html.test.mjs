@@ -50,12 +50,13 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.notifications-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.notification-switch input:checked \+ span/s);
   assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Markets[\s\S]*Asset Tracking[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
-  assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Create Signal[\s\S]*Signals[\s\S]*Trades/);
+  assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Signals[\s\S]*Trades/);
   assert.doesNotMatch(page, /Backtesting/);
   assert.doesNotMatch(page, /Analytics/);
-  assert.match(page, /id=\{label === "Signals" \? "signals-nav-button" : label === "Create Signal" \? "create-signal-nav-button" : undefined\}/);
-  assert.match(page, /label === "Create Signal" \? "create-signal-nav-button" : undefined/);
-  assert.match(page, /aria-expanded=\{label === "Create Signal" \? expandedSection === "create" : label === "Signals" \? expandedSection === "signals" : undefined\}/);
+  assert.match(page, /id=\{label === "Signals" \? "signals-nav-button" : undefined\}/);
+  assert.doesNotMatch(page, /id="create-signal-nav-button"/);
+  assert.doesNotMatch(page, /view-edit-signals-from-create/);
+  assert.match(page, /aria-expanded=\{label === "Signals" \? expandedSection === "signals" : undefined\}/);
   assert.match(page, /id="view-edit-signals-nav-button"[\s\S]*View\/Edit Signals/);
   assert.match(page, /id="create-signal-under-signals"[\s\S]*Create Signal/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);

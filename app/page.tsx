@@ -56,7 +56,6 @@ const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = 
 
 const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
   ["⌂", "Dashboard", null],
-  ["＋", "Create Signal", "create"],
   ["◇", "Signals", "signals"],
   ["▣", "Trades", null],
 ];
@@ -277,13 +276,12 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
 
 function SidebarNavigation({ activeView, open, setView }: { activeView: View; open: boolean; setView: (view: View) => void }) {
   const tabIndex = open ? 0 : -1;
-  const [expandedSection, setExpandedSection] = useState<"create" | "signals" | null>(null);
+  const [expandedSection, setExpandedSection] = useState<"signals" | null>(null);
 
   function selectPrimary(label: string, destination: View | null) {
     if (!destination) return;
-    if (label === "Create Signal" || label === "Signals") {
-      const section = label === "Create Signal" ? "create" : "signals";
-      setExpandedSection(current => current === section ? null : section);
+    if (label === "Signals") {
+      setExpandedSection(current => current === "signals" ? null : "signals");
       setView("signals");
       return;
     }
@@ -301,25 +299,18 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
           {SIDEBAR_PRIMARY_NAV.map(([icon, label, destination]) => (
             <Fragment key={label}>
               <button
-                id={label === "Signals" ? "signals-nav-button" : label === "Create Signal" ? "create-signal-nav-button" : undefined}
-                className={destination && (activeView === destination || (label === "Create Signal" && expandedSection === "create") || (label === "Signals" && expandedSection === "signals")) ? "active" : ""}
+                id={label === "Signals" ? "signals-nav-button" : undefined}
+                className={destination && (activeView === destination || (label === "Signals" && expandedSection === "signals")) ? "active" : ""}
                 type="button"
                 tabIndex={tabIndex}
                 disabled={!destination}
                 aria-current={destination && activeView === destination ? "page" : undefined}
-                aria-expanded={label === "Create Signal" ? expandedSection === "create" : label === "Signals" ? expandedSection === "signals" : undefined}
+                aria-expanded={label === "Signals" ? expandedSection === "signals" : undefined}
                 key={label}
                 onClick={() => selectPrimary(label, destination)}
               >
                 <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
               </button>
-              {expandedSection === "create" && label === "Create Signal" && (
-                <div className="application-sidebar-subnav">
-                  <button id="view-edit-signals-from-create" className={activeView === "signals" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("signals")}>
-                    <span aria-hidden="true">◇</span><span>View/Edit Signals</span>
-                  </button>
-                </div>
-              )}
               {expandedSection === "signals" && label === "Signals" && (
                 <div className="application-sidebar-subnav">
                   <button id="create-signal-under-signals" className={activeView === "create" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
