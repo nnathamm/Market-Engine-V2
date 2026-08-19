@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: Params) {
     const wallet = await portfolioService.store.get(id);
     if (!wallet) return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
     return NextResponse.json(wallet);
-  } catch {
+  } catch (err) {
     return NextResponse.json({ error: "Failed to fetch wallet" }, { status: 500 });
   }
 }
@@ -61,7 +61,7 @@ export async function DELETE(req: Request, { params }: Params) {
     // transaction so concurrent wallet deletes cannot leave orphaned sources.
     const removed = await removeWalletAndTokens(id, { keepTokenIds, keepSymbols });
     return NextResponse.json({ ok: removed }, { status: removed ? 200 : 404 });
-  } catch {
+  } catch (err) {
     return NextResponse.json({ error: "Failed to delete wallet" }, { status: 500 });
   }
 }

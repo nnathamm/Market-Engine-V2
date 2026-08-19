@@ -49,8 +49,7 @@ export function useAppAccess(
   }, [isSignedIn, onSessionInvalid]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void refresh(), 0);
-    return () => window.clearTimeout(timer);
+    void refresh();
   }, [refresh]);
 
   return { access, isLoading, error, refresh };

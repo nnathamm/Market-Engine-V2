@@ -69,6 +69,18 @@ type SidebarIconName =
   | "general" | "trading" | "risk" | "order-flow" | "logs" | "asset-tracking" | "watchlists"
   | "notifications" | "admin" | "create-signal" | "view-signals";
 
+const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
+  ["create", "＋", "Create Signal", "Build a new trading signal"],
+  ["signals", "☷", "View Signals", "Manage existing signals"],
+  ["signal-library", "▣", "Signal Library", "Browse published master signals"],
+  ["master-create", "＋", "Create Master Signal", "Build a system-wide master signal"],
+  ["master-signals", "☷", "Master Signals", "Manage published master signals"],
+  ["markets", "◉", "Markets", "Browse live WEEX futures markets"],
+  ["asset-tracking", "◎", "Asset Tracking", "Monitor watched tokens and wallets"],
+  ["order-flow", "⇄", "Order Flow", "Configure order-flow analysis"],
+  ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
+  ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],
+];
 
 type SidebarSection = {
   heading: string;
@@ -305,6 +317,17 @@ function CooldownChooser({ value, onChange }: { value: string; onChange: (value:
   );
 }
 
+function SignalMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className={compact ? "signal-mark compact" : "signal-mark"} aria-hidden="true">
+      <span className="signal-mark-ring ring-two" />
+      <span className="signal-mark-dot" />
+      <span className="signal-mark-stem" />
+      <span className="signal-mark-base" />
+    </span>
+  );
+}
+
 function SidebarNavigation({ activeView, open, setView, access }: { activeView: View; open: boolean; setView: (view: View) => void; access: AppAccess }) {
   const tabIndex = open ? 0 : -1;
 
@@ -353,6 +376,8 @@ function SidebarNavigation({ activeView, open, setView, access }: { activeView: 
 }
 
 function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView, access }: { activeView: View; sidebarOpen: boolean; toggleSidebar: () => void; setView: (view: View) => void; access: AppAccess }) {
+  const currentPage = PAGE_NAVIGATION.find(([view]) => view === activeView) ?? PAGE_NAVIGATION[0];
+
   return (
     <header id="Windowheader" className="application-topbar">
       <button className={`application-menu-trigger ${sidebarOpen ? "open" : ""}`} type="button" aria-label={sidebarOpen ? "Collapse navigation menu" : "Open navigation menu"} aria-expanded={sidebarOpen} onClick={toggleSidebar}>
@@ -976,12 +1001,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    applyLocation();
     window.addEventListener("popstate", applyLocation);
-    const timer = window.setTimeout(applyLocation, 0);
-    return () => {
-      window.removeEventListener("popstate", applyLocation);
-      window.clearTimeout(timer);
-    };
+    return () => window.removeEventListener("popstate", applyLocation);
   }, [applyLocation]);
 
   const updateLocation = useCallback((
@@ -1015,9 +1037,7 @@ export default function Home() {
   }, [updateLocation]);
 
   useEffect(() => {
-    if (!access || canOpenView(access, view)) return;
-    const timer = window.setTimeout(() => navigate("markets"), 0);
-    return () => window.clearTimeout(timer);
+    if (access && !canOpenView(access, view)) navigate("markets");
   }, [access, navigate, view]);
 
   if (!isLoaded) return <AccessLoadingScreen />;
@@ -1045,56 +1065,6 @@ export default function Home() {
         </div>
       </div>
       {conditionOpen && <ConditionModal close={() => setConditionOpen(false)} />}
-    </div>
-  );
-}
-
-function MasterSignalsView() {
-  const [signals, setSignals] = useState<MasterSignalRecord[]>([]);
-  const [notice, setNotice] = useState("Loading Master Signals…");
-
-  const load = useCallback(async () => {
-    const response = await fetch("/api/master-signals", { cache: "no-store" });
-    if (!response.ok) {
-      setNotice("Unable to load Master Signals.");
-      return;
-    }
-    const payload = await response.json() as { managed: MasterSignalRecord[] };
-    setSignals(payload.managed);
-    setNotice(payload.managed.length ? "" : "No Master Signals created yet.");
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
-  }, [load]);
-
-  async function updateStatus(id: number, status: MasterSignalRecord["status"]) {
-    const response = await fetch(`/api/master-signals/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (response.ok) void load();
-    else setNotice("Unable to update that Master Signal.");
-  }
-
-  return (
-    <div className="screen inner-screen signals-screen">
-      <header className="list-header"><div><h1>View / Edit Master Signals</h1><p>Publish and manage the authoritative strategies available in the Signal Library.</p></div></header>
-      <main className="signals-panel surface master-library-panel">
-        <div className="signals-toolbar"><div className="toolbar-title"><span className="toolbar-icon">✦</span><div><h2>Your Master Signals <b>{signals.length}</b></h2><p>Changes propagate to all linked copies.</p></div></div></div>
-        {notice && <p className="master-library-notice" role="status">{notice}</p>}
-        <div className="master-library-list">{signals.map((signal) => (
-          <article className="master-library-card" key={signal.id}>
-            <div><span className="row-icon">✦</span><div><h2>{signal.name}</h2><p>{signal.description || "No description provided."}</p><small>Version {signal.version} · {signal.status}</small></div></div>
-            <div className="master-status-actions">
-              {signal.status === "published" ? <button type="button" onClick={() => void updateStatus(signal.id, "paused")}>Pause</button> : <button type="button" onClick={() => void updateStatus(signal.id, "published")}>Publish</button>}
-              {signal.status !== "archived" && <button type="button" onClick={() => void updateStatus(signal.id, "archived")}>Archive</button>}
-            </div>
-          </article>
-        ))}</div>
-      </main>
     </div>
   );
 }

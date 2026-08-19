@@ -14,7 +14,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    ".local/skills/mockup-sandbox/templates/**",
   ]),
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

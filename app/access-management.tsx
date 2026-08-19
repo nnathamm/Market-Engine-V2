@@ -43,8 +43,7 @@ export function AccessManagementPanel() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(timer);
+    void load();
   }, [load]);
 
   async function save(user: ManagedUser, next: Partial<Pick<ManagedUser, "role" | "permissions">>) {
