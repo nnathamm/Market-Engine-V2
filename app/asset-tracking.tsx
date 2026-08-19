@@ -298,7 +298,7 @@ function TokenIntelligence({ token, priceLoading, onLinkMarketData }: { token: T
   const missingPriceSource = !token.price_source;
   return (
     <aside className="tracking-intelligence">
-      <div className="tracking-selected-identity">
+      <div id="selected-token-identity" className="tracking-selected-identity">
         {token.image
           ? <img src={token.image} alt={token.symbol} width={28} height={28} className="tracking-coin-img" />
           : <AssetBadge label={token.symbol} tone={token.tone} />}
