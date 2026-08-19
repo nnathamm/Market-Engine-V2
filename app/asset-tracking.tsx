@@ -334,7 +334,7 @@ function TokenIntelligence({ token, priceLoading, onLinkMarketData }: { token: T
           : <button className="tracking-primary" type="button" disabled>Open Market</button>}
         <button type="button">View Contract ↗</button>
       </div>
-      <div className="tracking-facts">
+      <div id="token-facts-grid" className="tracking-facts">
         <span><small>Networks</small><strong>{token.networks}</strong></span>
         <span><small>Pair</small><strong>{token.pair}</strong></span>
         {token.rank != null && <span><small>Rank</small><strong>#{token.rank}</strong></span>}
