@@ -99,8 +99,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             color: "#c17cff",
           },
           footerPages: {
-            backgroundColor: "#091421",
-            color: "#8794a7",
+            display: "none",
           },
         },
       }}

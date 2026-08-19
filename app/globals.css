@@ -78,6 +78,10 @@ nextjs-portal { display: none !important; }
   background: #091421 !important;
 }
 
+.cl-footerPages {
+  display: none !important;
+}
+
 .cl-signUp-start,
 .cl-signIn-start {
   background: #091421 !important;
