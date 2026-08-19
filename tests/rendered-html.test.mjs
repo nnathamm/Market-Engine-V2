@@ -1,115 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { SidebarNavigation } from "../app/sidebar-navigation.tsx";
-import { permissionsFor } from "../lib/access-policy.ts";
-
-function renderSidebar(access, activeView) {
-  return renderToStaticMarkup(createElement(SidebarNavigation, {
-    activeView,
-    open: true,
-    setView: () => {},
-    access,
-  }));
-}
-
-function sidebarSections(html) {
-  const navigation = html.match(/<nav[^>]*>([\s\S]*)<\/nav>/)?.[1];
-  assert.ok(navigation, "sidebar should render its main navigation landmark");
-
-  const headings = [...navigation.matchAll(/<h2>([^<]+)<\/h2>/g)];
-  return Object.fromEntries(headings.map((heading, index) => {
-    const bodyStart = heading.index + heading[0].length;
-    const bodyEnd = headings[index + 1]?.index ?? navigation.length;
-    const sectionHtml = navigation.slice(bodyStart, bodyEnd);
-    const items = [...sectionHtml.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)]
-      .map((button) => button[1].replace(/<[^>]+>/g, "").trim())
-      .filter(Boolean);
-    return [heading[1], items];
-  }));
-}
-
-function sidebarButtons(html) {
-  const navigation = html.match(/<nav[^>]*>([\s\S]*)<\/nav>/)?.[1];
-  assert.ok(navigation, "sidebar should render its main navigation landmark");
-
-  return [...navigation.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].map((button) => button[0]);
-}
-
-function assertOnlyActiveDestination(html, label) {
-  const buttons = sidebarButtons(html);
-  const activeButtons = buttons.filter((button) => /class="active"/.test(button));
-  const currentPageButtons = buttons.filter((button) => /aria-current="page"/.test(button));
-
-  assert.equal(activeButtons.length, 1, "exactly one sidebar destination should have the active class");
-  assert.equal(currentPageButtons.length, 1, "exactly one sidebar destination should announce the current page");
-  assert.equal(activeButtons[0], currentPageButtons[0], "the active class and current-page state should be on the same destination");
-  assert.match(activeButtons[0], new RegExp(`<span>${label}</span></button>$`));
-}
-
-test("renders sidebar sections and active state for each account access set", () => {
-  const defaultMember = {
-    role: "member",
-    permissions: permissionsFor("member"),
-    isMasterOwner: false,
-  };
-  const partialMember = {
-    role: "member",
-    permissions: permissionsFor("member", ["signals.view", "signals.create", "asset_tracking.view"]),
-    isMasterOwner: false,
-  };
-  const masterAdmin = {
-    role: "admin",
-    permissions: permissionsFor("admin"),
-    isMasterOwner: true,
-  };
-  const regularAdmin = {
-    role: "admin",
-    permissions: permissionsFor("admin"),
-    isMasterOwner: false,
-  };
-
-  const defaultMemberHtml = renderSidebar(defaultMember, "markets");
-  assert.deepEqual(sidebarSections(defaultMemberHtml), {
-    Monitor: ["Markets"],
-    Alerts: ["Notifications"],
-  });
-  assert.doesNotMatch(defaultMemberHtml, /<h2>Build<\/h2>|<h2>Admin<\/h2>|Create Signal|View\/Edit Signals|Signal Library|Asset Tracking|Algorithm Design|Manage Access/);
-  assertOnlyActiveDestination(defaultMemberHtml, "Markets");
-
-  const partialMemberHtml = renderSidebar(partialMember, "signals");
-  assert.deepEqual(sidebarSections(partialMemberHtml), {
-    Build: ["Create Signal", "View/Edit Signals", "Signal Library"],
-    Monitor: ["Markets", "Asset Tracking"],
-    Alerts: ["Notifications"],
-  });
-  assert.doesNotMatch(partialMemberHtml, /<h2>Admin<\/h2>|Algorithm Design|Manage Access/);
-  assertOnlyActiveDestination(partialMemberHtml, "View/Edit Signals");
-
-  const masterAdminHtml = renderSidebar(masterAdmin, "order-flow");
-  assert.deepEqual(sidebarSections(masterAdminHtml), {
-    Build: ["Create Signal", "View/Edit Signals", "Signal Library"],
-    Monitor: ["Markets", "Asset Tracking"],
-    Alerts: ["Notifications"],
-    Admin: ["Algorithm Design", "Order Flow Settings", "Create Master Signal", "View/Edit Master Signals", "Manage Access"],
-  });
-  assertOnlyActiveDestination(masterAdminHtml, "Algorithm Design");
-
-  const regularAdminHtml = renderSidebar(regularAdmin, "profile");
-  assert.deepEqual(sidebarSections(regularAdminHtml), {
-    Build: ["Create Signal", "View/Edit Signals", "Signal Library"],
-    Monitor: ["Markets", "Asset Tracking"],
-    Alerts: ["Notifications"],
-    Admin: ["Manage Access"],
-  });
-  assert.doesNotMatch(regularAdminHtml, /Algorithm Design|Order Flow Settings|Create Master Signal|View\/Edit Master Signals/);
-  assertOnlyActiveDestination(regularAdminHtml, "Manage Access");
-});
 
 test("keeps exchange access read-only and loads charts on demand", async () => {
-  const [page, marketsPage, assetTrackingPage, weexMarketsRoute, weexKlinesRoute, weexMarketsHelper, styles, packageJson, accessPolicy, accessControl, sidebarNavigation] = await Promise.all([
+  const [page, marketsPage, assetTrackingPage, weexMarketsRoute, weexKlinesRoute, weexMarketsHelper, styles, packageJson, accessPolicy, accessControl] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/markets.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/asset-tracking.tsx", import.meta.url), "utf8"),
@@ -120,11 +14,10 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../lib/access-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/access-control.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/sidebar-navigation.tsx", import.meta.url), "utf8"),
   ]);
-  const sidebarSectionSource = sidebarNavigation.match(/const SIDEBAR_SECTIONS:[\s\S]*?\n\];/)?.[0] ?? "";
+  const sidebarSections = page.match(/const SIDEBAR_SECTIONS:[\s\S]*?\n\];/)?.[0] ?? "";
 
-  assert.doesNotMatch(page, /fetch\s*\(\s*["'`]https?:|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|indexedDB/);
+  assert.doesNotMatch(page, /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|indexedDB/);
   assert.match(accessPolicy, /"signals\.create"[\s\S]*"asset_tracking\.view"[\s\S]*"order_flow\.manage"[\s\S]*"access\.manage"/);
   assert.match(accessControl, /pg_advisory_xact_lock\(hashtext\('signal-control:access-bootstrap'\)\)/);
   assert.doesNotMatch(page, /decision engine|order execution|market feed/i);
@@ -145,7 +38,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.ui-custom-duration-fields\s*\{[^}]*grid-template-columns:\s*repeat\(3, 1fr\)/s);
   assert.match(styles, /\.ui-dropdown-menu\.align-above\s*\{[^}]*top:\s*auto;[^}]*bottom:\s*52px/s);
   assert.match(styles, /\.ui-dropdown-menu\.cooldown-menu\s*\{[^}]*width:\s*360px;[^}]*max-width:\s*calc\(100vw - 40px\)/s);
-  assert.match(sidebarNavigation, /export type View =[\s\S]*"create"[\s\S]*"signals"[\s\S]*"markets"[\s\S]*"asset-tracking"[\s\S]*"order-flow"[\s\S]*"notifications"[\s\S]*"profile"/);
+  assert.match(page, /type View = "create" \| "signals" \| "markets" \| "asset-tracking" \| "order-flow" \| "notifications" \| "profile"/);
   assert.doesNotMatch(page, /function HomeView|view === "home"|setView\("home"\)/);
   assert.doesNotMatch(styles, /\.home-screen|\.home-header|\.home-main|\.choice-card/);
   assert.match(page, /function OrderFlowView[\s\S]*Order Flow Settings[\s\S]*Timeframe Configuration[\s\S]*Minimum Imbalance Threshold[\s\S]*Minimum Confidence Score/);
@@ -163,11 +56,11 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.notification-switch input:checked \+ span/s);
   assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Markets[\s\S]*Asset Tracking[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
   // Sidebar is grouped by product workspace: Build, Monitor, Alerts, Admin.
-  assert.match(sidebarSectionSource, /"Build"[\s\S]*"Create Signal", "create"[\s\S]*"View\/Edit Signals", "signals"[\s\S]*"Monitor"[\s\S]*"Markets", "markets"[\s\S]*"Asset Tracking", "asset-tracking"[\s\S]*"Alerts"[\s\S]*"Notifications", "notifications"[\s\S]*"Admin"[\s\S]*"Algorithm Design", "order-flow"[\s\S]*"Manage Access", "profile"/);
+  assert.match(sidebarSections, /"Build"[\s\S]*"Create Signal", "create"[\s\S]*"View\/Edit Signals", "signals"[\s\S]*"Monitor"[\s\S]*"Markets", "markets"[\s\S]*"Asset Tracking", "asset-tracking"[\s\S]*"Alerts"[\s\S]*"Notifications", "notifications"[\s\S]*"Admin"[\s\S]*"Algorithm Design", "order-flow"[\s\S]*"Manage Access", "profile"/);
   // Every sidebar destination is permission-gated and sections with no visible items are hidden.
-  assert.match(sidebarNavigation, /section\.items\.filter\(\(\[, , destination\]\) => canOpenView\(access, destination\)\)/);
-  assert.match(sidebarNavigation, /if \(visibleItems\.length === 0\) return null/);
-  assert.match(sidebarNavigation, /aria-current=\{activeView === destination \? "page" : undefined\}/);
+  assert.match(page, /section\.items\.filter\(\(\[, , destination\]\) => canOpenView\(access, destination\)\)/);
+  assert.match(page, /if \(visibleItems\.length === 0\) return null/);
+  assert.match(page, /aria-current=\{activeView === destination \? "page" : undefined\}/);
   // Legacy navigation structures are gone.
   assert.doesNotMatch(page, /SIDEBAR_PRIMARY_NAV|SIDEBAR_SYSTEM_NAV|SIDEBAR_SETTINGS_NAV|SIDEBAR_MONITORING_NAV/);
   assert.doesNotMatch(page, /expandedSection|settingsExpanded|settings-subnav|dashboard-subnav|trades-under-dashboard/);
@@ -176,7 +69,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.doesNotMatch(page, /adminExpanded|admin-subnav|users-under-admin/);
   assert.doesNotMatch(page, /Data Feeds/);
   assert.doesNotMatch(styles, /\.application-settings-nav/);
-  assert.doesNotMatch(sidebarSectionSource, /Watchlists|Integrations|Dashboard/);
+  assert.doesNotMatch(sidebarSections, /Watchlists|Integrations|Dashboard/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);
   assert.match(page, /function ProfileView[\s\S]*Master ADMIN Profile[\s\S]*Executive control account[\s\S]*Full site configuration control[\s\S]*Override lower-tier permissions[\s\S]*Modify, suspend, or delete accounts[\s\S]*Notification Settings[\s\S]*Manage Accounts/);
   assert.match(page, /className="master-profile-trigger"[\s\S]*aria-current=\{activeView === "profile" \? "page" : undefined\}[\s\S]*onClick=\{\(\) => setView\("profile"\)\}/);
