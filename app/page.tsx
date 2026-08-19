@@ -43,6 +43,10 @@ const TIMEFRAME_OPTIONS: DropdownOption[] = [
 ];
 
 const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
+type SidebarIconName =
+  | "dashboard" | "signals" | "trades" | "markets" | "users" | "alerts" | "integrations"
+  | "general" | "trading" | "risk" | "order-flow" | "logs" | "asset-tracking" | "watchlists"
+  | "notifications" | "create-signal" | "view-signals";
 
 const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
   ["create", "＋", "Create Signal", "Build a new trading signal"],
@@ -54,32 +58,60 @@ const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = 
   ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],
 ];
 
-const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
-  ["⌂", "Dashboard", null],
-  ["◇", "Signals", "signals"],
-  ["▣", "Trades", null],
+const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
+  ["dashboard", "Dashboard", null],
+  ["signals", "Signals", "signals"],
+  ["trades", "Trades", null],
 ];
 
-const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
-  ["◉", "Markets", "markets"],
-  ["♧", "Users", null],
-  ["♢", "Alerts", null],
-  ["⌘", "Integrations", null],
+const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
+  ["markets", "Markets", "markets"],
+  ["users", "Users", null],
+  ["alerts", "Alerts", null],
+  ["integrations", "Integrations", null],
 ];
 
-const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [string, View | null]> = [
-  ["General", null],
-  ["Trading", null],
-  ["Risk", null],
-  ["Order Flow", "order-flow"],
-  ["Logs", null],
+const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
+  ["general", "General", null],
+  ["trading", "Trading", null],
+  ["risk", "Risk", null],
+  ["order-flow", "Order Flow", "order-flow"],
+  ["logs", "Logs", null],
 ];
 
-const SIDEBAR_MONITORING_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
-  ["◎", "Asset Tracking", "asset-tracking"],
-  ["▱", "Watchlists", null],
-  ["♢", "Notifications", "notifications"],
+const SIDEBAR_MONITORING_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
+  ["asset-tracking", "Asset Tracking", "asset-tracking"],
+  ["watchlists", "Watchlists", null],
+  ["notifications", "Notifications", "notifications"],
 ];
+
+const SIDEBAR_ICON_PATHS: Record<SidebarIconName, string> = {
+  dashboard: "M3 3h4v4H3zM13 3h4v4h-4zM3 13h4v4H3zM13 13h4v4h-4z",
+  signals: "M3 12a9 9 0 0 1 18 0M6 12a6 6 0 0 1 12 0M9 12a3 3 0 0 1 6 0M12 12h.01",
+  trades: "M4 7h12m0 0-3-3m3 3-3 3M20 17H8m0 0 3-3m-3 3 3 3",
+  markets: "M4 17V9m5 8V5m5 12v-4m5 4V3M2 20h20",
+  users: "M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm5-7a4 4 0 0 1 0 7.75",
+  alerts: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
+  integrations: "M8 12h8M12 8v8M7 3h3v4H7a3 3 0 0 0 0 6h3v4H7a7 7 0 0 1 0-14Zm10 0h-3v4h3a3 3 0 0 1 0 6h-3v4h3a7 7 0 0 0 0-14Z",
+  general: "M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-5 4v4",
+  trading: "M5 7h14M5 17h14M5 7l3-3m-3 3 3 3m11 7-3-3m3 3-3 3",
+  risk: "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z",
+  "order-flow": "M4 18h4v-6h4V6h4V3h4",
+  logs: "M6 3h8l4 4v14H6zM14 3v5h5M9 12h6M9 16h6",
+  "asset-tracking": "M12 5c-5 0-9 7-9 7s4 7 9 7 9-7 9-7-4-7-9-7Zm0 10a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z",
+  watchlists: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3.1 9.6l6.1-.9L12 3Z",
+  notifications: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
+  "create-signal": "M12 5v14M5 12h14",
+  "view-signals": "M5 6h14M5 12h14M5 18h14",
+};
+
+function SidebarIcon({ name }: { name: SidebarIconName }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={SIDEBAR_ICON_PATHS[name]} />
+    </svg>
+  );
+}
 
 function cooldownSummaryLabel(value: string) {
   if (!value.startsWith("custom:")) return "not set";
@@ -309,15 +341,15 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
                 key={label}
                 onClick={() => selectPrimary(label, destination)}
               >
-                <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
+                <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}
               </button>
               {expandedSection === "signals" && label === "Signals" && (
                 <div className="application-sidebar-subnav">
                   <button id="create-signal-under-signals" className={activeView === "create" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
-                    <span aria-hidden="true">＋</span><span>Create Signal</span>
+                    <span className="application-sidebar-subnav-icon"><SidebarIcon name="create-signal" /></span><span>Create Signal</span>
                   </button>
                   <button id="view-edit-signals-nav-button" className={activeView === "signals" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("signals")}>
-                    <span aria-hidden="true">◇</span><span>View/Edit Signals</span>
+                    <span className="application-sidebar-subnav-icon"><SidebarIcon name="view-signals" /></span><span>View/Edit Signals</span>
                   </button>
                 </div>
               )}
@@ -326,14 +358,14 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
 
           <h2>System</h2>
           {SIDEBAR_SYSTEM_NAV.map(([icon, label, destination]) => (
-            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}><span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}</button>
+            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}><span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}</button>
           ))}
 
-          <div className="application-settings-label"><span className="application-sidebar-icon" aria-hidden="true">⌘</span><strong>Settings</strong></div>
+          <div className="application-settings-label"><span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong></div>
           <div className="application-settings-nav">
-            {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
+            {SIDEBAR_SETTINGS_NAV.map(([icon, label, destination]) => (
               <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-                <i aria-hidden="true" />{label}{!destination ? <small>Soon</small> : null}
+                <span className="application-settings-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}
               </button>
             ))}
           </div>
@@ -341,7 +373,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
           <h2>Monitoring</h2>
           {SIDEBAR_MONITORING_NAV.map(([icon, label, destination]) => (
             <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-              <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
+              <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}
             </button>
           ))}
         </nav>
