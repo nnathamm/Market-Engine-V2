@@ -269,7 +269,7 @@ button { color: inherit; }
 .markets-connection > span { min-height: 34px; padding: 0 13px; display: flex; align-items: center; gap: 8px; color: #58e4b4; border: 1px solid #286557; border-radius: 18px; background: rgba(14, 75, 61, .2); font-size: 12px; font-weight: 650; }
 .markets-connection i { width: 8px; height: 8px; border-radius: 50%; background: #3fe4aa; box-shadow: 0 0 9px rgba(63, 228, 170, .55); }
 .markets-connection small { color: #778599; font-size: 10px; }
-.markets-layout { flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(340px, 390px) minmax(600px, 1fr); align-items: stretch; gap: 17px; }
+.markets-layout { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: minmax(340px, 390px) minmax(600px, 1fr); align-items: start; align-content: start; gap: 17px; padding-bottom: 30px; }
 .market-browser-panel { min-height: 690px; overflow: hidden; display: grid; grid-template-rows: auto auto auto auto minmax(330px, 1fr) auto; }
 .market-browser-panel > header { min-height: 76px; padding: 17px 18px 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #202e40; }
 .market-browser-panel h2 { font-size: 18px; }
@@ -586,9 +586,8 @@ button { color: inherit; }
 .tracking-header-actions { padding-top: 40px; display: flex; gap: 11px; }
 .tracking-header-actions button, .tracking-detail-actions button, .tracking-cancel, .tracking-dialog footer button { height: 41px; padding: 0 16px; color: #e8ebf0; border: 1px solid #2a384b; border-radius: 7px; background: #0b1421; cursor: pointer; font-size: 12px; font-weight: 600; }
 .tracking-primary { color: #fff !important; border-color: #8b3de0 !important; background: linear-gradient(110deg, #7130cd, #923aea) !important; box-shadow: 0 7px 20px rgba(98, 32, 173, .18); }
-.tracking-workspace { flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(710px, 1fr) 355px; align-items: stretch; gap: 17px; }
+.tracking-workspace { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 30px; display: grid; grid-template-columns: minmax(710px, 1fr) 355px; align-items: start; gap: 17px; align-content: start; }
 .tracking-main-panel, .tracking-intelligence { min-width: 0; overflow: hidden; border: 1px solid #202e40; border-radius: 8px; background: linear-gradient(145deg, rgba(9, 20, 34, .92), rgba(5, 14, 25, .92)); box-shadow: inset 0 0 40px rgba(29, 47, 73, .04); }
-.tracking-main-panel { display: flex; flex-direction: column; }
 .tracking-tabs { height: 58px; display: flex; align-items: end; gap: 18px; border-bottom: 1px solid #1c293b; }
 .tracking-tabs button { position: relative; height: 58px; padding: 0 19px; color: #8c98aa; border: 0; background: transparent; cursor: pointer; font-size: 12px; }
 .tracking-tabs button.active { color: #ad55fa; font-weight: 650; }
@@ -601,7 +600,7 @@ button { color: inherit; }
 .tracking-toolbar > div { display: flex; gap: 8px; }
 .tracking-toolbar > div button { height: 40px; padding: 0 12px; color: #b7c1cf; border: 1px solid #28364a; border-radius: 7px; background: #0b1523; cursor: pointer; font-size: 10px; }
 .tracking-toolbar > div button.tracking-view-toggle { width: 40px; padding: 0; color: #b15cff; }
-.tracking-table-wrap { min-width: 0; flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #60388a #081421; }
+.tracking-table-wrap { min-width: 0; max-height: calc(100vh - 420px); overflow-x: auto; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #60388a #081421; }
 .tracking-table { min-width: 850px; }
 .tracking-table-head, .tracking-table-row { display: grid; grid-template-columns: minmax(245px, 2fr) minmax(105px, .8fr) minmax(105px, .85fr) minmax(96px, .75fr) minmax(92px, .7fr) 92px; align-items: center; column-gap: 10px; }
 .tracking-table-head { height: 47px; padding: 0 16px; color: #8390a3; border-bottom: 1px solid #1e2b3d; text-transform: uppercase; font-size: 9px; font-weight: 650; letter-spacing: .035em; }
@@ -649,7 +648,7 @@ button { color: inherit; }
 .tracking-table-footer button { height: 33px; min-width: 33px; padding: 0 9px; color: #8d9aac; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 10px; }
 .tracking-table-footer button.active { color: #fff; border-color: #7441ae; background: linear-gradient(145deg, #6f2bc1, #321963); }
 .tracking-table-footer > button { justify-self: end; border-color: #253348; background: #0c1624; }
-.tracking-intelligence { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
+.tracking-intelligence { align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
 .tracking-intelligence > header { height: 49px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; color: #9facbd; border-bottom: 1px solid #202d3e; text-transform: uppercase; font-size: 9px; font-weight: 650; letter-spacing: .04em; }
 .tracking-intelligence > header button { color: #9facbd; border: 0; background: transparent; cursor: pointer; font-size: 19px; }
 .tracking-selected-identity { min-height: 83px; padding: 13px 13px; display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
