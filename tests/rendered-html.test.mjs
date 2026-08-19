@@ -69,7 +69,8 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /\{settingsExpanded && \([\s\S]*className="application-sidebar-subnav settings-subnav"[\s\S]*id="settings-subnav"/);
   assert.doesNotMatch(styles, /\.application-settings-nav/);
   assert.doesNotMatch(page, /SIDEBAR_SETTINGS_NAV\.map\(\(\[icon, label, destination\]\)/);
-  assert.match(page, /const SIDEBAR_MONITORING_NAV:[\s\S]*Asset Tracking[\s\S]*Watchlists[\s\S]*Notifications/);
+  assert.match(page, /const SIDEBAR_MONITORING_NAV:[\s\S]*Asset Tracking[\s\S]*Notifications/);
+  assert.doesNotMatch(page.match(/const SIDEBAR_MONITORING_NAV:[\s\S]*?\];/)?.[0] ?? "", /Watchlists/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);
   assert.match(page, /function ProfileView[\s\S]*Master ADMIN Profile[\s\S]*Executive control account[\s\S]*Full site configuration control[\s\S]*Override lower-tier permissions[\s\S]*Modify, suspend, or delete accounts[\s\S]*Notification Settings[\s\S]*Manage Accounts/);
   assert.match(page, /className="master-profile-trigger"[\s\S]*aria-current=\{activeView === "profile" \? "page" : undefined\}[\s\S]*onClick=\{\(\) => setView\("profile"\)\}/);

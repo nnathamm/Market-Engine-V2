@@ -80,7 +80,6 @@ const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [string, View | null]> = [
 
 const SIDEBAR_MONITORING_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
   ["asset-tracking", "Asset Tracking", "asset-tracking"],
-  ["watchlists", "Watchlists", null],
   ["notifications", "Notifications", "notifications"],
 ];
 
