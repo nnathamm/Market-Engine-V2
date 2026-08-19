@@ -1231,7 +1231,7 @@ export default function Home() {
             {viewAllowed && view === "create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} />}
             {viewAllowed && view === "signals" && <SignalsView />}
             {viewAllowed && view === "signal-library" && <MasterSignalLibraryView />}
-            {viewAllowed && view === "master-create" && <MasterSignalBuilderView />}
+            {viewAllowed && view === "master-create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} master />}
             {viewAllowed && view === "master-signals" && <MasterSignalsView />}
             {viewAllowed && view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView request={marketRequest} onRequestChange={updateMarketRequest} onBackToMonitor={() => navigate("asset-tracking")} /></Suspense>}
             {viewAllowed && view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView onOpenInMarkets={openTokenInMarkets} /></Suspense>}
