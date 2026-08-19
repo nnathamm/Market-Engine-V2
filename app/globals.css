@@ -575,10 +575,8 @@ button { color: inherit; }
 
 /* Asset tracking monitor */
 .tracking-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; color: #f4f6fa; background: radial-gradient(circle at 54% 24%, rgba(20, 36, 62, .17), transparent 43%), #050d18; }
-.tracking-scroll-area { flex: 1; min-height: 0; overflow-y: auto; padding: 21px 22px 0; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
-.tracking-scroll-area::-webkit-scrollbar { width: 8px; }
-.tracking-scroll-area::-webkit-scrollbar-track { background: #07111e; }
-.tracking-scroll-area::-webkit-scrollbar-thumb { border: 2px solid #07111e; border-radius: 9px; background: #3a3a3a; }
+.tracking-scroll-area { flex: 1; min-height: 0; overflow-y: auto; padding: 21px 22px 0; scrollbar-width: none; }
+.tracking-scroll-area::-webkit-scrollbar { display: none; }
 .tracking-page button, .tracking-page input, .tracking-page select, .tracking-page textarea { font: inherit; }
 .tracking-page-header { flex-shrink: 0; position: sticky; top: 0; z-index: 10; min-height: 148px; display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; background: #050d18; }
 .tracking-breadcrumb { margin: 0 0 20px !important; display: flex; align-items: center; gap: 11px; color: #78869a !important; font-size: 12px !important; }
