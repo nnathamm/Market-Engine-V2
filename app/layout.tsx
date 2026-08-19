@@ -36,6 +36,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <ClerkProvider
       publishableKey={process.env.VITE_CLERK_PUBLISHABLE_KEY}
+      localization={{
+        signIn: {
+          start: {
+            title: "Sign in to StopLoss",
+          },
+        },
+      }}
       appearance={{
         elements: {
           modalContent: {
@@ -63,6 +70,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             border: "1px solid rgba(255, 255, 255, .278)",
             color: "#f7f8fb",
           },
+          formFieldLabel: {
+            color: "#ffffff",
+          },
           formButtonPrimary: {
             background: "linear-gradient(135deg, #a550ff, #6f36da)",
             color: "#ffffff",
@@ -73,11 +83,22 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           dividerText: {
             color: "#8794a7",
           },
+          modalCloseButton: {
+            color: "#a8b4c6",
+          },
+          footer: {
+            backgroundColor: "#091421",
+            borderTop: "1px solid #273952",
+          },
+          footerActionText: {
+            color: "#a8b4c6",
+          },
           footerActionLink: {
             color: "#c17cff",
           },
-          modalCloseButton: {
-            color: "#a8b4c6",
+          footerPages: {
+            backgroundColor: "#091421",
+            color: "#8794a7",
           },
         },
       }}
