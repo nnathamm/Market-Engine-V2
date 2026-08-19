@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { runMigrations } from "@/lib/db-migrate";
 
+
 export async function GET() {
   try {
     await runMigrations();
@@ -28,12 +29,14 @@ export async function POST(request: Request) {
       coingecko_id, image_url, full_name,
       cached_price, cached_change_24h, cached_rank,
       price_source, contract_address, chain, binance_pair, pair_address,
+      wallet_source,
     } = (await request.json()) as {
       symbol: string; label?: string;
       coingecko_id?: string; image_url?: string; full_name?: string;
       cached_price?: number; cached_change_24h?: number; cached_rank?: number;
       price_source?: string; contract_address?: string; chain?: string;
       binance_pair?: string; pair_address?: string;
+      wallet_source?: string;
     };
 
     const clean = String(symbol ?? "").trim().toUpperCase();
@@ -44,8 +47,8 @@ export async function POST(request: Request) {
          (symbol, label, coingecko_id, image_url, full_name,
           cached_price, cached_change_24h, cached_rank,
           price_source, contract_address, chain, binance_pair, pair_address,
-          data_updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
+          wallet_source, data_updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
        ON CONFLICT (symbol) DO UPDATE SET
          label             = COALESCE(EXCLUDED.label,             tracked_tokens.label),
          coingecko_id      = COALESCE(EXCLUDED.coingecko_id,      tracked_tokens.coingecko_id),
@@ -59,6 +62,7 @@ export async function POST(request: Request) {
          chain             = COALESCE(EXCLUDED.chain,             tracked_tokens.chain),
          binance_pair      = COALESCE(EXCLUDED.binance_pair,      tracked_tokens.binance_pair),
          pair_address      = COALESCE(EXCLUDED.pair_address,      tracked_tokens.pair_address),
+         wallet_source     = COALESCE(tracked_tokens.wallet_source, EXCLUDED.wallet_source),
          data_updated_at   = NOW()
        RETURNING *`,
       [
@@ -75,6 +79,7 @@ export async function POST(request: Request) {
         chain ?? null,
         binance_pair ?? null,
         pair_address ?? null,
+        wallet_source ?? null,
       ]
     );
     return NextResponse.json(rows[0], { status: 201 });

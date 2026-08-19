@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { portfolioService } from "@/lib/wallet-tracker/instance";
+import { removeTokensForWallet } from "@/lib/token-cleanup";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -30,6 +31,9 @@ export async function PATCH(request: Request, { params }: Params) {
 export async function DELETE(_req: Request, { params }: Params) {
   const { id } = await params;
   try {
+    // Remove tokens that were auto-imported exclusively from this wallet
+    // before removing the wallet so we can still query its peer holdings.
+    await removeTokensForWallet(id);
     const removed = await portfolioService.store.remove(id);
     return NextResponse.json({ ok: removed }, { status: removed ? 200 : 404 });
   } catch (err) {

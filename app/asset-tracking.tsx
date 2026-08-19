@@ -691,6 +691,7 @@ export default function AssetTrackingView() {
               image_url: h.logo ?? null,
               contract_address: h.contractAddress ?? null,
               chain: networkToChain(h.network),
+              wallet_source: newWallet.id,
             }),
           })
         )
@@ -740,9 +741,10 @@ export default function AssetTrackingView() {
 
   const removeWallet = useCallback(async (portfolioId: string) => {
     await fetch(`/api/wallet-portfolio/${portfolioId}`, { method: "DELETE" });
-    await refreshWallets();
+    // Refresh both lists: the server removes wallet-sourced tokens during DELETE
+    await Promise.all([refreshWallets(), refreshTokens()]);
     setOpenMenu(null);
-  }, [refreshWallets]);
+  }, [refreshWallets, refreshTokens]);
 
   const refreshWallet = useCallback(async (portfolioId: string) => {
     setOpenMenu(null);
@@ -793,6 +795,7 @@ export default function AssetTrackingView() {
               image_url: h.logo ?? null,
               contract_address: h.contractAddress ?? null,
               chain: networkToChain(h.network),
+              wallet_source: portfolioId,
             }),
           })
         )

@@ -13,7 +13,8 @@ export async function runMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS contract_address TEXT,
         ADD COLUMN IF NOT EXISTS chain            TEXT,
         ADD COLUMN IF NOT EXISTS binance_pair     TEXT,
-        ADD COLUMN IF NOT EXISTS pair_address     TEXT
+        ADD COLUMN IF NOT EXISTS pair_address     TEXT,
+        ADD COLUMN IF NOT EXISTS wallet_source    TEXT
     `);
     await pool.query(`
       UPDATE tracked_tokens
