@@ -15,7 +15,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
     readFile(new URL("../lib/access-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/access-control.ts", import.meta.url), "utf8"),
   ]);
-  const systemNavigation = page.match(/const SIDEBAR_SYSTEM_NAV:[\s\S]*?\];/)?.[0] ?? "";
+  const sidebarSections = page.match(/const SIDEBAR_SECTIONS:[\s\S]*?\n\];/)?.[0] ?? "";
 
   assert.doesNotMatch(page, /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|indexedDB/);
   assert.match(accessPolicy, /"signals\.create"[\s\S]*"asset_tracking\.view"[\s\S]*"order_flow\.manage"[\s\S]*"access\.manage"/);
@@ -55,31 +55,21 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.notifications-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.notification-switch input:checked \+ span/s);
   assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Markets[\s\S]*Asset Tracking[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
-  assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Signals/);
-  assert.match(page, /id=\{label === "Signals" \? "signals-nav-button" : label === "Dashboard" \? "dashboard-nav-button" : undefined\}/);
-  assert.match(page, /aria-expanded=\{label === "Dashboard" \? expandedSection === "dashboard" : label === "Signals" \? expandedSection === "signals" : undefined\}/);
-  assert.match(page, /disabled=\{!destination && label !== "Dashboard"\}/);
-  assert.match(page, /!\s*destination && label !== "Dashboard" \? <small>Soon<\/small>/);
-  assert.match(page, /id="trades-under-dashboard"[\s\S]*SidebarIcon name="trades"[\s\S]*Trades[\s\S]*Soon/);
+  // Sidebar is grouped by product workspace: Build, Monitor, Alerts, Admin.
+  assert.match(sidebarSections, /"Build"[\s\S]*"Create Signal", "create"[\s\S]*"View\/Edit Signals", "signals"[\s\S]*"Monitor"[\s\S]*"Markets", "markets"[\s\S]*"Asset Tracking", "asset-tracking"[\s\S]*"Alerts"[\s\S]*"Notifications", "notifications"[\s\S]*"Admin"[\s\S]*"Algorithm Design", "order-flow"[\s\S]*"Manage Access", "profile"/);
+  // Every sidebar destination is permission-gated and sections with no visible items are hidden.
+  assert.match(page, /section\.items\.filter\(\(\[, , destination\]\) => canOpenView\(access, destination\)\)/);
+  assert.match(page, /if \(visibleItems\.length === 0\) return null/);
+  assert.match(page, /aria-current=\{activeView === destination \? "page" : undefined\}/);
+  // Legacy navigation structures are gone.
+  assert.doesNotMatch(page, /SIDEBAR_PRIMARY_NAV|SIDEBAR_SYSTEM_NAV|SIDEBAR_SETTINGS_NAV|SIDEBAR_MONITORING_NAV/);
+  assert.doesNotMatch(page, /expandedSection|settingsExpanded|settings-subnav|dashboard-subnav|trades-under-dashboard/);
   assert.doesNotMatch(page, /Backtesting/);
   assert.doesNotMatch(page, /Analytics/);
-  assert.doesNotMatch(page, /id="create-signal-nav-button"/);
-  assert.doesNotMatch(page, /view-edit-signals-from-create/);
-  assert.match(page, /id="view-edit-signals-nav-button"[\s\S]*View\/Edit Signals/);
-  assert.match(page, /id="create-signal-under-signals"[\s\S]*Create Signal/);
-  assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
-  assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["markets", "Markets", "markets"\][\s\S]*\["admin", "Admin", "profile"\][\s\S]*Integrations/);
-  assert.doesNotMatch(systemNavigation, /Users/);
   assert.doesNotMatch(page, /adminExpanded|admin-subnav|users-under-admin/);
-  assert.doesNotMatch(systemNavigation, /Alerts/);
   assert.doesNotMatch(page, /Data Feeds/);
-  assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
-  assert.match(page, /className="application-settings-label"[\s\S]*aria-expanded=\{settingsExpanded\}[\s\S]*aria-controls="settings-subnav"/);
-  assert.match(page, /\{settingsExpanded && \([\s\S]*className="application-sidebar-subnav settings-subnav"[\s\S]*id="settings-subnav"/);
   assert.doesNotMatch(styles, /\.application-settings-nav/);
-  assert.doesNotMatch(page, /SIDEBAR_SETTINGS_NAV\.map\(\(\[icon, label, destination\]\)/);
-  assert.match(page, /const SIDEBAR_MONITORING_NAV:[\s\S]*Asset Tracking[\s\S]*Notifications/);
-  assert.doesNotMatch(page.match(/const SIDEBAR_MONITORING_NAV:[\s\S]*?\];/)?.[0] ?? "", /Watchlists/);
+  assert.doesNotMatch(sidebarSections, /Watchlists|Integrations|Dashboard/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);
   assert.match(page, /function ProfileView[\s\S]*Master ADMIN Profile[\s\S]*Executive control account[\s\S]*Full site configuration control[\s\S]*Override lower-tier permissions[\s\S]*Modify, suspend, or delete accounts[\s\S]*Notification Settings[\s\S]*Manage Accounts/);
   assert.match(page, /className="master-profile-trigger"[\s\S]*aria-current=\{activeView === "profile" \? "page" : undefined\}[\s\S]*onClick=\{\(\) => setView\("profile"\)\}/);
@@ -98,7 +88,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /view === "markets" && <Suspense[\s\S]*<MarketsView request=\{marketRequest\}[\s\S]*onRequestChange=\{updateMarketRequest\}[\s\S]*<\/Suspense>/);
   assert.match(page, /lazy\(\(\) => import\("\.\/asset-tracking"\)\)/);
   assert.match(page, /view === "asset-tracking" && <Suspense[\s\S]*<AssetTrackingView onOpenInMarkets=\{openTokenInMarkets\}[\s\S]*<\/Suspense>/);
-  assert.match(assetTrackingPage, /Monitor Center[\s\S]*Watched Tokens[\s\S]*Watched Wallets/);
+  assert.match(assetTrackingPage, /Asset Tracking[\s\S]*Watched Tokens[\s\S]*Watched Wallets/);
   assert.match(assetTrackingPage, /Add Token[\s\S]*Add Wallet[\s\S]*Import List/);
   assert.doesNotMatch(assetTrackingPage, /Selected Token Intelligence/);
   assert.doesNotMatch(assetTrackingPage, /Selected Wallet Intelligence/);

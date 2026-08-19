@@ -75,28 +75,27 @@ const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = 
   ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],
 ];
 
-const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
-  ["dashboard", "Dashboard", null],
-  ["signals", "Signals", "signals"],
-];
+type SidebarSection = {
+  heading: string;
+  items: ReadonlyArray<readonly [SidebarIconName, string, View]>;
+};
 
-const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
-  ["markets", "Markets", "markets"],
-  ["admin", "Admin", "profile"],
-  ["integrations", "Integrations", null],
-];
-
-const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [string, View | null]> = [
-  ["General", null],
-  ["Trading", null],
-  ["Risk", null],
-  ["Order Flow", "order-flow"],
-  ["Logs", null],
-];
-
-const SIDEBAR_MONITORING_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
-  ["asset-tracking", "Asset Tracking", "asset-tracking"],
-  ["notifications", "Notifications", "notifications"],
+const SIDEBAR_SECTIONS: ReadonlyArray<SidebarSection> = [
+  { heading: "Build", items: [
+    ["create-signal", "Create Signal", "create"],
+    ["view-signals", "View/Edit Signals", "signals"],
+  ] },
+  { heading: "Monitor", items: [
+    ["markets", "Markets", "markets"],
+    ["asset-tracking", "Asset Tracking", "asset-tracking"],
+  ] },
+  { heading: "Alerts", items: [
+    ["notifications", "Notifications", "notifications"],
+  ] },
+  { heading: "Admin", items: [
+    ["order-flow", "Algorithm Design", "order-flow"],
+    ["admin", "Manage Access", "profile"],
+  ] },
 ];
 
 const SIDEBAR_ICON_PATHS: Record<SidebarIconName, string> = {
@@ -323,22 +322,6 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
 
 function SidebarNavigation({ activeView, open, setView, access }: { activeView: View; open: boolean; setView: (view: View) => void; access: AppAccess }) {
   const tabIndex = open ? 0 : -1;
-  const [expandedSection, setExpandedSection] = useState<"dashboard" | "signals" | null>(null);
-  const [settingsExpanded, setSettingsExpanded] = useState(true);
-
-  function selectPrimary(label: string, destination: View | null) {
-    if (label === "Dashboard") {
-      setExpandedSection(current => current === "dashboard" ? null : "dashboard");
-      return;
-    }
-    if (!destination) return;
-    if (label === "Signals") {
-      setExpandedSection(current => current === "signals" ? null : "signals");
-      setView("signals");
-      return;
-    }
-    setView(destination);
-  }
 
   return (
     <aside className="application-sidebar" aria-hidden={!open}>
@@ -348,74 +331,27 @@ function SidebarNavigation({ activeView, open, setView, access }: { activeView: 
         </button>
 
         <nav className="application-sidebar-nav" aria-label="Main navigation">
-          {SIDEBAR_PRIMARY_NAV.filter(([, label, destination]) => label === "Dashboard" || !destination || canOpenView(access, destination)).map(([icon, label, destination]) => (
-            <Fragment key={label}>
-              <button
-                id={label === "Signals" ? "signals-nav-button" : label === "Dashboard" ? "dashboard-nav-button" : undefined}
-                className={(activeView === destination || (label === "Dashboard" && expandedSection === "dashboard") || (label === "Signals" && expandedSection === "signals")) ? "active" : ""}
-                type="button"
-                tabIndex={tabIndex}
-                disabled={!destination && label !== "Dashboard"}
-                aria-current={destination && activeView === destination ? "page" : undefined}
-                aria-expanded={label === "Dashboard" ? expandedSection === "dashboard" : label === "Signals" ? expandedSection === "signals" : undefined}
-                key={label}
-                onClick={() => selectPrimary(label, destination)}
-              >
-                <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination && label !== "Dashboard" ? <small>Soon</small> : null}
-              </button>
-              {expandedSection === "dashboard" && label === "Dashboard" && (
-                <div className="application-sidebar-subnav dashboard-subnav">
-                  <button id="trades-under-dashboard" type="button" tabIndex={tabIndex} disabled>
-                    <span className="application-sidebar-subnav-icon"><SidebarIcon name="trades" /></span><span>Trades</span><small>Soon</small>
-                  </button>
-                </div>
-              )}
-              {expandedSection === "signals" && label === "Signals" && (
-                <div className="application-sidebar-subnav">
-                  <button id="create-signal-under-signals" className={activeView === "create" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
-                    <span className="application-sidebar-subnav-icon"><SidebarIcon name="create-signal" /></span><span>Create Signal</span>
-                  </button>
-                  <button id="view-edit-signals-nav-button" className={activeView === "signals" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("signals")}>
-                    <span className="application-sidebar-subnav-icon"><SidebarIcon name="view-signals" /></span><span>View/Edit Signals</span>
-                  </button>
-                </div>
-              )}
-            </Fragment>
-          ))}
-
-          <h2>System</h2>
-          {SIDEBAR_SYSTEM_NAV.filter(([, , destination]) => !destination || canOpenView(access, destination)).map(([icon, label, destination]) => (
-            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}><span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}</button>
-          ))}
-
-          {canOpenView(access, "order-flow") && <>
-            <button
-              className="application-settings-label"
-              type="button"
-              tabIndex={tabIndex}
-              aria-expanded={settingsExpanded}
-              aria-controls="settings-subnav"
-              onClick={() => setSettingsExpanded(current => !current)}
-            >
-              <span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong>
-            </button>
-            {settingsExpanded && (
-              <div className="application-sidebar-subnav settings-subnav" id="settings-subnav">
-                {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
-                  <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-                    <span>{label}</span>{!destination ? <small>Soon</small> : null}
+          {SIDEBAR_SECTIONS.map((section) => {
+            const visibleItems = section.items.filter(([, , destination]) => canOpenView(access, destination));
+            if (visibleItems.length === 0) return null;
+            return (
+              <Fragment key={section.heading}>
+                <h2>{section.heading}</h2>
+                {visibleItems.map(([icon, label, destination]) => (
+                  <button
+                    className={activeView === destination ? "active" : ""}
+                    type="button"
+                    tabIndex={tabIndex}
+                    aria-current={activeView === destination ? "page" : undefined}
+                    key={label}
+                    onClick={() => setView(destination)}
+                  >
+                    <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>
                   </button>
                 ))}
-              </div>
-            )}
-          </>}
-
-          <h2>Monitoring</h2>
-          {SIDEBAR_MONITORING_NAV.filter(([, , destination]) => !destination || canOpenView(access, destination)).map(([icon, label, destination]) => (
-            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-              <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}
-            </button>
-          ))}
+              </Fragment>
+            );
+          })}
         </nav>
 
       </div>
