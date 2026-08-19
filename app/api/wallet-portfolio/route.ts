@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { portfolioService, alchemyConfigured } from "@/lib/wallet-tracker/instance";
+import { authorize } from "@/lib/access-control";
 
 export async function GET() {
+  const authorization = await authorize("asset_tracking.view");
+  if (authorization.response) return authorization.response;
   try {
     const wallets = await portfolioService.store.list();
     return NextResponse.json({ wallets, alchemyConfigured });
@@ -12,6 +15,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const authorization = await authorize("asset_tracking.manage");
+  if (authorization.response) return authorization.response;
   try {
     const body = (await request.json()) as {
       address: string;

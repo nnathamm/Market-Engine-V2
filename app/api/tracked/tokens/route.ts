@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { runMigrations } from "@/lib/db-migrate";
 import { normalizeChain, normalizeContractAddress } from "@/lib/token-identity";
+import { authorize } from "@/lib/access-control";
 
 /** All identity + metadata fields returned to callers. */
 const SELECT_COLS = `
@@ -13,6 +14,8 @@ const SELECT_COLS = `
 `;
 
 export async function GET() {
+  const authorization = await authorize("asset_tracking.view");
+  if (authorization.response) return authorization.response;
   try {
     await runMigrations();
     const { rows } = await pool.query(
@@ -28,6 +31,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const authorization = await authorize("asset_tracking.manage");
+  if (authorization.response) return authorization.response;
   try {
     await runMigrations();
     const body = (await request.json()) as {

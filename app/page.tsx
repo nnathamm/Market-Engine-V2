@@ -1,11 +1,15 @@
 "use client";
 
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { Fragment, lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   readMarketRequest,
   writeMarketRequest,
   type MarketNavigationRequest,
 } from "@/lib/market-navigation";
+import { AccessManagementPanel } from "./access-management";
+import { useAppAccess } from "./use-app-access";
+import { hasPermission, type AppAccess, type AppPermission } from "@/lib/access-policy";
 
 const MarketsView = lazy(() => import("./markets"));
 const AssetTrackingView = lazy(() => import("./asset-tracking"));
@@ -14,6 +18,19 @@ type View = "create" | "signals" | "markets" | "asset-tracking" | "order-flow" |
 type DropdownOption = { value: string; label: string };
 
 const VIEWS = new Set<View>(["create", "signals", "markets", "asset-tracking", "order-flow", "notifications", "profile"]);
+const VIEW_PERMISSIONS: Record<View, AppPermission> = {
+  create: "signals.create",
+  signals: "signals.view",
+  markets: "markets.view",
+  "asset-tracking": "asset_tracking.view",
+  "order-flow": "order_flow.view",
+  notifications: "notifications.view",
+  profile: "access.manage",
+};
+
+function canOpenView(access: AppAccess | null | undefined, view: View) {
+  return hasPermission(access, VIEW_PERMISSIONS[view]);
+}
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1s", label: "1 Second (1s)" },
@@ -304,7 +321,7 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function SidebarNavigation({ activeView, open, setView }: { activeView: View; open: boolean; setView: (view: View) => void }) {
+function SidebarNavigation({ activeView, open, setView, access }: { activeView: View; open: boolean; setView: (view: View) => void; access: AppAccess }) {
   const tabIndex = open ? 0 : -1;
   const [expandedSection, setExpandedSection] = useState<"dashboard" | "signals" | null>(null);
   const [settingsExpanded, setSettingsExpanded] = useState(true);
@@ -331,7 +348,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
         </button>
 
         <nav className="application-sidebar-nav" aria-label="Main navigation">
-          {SIDEBAR_PRIMARY_NAV.map(([icon, label, destination]) => (
+          {SIDEBAR_PRIMARY_NAV.filter(([, label, destination]) => label === "Dashboard" || !destination || canOpenView(access, destination)).map(([icon, label, destination]) => (
             <Fragment key={label}>
               <button
                 id={label === "Signals" ? "signals-nav-button" : label === "Dashboard" ? "dashboard-nav-button" : undefined}
@@ -367,32 +384,34 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
           ))}
 
           <h2>System</h2>
-          {SIDEBAR_SYSTEM_NAV.map(([icon, label, destination]) => (
+          {SIDEBAR_SYSTEM_NAV.filter(([, , destination]) => !destination || canOpenView(access, destination)).map(([icon, label, destination]) => (
             <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}><span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}</button>
           ))}
 
-          <button
-            className="application-settings-label"
-            type="button"
-            tabIndex={tabIndex}
-            aria-expanded={settingsExpanded}
-            aria-controls="settings-subnav"
-            onClick={() => setSettingsExpanded(current => !current)}
-          >
-            <span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong>
-          </button>
-          {settingsExpanded && (
-            <div className="application-sidebar-subnav settings-subnav" id="settings-subnav">
-              {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
-                <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-                  <span>{label}</span>{!destination ? <small>Soon</small> : null}
-                </button>
-              ))}
-            </div>
-          )}
+          {canOpenView(access, "order-flow") && <>
+            <button
+              className="application-settings-label"
+              type="button"
+              tabIndex={tabIndex}
+              aria-expanded={settingsExpanded}
+              aria-controls="settings-subnav"
+              onClick={() => setSettingsExpanded(current => !current)}
+            >
+              <span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong>
+            </button>
+            {settingsExpanded && (
+              <div className="application-sidebar-subnav settings-subnav" id="settings-subnav">
+                {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
+                  <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
+                    <span>{label}</span>{!destination ? <small>Soon</small> : null}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>}
 
           <h2>Monitoring</h2>
-          {SIDEBAR_MONITORING_NAV.map(([icon, label, destination]) => (
+          {SIDEBAR_MONITORING_NAV.filter(([, , destination]) => !destination || canOpenView(access, destination)).map(([icon, label, destination]) => (
             <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
               <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}
             </button>
@@ -404,7 +423,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
   );
 }
 
-function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: { activeView: View; sidebarOpen: boolean; toggleSidebar: () => void; setView: (view: View) => void }) {
+function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView, access }: { activeView: View; sidebarOpen: boolean; toggleSidebar: () => void; setView: (view: View) => void; access: AppAccess }) {
   const currentPage = PAGE_NAVIGATION.find(([view]) => view === activeView) ?? PAGE_NAVIGATION[0];
 
   return (
@@ -414,11 +433,14 @@ function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView }: 
       </button>
       <div className="application-page-context"></div>
 
-      <button className="master-profile-trigger" type="button" aria-current={activeView === "profile" ? "page" : undefined} onClick={() => setView("profile")}>
-        <span className="master-avatar">MA</span>
-        <span><strong>Master ADMIN</strong><small>Top-tier access</small></span>
-        <i aria-hidden="true">›</i>
-      </button>
+      <div className="application-account-actions">
+        {hasPermission(access, "access.manage") && <button className="master-profile-trigger" type="button" aria-current={activeView === "profile" ? "page" : undefined} onClick={() => setView("profile")}>
+          <span className="master-avatar">MA</span>
+          <span><strong>Admin</strong><small>Access controls</small></span>
+          <i aria-hidden="true">›</i>
+        </button>}
+        <UserButton />
+      </div>
     </header>
   );
 }
@@ -812,19 +834,18 @@ function ProfileView({ setView }: { setView: (view: View) => void }) {
             <span><strong>Notification Settings</strong><small>Choose email, SMS, and Discord destinations for automatic alerts.</small></span>
             <b aria-hidden="true">›</b>
           </button>
-          <button className="surface profile-control-card" type="button" disabled>
+          <div className="surface profile-control-card profile-control-static">
             <span className="profile-control-icon blue" aria-hidden="true">♧</span>
-            <span><strong>Manage Accounts</strong><small>Create roles, modify access, or remove accounts when user management is added.</small></span>
-            <em>Coming later</em>
-          </button>
-          <button className="surface profile-control-card" type="button" disabled>
+            <span><strong>Manage Accounts</strong><small>Review members, assign roles, and grant specific capabilities below.</small></span>
+          </div>
+          <div className="surface profile-control-card profile-control-static">
             <span className="profile-control-icon green" aria-hidden="true">⌘</span>
-            <span><strong>Roles &amp; Permissions</strong><small>Define what future account tiers are allowed to see and change.</small></span>
-            <em>Coming later</em>
-          </button>
+            <span><strong>Roles &amp; Permissions</strong><small>Access is enforced in the navigation, screens, and protected APIs.</small></span>
+          </div>
         </section>
 
-        <section className="profile-prototype-note"><span>ⓘ</span><p><strong>Interface preview:</strong> this page shows the intended Master ADMIN authority. Identity verification, account storage, and permission enforcement are not connected yet.</p></section>
+        <AccessManagementPanel />
+        <section className="profile-prototype-note"><span>ⓘ</span><p><strong>Access policy:</strong> account access is enforced in the interface and on protected server routes. The first signed-in account becomes the initial administrator.</p></section>
       </main>
     </div>
   );
@@ -987,11 +1008,34 @@ function ConditionModal({ close }: { close: () => void }) {
   );
 }
 
+function AuthenticationScreen() {
+  return (
+    <main className="authentication-screen">
+      <section className="authentication-card">
+        <span className="authentication-mark" aria-hidden="true" />
+        <p className="eyebrow">Signal Control</p>
+        <h1>Access your trading workspace</h1>
+        <p>Sign in to open the features your account has been assigned.</p>
+        <div className="authentication-actions">
+          <SignInButton mode="modal"><button type="button">Sign in</button></SignInButton>
+          <SignUpButton mode="modal"><button className="secondary" type="button">Create account</button></SignUpButton>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function AccessLoadingScreen({ error }: { error?: string | null }) {
+  return <main className="authentication-screen"><section className="authentication-card"><p className="eyebrow">Signal Control</p><h1>{error ? "Unable to load access" : "Loading your workspace…"}</h1><p>{error ?? "Checking the features assigned to your account."}</p></section></main>;
+}
+
 export default function Home() {
+  const { isLoaded, isSignedIn } = useUser();
   const [view, setView] = useState<View>("create");
   const [marketRequest, setMarketRequest] = useState<MarketNavigationRequest | null>(null);
   const [conditionOpen, setConditionOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { access, isLoading: accessLoading, error: accessError } = useAppAccess(isSignedIn);
 
   const applyLocation = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1014,6 +1058,10 @@ export default function Home() {
     nextMarketRequest: MarketNavigationRequest | null,
     mode: "push" | "replace" = "push",
   ) => {
+    if (access && !canOpenView(access, nextView)) {
+      nextView = "markets";
+      nextMarketRequest = null;
+    }
     const params = new URLSearchParams(window.location.search);
     params.set("view", nextView);
     writeMarketRequest(params, nextView === "markets" ? nextMarketRequest : null);
@@ -1021,7 +1069,7 @@ export default function Home() {
     window.history[mode === "push" ? "pushState" : "replaceState"]({}, "", nextUrl);
     setView(nextView);
     setMarketRequest(nextView === "markets" ? nextMarketRequest : null);
-  }, []);
+  }, [access]);
 
   const navigate = useCallback((nextView: View) => {
     updateLocation(nextView, null);
@@ -1035,20 +1083,31 @@ export default function Home() {
     updateLocation("markets", request, "replace");
   }, [updateLocation]);
 
+  useEffect(() => {
+    if (access && !canOpenView(access, view)) navigate("markets");
+  }, [access, navigate, view]);
+
+  if (!isLoaded) return <AccessLoadingScreen />;
+  if (!isSignedIn) return <AuthenticationScreen />;
+  if (accessLoading) return <AccessLoadingScreen />;
+  if (!access) return <AccessLoadingScreen error={accessError} />;
+  const viewAllowed = canOpenView(access, view);
+
   return (
     <div className="signal-control-app">
       <div className={`application-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
-        <SidebarNavigation activeView={view} open={sidebarOpen} setView={navigate} />
+        <SidebarNavigation activeView={view} open={sidebarOpen} setView={navigate} access={access} />
         <div className="application-stage">
-          <ApplicationTopbar activeView={view} sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((current) => !current)} setView={navigate} />
+          <ApplicationTopbar activeView={view} sidebarOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen((current) => !current)} setView={navigate} access={access} />
           <div className="application-view">
-            {view === "create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} />}
-            {view === "signals" && <SignalsView />}
-            {view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView request={marketRequest} onRequestChange={updateMarketRequest} onBackToMonitor={() => navigate("asset-tracking")} /></Suspense>}
-            {view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView onOpenInMarkets={openTokenInMarkets} /></Suspense>}
-            {view === "order-flow" && <OrderFlowView />}
-            {view === "notifications" && <NotificationsView />}
-            {view === "profile" && <ProfileView setView={navigate} />}
+            {!viewAllowed && <AccessLoadingScreen error="Your account does not have access to this area." />}
+            {viewAllowed && view === "create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} />}
+            {viewAllowed && view === "signals" && <SignalsView />}
+            {viewAllowed && view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView request={marketRequest} onRequestChange={updateMarketRequest} onBackToMonitor={() => navigate("asset-tracking")} /></Suspense>}
+            {viewAllowed && view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView onOpenInMarkets={openTokenInMarkets} /></Suspense>}
+            {viewAllowed && view === "order-flow" && <OrderFlowView />}
+            {viewAllowed && view === "notifications" && <NotificationsView />}
+            {viewAllowed && view === "profile" && <ProfileView setView={navigate} />}
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { runMigrations } from "@/lib/db-migrate";
 import { normalizeChain, normalizeContractAddress } from "@/lib/token-identity";
 import { verifyWeexMarketForTokenIdentity } from "@/lib/weex-markets";
+import { authorize } from "@/lib/access-control";
 
 /** All identity + metadata fields returned to callers. */
 const SELECT_COLS = `
@@ -61,6 +62,8 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
+  const authorization = await authorize("asset_tracking.manage");
+  if (authorization.response) return authorization.response;
   try {
     await runMigrations();
     const { symbol: param } = await params;
@@ -92,6 +95,8 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
+  const authorization = await authorize("asset_tracking.manage");
+  if (authorization.response) return authorization.response;
   try {
     await runMigrations();
     const { symbol: param } = await params;

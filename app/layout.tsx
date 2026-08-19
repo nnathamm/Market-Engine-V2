@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Geist } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -33,8 +34,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={geist.variable}>{children}</body>
-    </html>
+    <ClerkProvider publishableKey={process.env.VITE_CLERK_PUBLISHABLE_KEY}>
+      <html lang="en">
+        <body className={geist.variable}>{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }

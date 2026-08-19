@@ -33,6 +33,16 @@ body {
 /* Keep the development-only Next.js portal from covering the app preview. */
 nextjs-portal { display: none !important; }
 
+.authentication-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 48% 42%, rgba(109, 62, 190, .24), transparent 36%), linear-gradient(145deg, #020a15, #071525 62%, #020a14); }
+.authentication-card { width: min(460px, 100%); padding: 42px; border: 1px solid #273952; border-radius: 18px; background: rgba(7, 17, 30, .9); box-shadow: 0 28px 80px rgba(0, 0, 0, .3); text-align: center; }
+.authentication-mark { width: 34px; height: 34px; margin: 0 auto 18px; display: block; border: 7px solid #9543ff; border-radius: 9px; transform: rotate(30deg); }
+.authentication-card h1 { margin: 6px 0 10px; color: #f7f8fc; font-size: clamp(26px, 4vw, 34px); letter-spacing: -.04em; }
+.authentication-card p:not(.eyebrow) { margin: 0; color: #a8b4c6; line-height: 1.55; }
+.eyebrow { margin: 0; color: #bc78ff; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.authentication-actions { display: flex; justify-content: center; gap: 10px; margin-top: 28px; }
+.authentication-actions button { min-height: 42px; padding: 0 18px; color: #fff; border: 0; border-radius: 9px; background: linear-gradient(135deg, #a550ff, #6f36da); cursor: pointer; font-weight: 750; }
+.authentication-actions button.secondary { border: 1px solid #31405a; background: transparent; color: #d8deeb; }
+
 button, input, select { font: inherit; }
 button { color: inherit; }
 
@@ -111,6 +121,7 @@ button { color: inherit; }
 .application-sidebar-icon { width: 28px; color: #aab6c8; display: grid; place-items: center; }
 .application-sidebar-icon svg { width: 21px; height: 21px; display: block; }
 .application-sidebar-nav > button.active .application-sidebar-icon { color: #b45dff; }
+.application-account-actions { display: flex; align-items: center; gap: 10px; }
 .application-sidebar-nav button small { color: #596679; text-transform: uppercase; font-size: 8px; font-weight: 700; letter-spacing: .06em; }
 .application-sidebar-nav > h2 { margin: 22px 18px 9px; color: #93a0b3; text-transform: uppercase; font-size: 11px; letter-spacing: .12em; }
 .application-settings-label { width: 100%; min-height: 52px; margin-top: 7px; padding: 0 13px; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 10px; color: #bf61ff; border: 0; border-radius: 9px; background: #152033; cursor: pointer; text-align: left; }
@@ -422,6 +433,26 @@ button { color: inherit; }
 .profile-control-card small { color: #8996a8; font-size: 10px; line-height: 1.45; }
 .profile-control-card > b { color: #b95dff; font-size: 24px; }
 .profile-control-card > em { padding: 4px 7px; color: #8290a4; border: 1px solid #344155; border-radius: 12px; font-size: 8px; font-style: normal; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+.profile-control-static { cursor: default; }
+.access-management-panel { grid-column: 1 / -1; padding: 22px; }
+.access-management-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.access-management-panel > header > div { display: grid; grid-template-columns: 43px 1fr; column-gap: 12px; align-items: center; }
+.access-management-panel > header h2 { margin: 0; font-size: 17px; }
+.access-management-panel > header p { grid-column: 2; margin: 4px 0 0; color: #8996a8; font-size: 11px; }
+.access-management-panel > header button { min-height: 34px; padding: 0 12px; border: 1px solid #3a4b65; border-radius: 7px; background: #111d2e; color: #dbe3f0; cursor: pointer; font-size: 12px; font-weight: 700; }
+.access-management-notice, .access-management-empty { margin: 16px 0 0; color: #b8c3d4; font-size: 12px; }
+.access-management-notice { padding: 10px 12px; border: 1px solid #4e3a78; border-radius: 7px; background: rgba(84, 44, 134, .2); }
+.access-user-list { display: grid; gap: 12px; margin-top: 18px; }
+.access-user-row { padding: 15px; display: grid; grid-template-columns: minmax(150px, .8fr) 125px minmax(280px, 1.5fr); gap: 18px; border: 1px solid #223147; border-radius: 10px; background: rgba(6, 17, 31, .55); }
+.access-user-identity { display: grid; align-content: start; gap: 4px; }
+.access-user-identity strong { color: #f1f4fa; font-size: 13px; }
+.access-user-identity small { color: #8794a7; font-size: 11px; overflow-wrap: anywhere; }
+.access-role-field { display: grid; align-content: start; gap: 6px; color: #8794a7; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+.access-role-field select { height: 34px; padding: 0 8px; color: #e7eaf0; border: 1px solid #34465f; border-radius: 6px; background: #0b1625; text-transform: none; }
+.access-permission-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; }
+.access-permission-list label { display: flex; align-items: center; gap: 6px; color: #aab6c8; font-size: 11px; }
+.access-permission-list input { accent-color: #aa58ff; }
+.access-permission-list input:disabled { opacity: .55; }
 .profile-prototype-note { grid-column: 1 / -1; min-height: 56px; padding: 11px 16px; display: flex; align-items: center; gap: 13px; color: #bdc7d6; border: 1px solid #594083; border-radius: 9px; background: linear-gradient(90deg, rgba(43, 24, 72, .58), rgba(9, 22, 38, .75)); }
 .profile-prototype-note > span { color: #b360ff; font-size: 21px; }
 .profile-prototype-note p { margin: 0; font-size: 12px; line-height: 1.5; }

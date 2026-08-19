@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { portfolioService } from "@/lib/wallet-tracker/instance";
 import { removeWalletAndTokens } from "@/lib/token-cleanup";
+import { authorize } from "@/lib/access-control";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
+  const authorization = await authorize("asset_tracking.view");
+  if (authorization.response) return authorization.response;
   const { id } = await params;
   try {
     const wallet = await portfolioService.store.get(id);
@@ -16,6 +19,8 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
+  const authorization = await authorize("asset_tracking.manage");
+  if (authorization.response) return authorization.response;
   const { id } = await params;
   try {
     const body = (await request.json()) as { label?: string; networks?: string[] };
@@ -29,6 +34,8 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(req: Request, { params }: Params) {
+  const authorization = await authorize("asset_tracking.manage");
+  if (authorization.response) return authorization.response;
   const { id } = await params;
   try {
     // Prefer stable token IDs; keepSymbols remains accepted for older clients.

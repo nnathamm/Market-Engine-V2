@@ -12,6 +12,7 @@ import {
 } from "@/lib/weex-markets";
 import pool from "@/lib/db";
 import { runMigrations } from "@/lib/db-migrate";
+import { authorize } from "@/lib/access-control";
 
 /**
  * GET /api/weex/resolve
@@ -45,6 +46,8 @@ export async function GET(request: Request) {
   const tokenIdParam = params.get("tokenId");
 
   if (tokenIdParam !== null) {
+    const authorization = await authorize("asset_tracking.view");
+    if (authorization.response) return authorization.response;
     const tokenId = Number(tokenIdParam);
     if (!Number.isInteger(tokenId) || tokenId <= 0) {
       return Response.json({ error: "tokenId must be a positive integer." }, { status: 400 });

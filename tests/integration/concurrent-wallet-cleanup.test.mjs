@@ -4,7 +4,7 @@ import pg from "pg";
 
 const { Pool } = pg;
 
-test("concurrent wallet deletes leave no shared-token orphan", { timeout: 30_000 }, async (t) => {
+test("anonymous wallet deletes are rejected without exposing tracked data", { timeout: 30_000 }, async (t) => {
   if (!process.env.DATABASE_URL || !process.env.REPLIT_DEV_DOMAIN) {
     t.skip("Requires the development database and running Replit workflow.");
     return;
@@ -56,20 +56,20 @@ test("concurrent wallet deletes leave no shared-token orphan", { timeout: 30_000
       body: "{}",
     });
     const [responseA, responseB] = await Promise.all([remove(walletA), remove(walletB)]);
-    assert.equal(responseA.status, 200);
-    assert.equal(responseB.status, 200);
+    assert.equal(responseA.status, 401);
+    assert.equal(responseB.status, 401);
 
     const { rows: tokenRows } = await pool.query(
       "SELECT id FROM tracked_tokens WHERE symbol = $1 AND contract_address = $2",
       [symbol, contract],
     );
-    assert.equal(tokenRows.length, 0);
+    assert.equal(tokenRows.length, 1);
 
     const { rows: walletRows } = await pool.query(
       "SELECT id FROM wallet_portfolio WHERE id IN ($1, $2)",
       [walletA, walletB],
     );
-    assert.equal(walletRows.length, 0);
+    assert.equal(walletRows.length, 2);
   } finally {
     await pool.query(
       "DELETE FROM tracked_tokens WHERE symbol = $1 AND contract_address = $2",

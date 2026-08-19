@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { authorize } from "@/lib/access-control";
 
 export async function GET() {
+  const authorization = await authorize("asset_tracking.view");
+  if (authorization.response) return authorization.response;
   try {
     const { rows } = await pool.query(
       "SELECT id, address, label, chain, notes, created_at FROM tracked_wallets ORDER BY created_at DESC"
@@ -14,6 +17,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const authorization = await authorize("asset_tracking.manage");
+  if (authorization.response) return authorization.response;
   try {
     const { address, label, chain, notes } = (await request.json()) as {
       address: string; label?: string; chain?: string; notes?: string;

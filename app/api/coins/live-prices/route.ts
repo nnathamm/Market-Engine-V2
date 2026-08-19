@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { fetchLivePrices } from "@/lib/price-sources";
 import type { TokenInput } from "@/lib/price-sources/types";
 import pool from "@/lib/db";
+import { authorize } from "@/lib/access-control";
 
 export async function POST(request: Request) {
+  const authorization = await authorize("asset_tracking.view");
+  if (authorization.response) return authorization.response;
+  const canCachePrices = authorization.access?.permissions.includes("asset_tracking.manage") ?? false;
   try {
     const { tokens } = (await request.json()) as { tokens: TokenInput[] };
     if (!Array.isArray(tokens) || !tokens.length) return NextResponse.json({});
@@ -11,7 +15,7 @@ export async function POST(request: Request) {
 
     // Write fresh prices back to the DB cache for every token that got a live result.
     const symbols = Object.keys(prices);
-    if (symbols.length > 0) {
+    if (canCachePrices && symbols.length > 0) {
       // Build parallel arrays for a single multi-row UPDATE using unnest.
       const syms: string[] = [];
       const priceVals: (number | null)[] = [];

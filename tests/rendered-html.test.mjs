@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("keeps exchange access read-only and loads charts on demand", async () => {
-  const [page, marketsPage, assetTrackingPage, weexMarketsRoute, weexKlinesRoute, weexMarketsHelper, styles, packageJson] = await Promise.all([
+  const [page, marketsPage, assetTrackingPage, weexMarketsRoute, weexKlinesRoute, weexMarketsHelper, styles, packageJson, accessPolicy, accessControl] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/markets.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/asset-tracking.tsx", import.meta.url), "utf8"),
@@ -12,10 +12,14 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
     readFile(new URL("../lib/weex-markets.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../lib/access-policy.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/access-control.ts", import.meta.url), "utf8"),
   ]);
   const systemNavigation = page.match(/const SIDEBAR_SYSTEM_NAV:[\s\S]*?\];/)?.[0] ?? "";
 
   assert.doesNotMatch(page, /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|indexedDB/);
+  assert.match(accessPolicy, /"signals\.create"[\s\S]*"asset_tracking\.view"[\s\S]*"order_flow\.manage"[\s\S]*"access\.manage"/);
+  assert.match(accessControl, /pg_advisory_xact_lock\(hashtext\('signal-control:access-bootstrap'\)\)/);
   assert.doesNotMatch(page, /decision engine|order execution|market feed/i);
   assert.match(styles, /\.condition-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 24px\)/s);
   assert.doesNotMatch(styles, /\.modal-backdrop\s*\{[^}]*padding-top:\s*133px/s);
