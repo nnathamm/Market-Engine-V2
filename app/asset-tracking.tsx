@@ -746,9 +746,61 @@ export default function AssetTrackingView() {
 
   const refreshWallet = useCallback(async (portfolioId: string) => {
     setOpenMenu(null);
-    await fetch(`/api/wallet-portfolio/${portfolioId}/refresh`, { method: "POST" });
+    const refreshRes = await fetch(`/api/wallet-portfolio/${portfolioId}/refresh`, { method: "POST" });
     await refreshWallets();
-  }, [refreshWallets]);
+
+    // Background: wait for the refresh to fully complete, then auto-add any
+    // newly acquired tokens. Only runs when the refresh POST succeeded.
+    if (!refreshRes.ok) return;
+    (async () => {
+      const ready = await pollWalletReady(portfolioId);
+      // Only import from a successfully completed refresh, not from stale/error data
+      if (!ready || (ready.status !== "LIVE" && ready.status !== "LIVE_WITH_WARNINGS")) return;
+      if (!ready.holdings?.length) return;
+
+      // Fetch the current tracked-token list fresh so we don't rely on
+      // potentially-stale closure state. Only import symbols that are absent.
+      const trackedRes = await fetch("/api/tracked/tokens");
+      const currentlyTracked: DbToken[] = trackedRes.ok ? await trackedRes.json() : [];
+      const trackedSymbols = new Set(currentlyTracked.map(t => t.symbol.toUpperCase()));
+
+      // Deduplicate by symbol (first occurrence wins) before filtering
+      const seen = new Set<string>();
+      const candidates = ready.holdings.filter(h => {
+        if (!h.symbol) return false;
+        const sym = h.symbol.toUpperCase();
+        if (seen.has(sym)) return false;
+        seen.add(sym);
+        return true;
+      });
+
+      const toImport = candidates.filter(
+        h => !h.hiddenByDefault &&
+             h.trust !== "low" &&
+             h.trust !== "blocked" &&
+             !trackedSymbols.has(h.symbol!.toUpperCase())
+      );
+      if (!toImport.length) return;
+
+      const results = await Promise.all(
+        toImport.map(h =>
+          fetch("/api/tracked/tokens", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              symbol: h.symbol!.toUpperCase(),
+              full_name: h.name ?? null,
+              image_url: h.logo ?? null,
+              contract_address: h.contractAddress ?? null,
+              chain: networkToChain(h.network),
+            }),
+          })
+        )
+      );
+      // Only refresh the token list if at least one import succeeded
+      if (results.some(r => r.ok)) await refreshTokens();
+    })();
+  }, [refreshWallets, refreshTokens]);
 
   const editTokenLabel = useCallback(async (symbol: string, currentLabel: string) => {
     setOpenMenu(null);
