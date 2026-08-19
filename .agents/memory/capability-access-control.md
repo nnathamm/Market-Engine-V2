@@ -14,3 +14,9 @@ Algorithm-design controls such as Order Flow belong under Admin and are owner-on
 **Why:** The owner confirmed that Order Flow variables define core algorithm behavior and must be controlled by a single master account.
 
 **How to apply:** Model owner-only algorithm editing as a distinct capability and enforce it in navigation, page access, and API routes. Identify the owner through controlled access data, never a hardcoded email or bypass.
+
+Master signals are owner-authored, system-wide strategies; followers can follow or unfollow them, but published updates apply automatically to all followers.
+
+**Why:** The owner confirmed that master signals should act as a live source of truth rather than independent copies.
+
+**How to apply:** Keep the master definition/version separate from each user’s follow relationship and notification preferences. Do not grant followers edit access to the master signal.
