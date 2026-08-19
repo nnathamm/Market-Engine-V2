@@ -533,6 +533,153 @@ function SignalsView() {
   );
 }
 
+type MasterSignalRecord = {
+  id: number;
+  name: string;
+  description: string;
+  status: "draft" | "published" | "paused" | "archived";
+  version: number;
+  updatedAt: string;
+};
+
+function MasterSignalLibraryView() {
+  const [signals, setSignals] = useState<MasterSignalRecord[]>([]);
+  const [linked, setLinked] = useState<Set<number>>(new Set());
+  const [notice, setNotice] = useState("Published master signals are available here.");
+
+  useEffect(() => {
+    void fetch("/api/master-signals", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) throw new Error("Unable to load the signal library");
+      const payload = await response.json() as { library: MasterSignalRecord[]; linked: MasterSignalRecord[] };
+      setSignals(payload.library);
+      setLinked(new Set(payload.linked.map((signal) => signal.id)));
+    }).catch((error) => setNotice(error instanceof Error ? error.message : "Unable to load the signal library"));
+  }, []);
+
+  async function addCopy(id: number) {
+    const response = await fetch(`/api/master-signals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "copy" }),
+    });
+    if (!response.ok) {
+      setNotice("Unable to add that master signal.");
+      return;
+    }
+    setLinked((current) => new Set(current).add(id));
+    setNotice("Linked copy added to My Signals. Master updates will continue automatically.");
+  }
+
+  return (
+    <div className="screen inner-screen signals-screen">
+      <header className="list-header"><div><h1>Signal Library</h1><p>Browse published Master Signals and add linked copies to My Signals.</p></div></header>
+      <main className="signals-panel surface master-library-panel">
+        <div className="signals-toolbar"><div className="toolbar-title"><span className="toolbar-icon">▣</span><div><h2>Published Master Signals <b>{signals.length}</b></h2><p>Master Admin definitions stay authoritative and update linked copies automatically.</p></div></div></div>
+        <p className="master-library-notice" role="status">{notice}</p>
+        {signals.length === 0 ? <div className="master-library-empty">No Master Signals have been published yet.</div> : (
+          <div className="master-library-list">
+            {signals.map((signal) => (
+              <article className="master-library-card" key={signal.id}>
+                <div><span className="row-icon">✦</span><div><h2>{signal.name}</h2><p>{signal.description || "System-wide strategy published by the Master Admin."}</p><small>Version {signal.version} · {signal.status}</small></div></div>
+                <button className="purple-button" type="button" disabled={linked.has(signal.id)} onClick={() => void addCopy(signal.id)}>{linked.has(signal.id) ? "Added to My Signals" : "Add a copy to My Signals"}</button>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function MasterSignalBuilderView() {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [publish, setPublish] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  async function save() {
+    if (!name.trim()) {
+      setNotice("Enter a Master Signal name first.");
+      return;
+    }
+    const response = await fetch("/api/master-signals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description, status: publish ? "published" : "draft", definition: { source: "master-signal-builder" } }),
+    });
+    const payload = await response.json() as { error?: string };
+    setNotice(response.ok ? (publish ? "Master Signal published to the Signal Library." : "Master Signal saved as a draft.") : payload.error ?? "Unable to save Master Signal.");
+    if (response.ok) {
+      setName("");
+      setDescription("");
+    }
+  }
+
+  return (
+    <div className="screen inner-screen master-builder-screen">
+      <header className="inner-header"><div className="inner-title"><span className="profile-hero-icon" aria-hidden="true">✦</span><div><h1>Create Master Signal</h1><p>Build an authoritative strategy for the system-wide Signal Library.</p></div></div></header>
+      <main className="master-builder-layout">
+        <section className="surface master-builder-card">
+          <div className="section-row"><div><h2>Master Signal Definition</h2><p>This signal is separate from personal signals and remains owned by the Master Admin.</p></div><span className="profile-role-badge">MASTER</span></div>
+          <label className="form-field"><span>Name <b>*</b></span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Momentum Confirmation Master" /></label>
+          <label className="form-field"><span>Description</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Explain what this system-wide strategy is intended to do." /></label>
+          <label className="toggle-row master-publish-toggle"><input type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} /><em>Publish to the Signal Library immediately</em></label>
+          <button className="purple-button" type="button" onClick={() => void save()}>{publish ? "Publish Master Signal" : "Save Draft"}</button>
+          {notice && <p className="master-builder-notice" role="status">{notice}</p>}
+        </section>
+        <aside className="surface master-builder-note"><span>ⓘ</span><div><h2>Linked copies stay current</h2><p>When you publish an update, every user copy in My Signals receives the new Master Signal version automatically. Users cannot edit the master definition.</p></div></aside>
+      </main>
+    </div>
+  );
+}
+
+function MasterSignalsView() {
+  const [signals, setSignals] = useState<MasterSignalRecord[]>([]);
+  const [notice, setNotice] = useState("Loading Master Signals…");
+
+  const load = useCallback(async () => {
+    const response = await fetch("/api/master-signals", { cache: "no-store" });
+    if (!response.ok) {
+      setNotice("Unable to load Master Signals.");
+      return;
+    }
+    const payload = await response.json() as { managed: MasterSignalRecord[] };
+    setSignals(payload.managed);
+    setNotice(payload.managed.length ? "" : "No Master Signals created yet.");
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function updateStatus(id: number, status: MasterSignalRecord["status"]) {
+    const response = await fetch(`/api/master-signals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (response.ok) void load();
+    else setNotice("Unable to update that Master Signal.");
+  }
+
+  return (
+    <div className="screen inner-screen signals-screen">
+      <header className="list-header"><div><h1>View / Edit Master Signals</h1><p>Publish and manage the authoritative strategies available in the Signal Library.</p></div></header>
+      <main className="signals-panel surface master-library-panel">
+        <div className="signals-toolbar"><div className="toolbar-title"><span className="toolbar-icon">✦</span><div><h2>Your Master Signals <b>{signals.length}</b></h2><p>Changes propagate to all linked copies.</p></div></div></div>
+        {notice && <p className="master-library-notice" role="status">{notice}</p>}
+        <div className="master-library-list">{signals.map((signal) => (
+          <article className="master-library-card" key={signal.id}>
+            <div><span className="row-icon">✦</span><div><h2>{signal.name}</h2><p>{signal.description || "No description provided."}</p><small>Version {signal.version} · {signal.status}</small></div></div>
+            <div className="master-status-actions">
+              {signal.status === "published" ? <button type="button" onClick={() => void updateStatus(signal.id, "paused")}>Pause</button> : <button type="button" onClick={() => void updateStatus(signal.id, "published")}>Publish</button>}
+              {signal.status !== "archived" && <button type="button" onClick={() => void updateStatus(signal.id, "archived")}>Archive</button>}
+            </div>
+          </article>
+        ))}</div>
+      </main>
+    </div>
+  );
+}
+
 type OrderFlowValues = {
   imbalance: number;
   imbalanceLookback: number;
@@ -1056,6 +1203,9 @@ export default function Home() {
             {!viewAllowed && <AccessLoadingScreen error="Your account does not have access to this area." />}
             {viewAllowed && view === "create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} />}
             {viewAllowed && view === "signals" && <SignalsView />}
+            {viewAllowed && view === "signal-library" && <MasterSignalLibraryView />}
+            {viewAllowed && view === "master-create" && <MasterSignalBuilderView />}
+            {viewAllowed && view === "master-signals" && <MasterSignalsView />}
             {viewAllowed && view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView request={marketRequest} onRequestChange={updateMarketRequest} onBackToMonitor={() => navigate("asset-tracking")} /></Suspense>}
             {viewAllowed && view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView onOpenInMarkets={openTokenInMarkets} /></Suspense>}
             {viewAllowed && view === "order-flow" && <OrderFlowView />}
