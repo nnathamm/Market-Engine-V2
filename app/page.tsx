@@ -9,18 +9,21 @@ import {
 } from "@/lib/market-navigation";
 import { AccessManagementPanel } from "./access-management";
 import { useAppAccess } from "./use-app-access";
-import { hasPermission, type AppAccess, type AppPermission } from "@/lib/access-policy";
+import { hasPermission, isMasterOwner, type AppAccess, type AppPermission } from "@/lib/access-policy";
 
 const MarketsView = lazy(() => import("./markets"));
 const AssetTrackingView = lazy(() => import("./asset-tracking"));
 
-type View = "create" | "signals" | "markets" | "asset-tracking" | "order-flow" | "notifications" | "profile";
+type View = "create" | "signals" | "signal-library" | "master-create" | "master-signals" | "markets" | "asset-tracking" | "order-flow" | "notifications" | "profile";
 type DropdownOption = { value: string; label: string };
 
-const VIEWS = new Set<View>(["create", "signals", "markets", "asset-tracking", "order-flow", "notifications", "profile"]);
+const VIEWS = new Set<View>(["create", "signals", "signal-library", "master-create", "master-signals", "markets", "asset-tracking", "order-flow", "notifications", "profile"]);
 const VIEW_PERMISSIONS: Record<View, AppPermission> = {
   create: "signals.create",
   signals: "signals.view",
+  "signal-library": "signals.view",
+  "master-create": "signals.create",
+  "master-signals": "signals.view",
   markets: "markets.view",
   "asset-tracking": "asset_tracking.view",
   "order-flow": "order_flow.view",
@@ -29,7 +32,8 @@ const VIEW_PERMISSIONS: Record<View, AppPermission> = {
 };
 
 function canOpenView(access: AppAccess | null | undefined, view: View) {
-  return hasPermission(access, VIEW_PERMISSIONS[view]);
+  return hasPermission(access, VIEW_PERMISSIONS[view]) &&
+    (!["master-create", "master-signals", "order-flow"].includes(view) || isMasterOwner(access));
 }
 
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
@@ -68,6 +72,9 @@ type SidebarIconName =
 const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
   ["create", "＋", "Create Signal", "Build a new trading signal"],
   ["signals", "☷", "View Signals", "Manage existing signals"],
+  ["signal-library", "▣", "Signal Library", "Browse published master signals"],
+  ["master-create", "＋", "Create Master Signal", "Build a system-wide master signal"],
+  ["master-signals", "☷", "Master Signals", "Manage published master signals"],
   ["markets", "◉", "Markets", "Browse live WEEX futures markets"],
   ["asset-tracking", "◎", "Asset Tracking", "Monitor watched tokens and wallets"],
   ["order-flow", "⇄", "Order Flow", "Configure order-flow analysis"],
@@ -84,6 +91,7 @@ const SIDEBAR_SECTIONS: ReadonlyArray<SidebarSection> = [
   { heading: "Build", items: [
     ["create-signal", "Create Signal", "create"],
     ["view-signals", "View/Edit Signals", "signals"],
+    ["watchlists", "Signal Library", "signal-library"],
   ] },
   { heading: "Monitor", items: [
     ["markets", "Markets", "markets"],
