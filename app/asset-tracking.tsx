@@ -298,7 +298,6 @@ function TokenIntelligence({ token, priceLoading, onLinkMarketData }: { token: T
   const missingPriceSource = !token.price_source;
   return (
     <aside className="tracking-intelligence">
-      <header><span>Selected Token Intelligence</span><button type="button" aria-label="Close selected token">×</button></header>
       <div className="tracking-selected-identity">
         {token.image
           ? <img src={token.image} alt={token.symbol} width={28} height={28} className="tracking-coin-img" />
@@ -388,7 +387,6 @@ function WalletIntelligence({ wallet, portfolioWallet }: { wallet: WalletRow; po
 
   return (
     <aside className="tracking-intelligence">
-      <header><span>Selected Wallet Intelligence</span><button type="button" aria-label="Close selected wallet">×</button></header>
       <div className="tracking-selected-identity">
         <AssetBadge label={wallet.short} tone={wallet.tone} />
         <div><h2>{wallet.name}</h2><small>{wallet.address}</small></div>
@@ -1027,6 +1025,7 @@ export default function AssetTrackingView() {
             {tab === "tokens" ? (
               <div className="tracking-table token-table">
                 <div className="tracking-table-head"><span>Token / Pair</span><span>Networks</span><span>Price</span><span>24H Change</span><span>Last Activity</span><span>Actions</span></div>
+                <div className="tracking-table-body">
                 {tokens.map((token) => {
                   const geckoUrl = `https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`;
                   const menuKey = `t-${token.symbol}`;
@@ -1076,6 +1075,7 @@ export default function AssetTrackingView() {
                   );
                 })}
                 {!tokens.length && <div className="tracking-empty">No watched tokens match that search.</div>}
+                </div>
               </div>
             ) : (
               <div className="tracking-table wallet-table">
@@ -1085,6 +1085,7 @@ export default function AssetTrackingView() {
                   </div>
                 )}
                 <div className="tracking-table-head"><span>Wallet / Label</span><span>Chain</span><span>Holdings (USD)</span><span>Status</span><span>Last Activity</span><span>Actions</span></div>
+                <div className="tracking-table-body">
                 {wallets.map((wallet) => {
                   const explorerUrl = wallet.addressType === "solana" || wallet.chain === "Solana"
                     ? `https://solscan.io/account/${wallet.address}`
@@ -1121,6 +1122,7 @@ export default function AssetTrackingView() {
                   );
                 })}
                 {!wallets.length && <div className="tracking-empty">No watched wallets match that search.</div>}
+                </div>
               </div>
             )}
           </div>
