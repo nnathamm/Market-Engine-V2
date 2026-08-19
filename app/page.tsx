@@ -71,12 +71,12 @@ const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [SidebarIconName, string, View 
   ["integrations", "Integrations", null],
 ];
 
-const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
-  ["general", "General", null],
-  ["trading", "Trading", null],
-  ["risk", "Risk", null],
-  ["order-flow", "Order Flow", "order-flow"],
-  ["logs", "Logs", null],
+const SIDEBAR_SETTINGS_NAV: ReadonlyArray<readonly [string, View | null]> = [
+  ["General", null],
+  ["Trading", null],
+  ["Risk", null],
+  ["Order Flow", "order-flow"],
+  ["Logs", null],
 ];
 
 const SIDEBAR_MONITORING_NAV: ReadonlyArray<readonly [SidebarIconName, string, View | null]> = [
@@ -363,9 +363,9 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
 
           <div className="application-settings-label"><span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong></div>
           <div className="application-settings-nav">
-            {SIDEBAR_SETTINGS_NAV.map(([icon, label, destination]) => (
+            {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
               <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-                <span className="application-settings-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}
+                {label}{!destination ? <small>Soon</small> : null}
               </button>
             ))}
           </div>
