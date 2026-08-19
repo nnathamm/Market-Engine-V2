@@ -176,7 +176,7 @@ function TrackingDialog({ kind, close, finish, onSave, initialSearch, mode = "ad
           } : {}),
         });
         finish(symbol
-          ? (mode === "link" ? `${symbol} linked to CoinGecko.` : `${symbol} added to your tracked tokens.`)
+          ? (mode === "link" ? `${symbol} price source updated.` : `${symbol} added to your tracked tokens.`)
           : "Token added to your watchlist.");
       } else {
         const address = walletAddress.trim();
@@ -836,7 +836,9 @@ export default function AssetTrackingView() {
                                 <button type="button" onClick={() => editTokenLabel(token.symbol, token.name)}>✎ Edit Label</button>
                                 <button type="button" onClick={() => copy(token.symbol, "symbol")}>⎘ Copy Symbol</button>
                                 <a className="tracking-menu-link" href={`https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`} target="_blank" rel="noreferrer" onClick={() => setOpenMenu(null)}>↗ View on CoinGecko</a>
-                                {!token.coingecko_id && (
+                                {(token.coingecko_id || token.price_source) ? (
+                                  <button type="button" onClick={() => { setOpenMenu(null); setLinkTokenSymbol(token.symbol); }}>⇄ Change price source</button>
+                                ) : (
                                   <button type="button" onClick={() => { setOpenMenu(null); setLinkTokenSymbol(token.symbol); }}>↗ Link Market Data</button>
                                 )}
                                 <hr />
