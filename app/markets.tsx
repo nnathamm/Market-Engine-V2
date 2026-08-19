@@ -429,13 +429,6 @@ function CoinIcon({ symbol }: { symbol: string }) {
   );
 }
 
-type MarketResolvePayload = {
-  resolved?: Market;
-  unavailable?: string;
-  alternatives?: string[];
-  error?: string;
-};
-
 export default function MarketsView({
   request,
   onRequestChange,
@@ -558,89 +551,41 @@ export default function MarketsView({
       return;
     }
     if (resolvedRequestRef.current === requestedIdentityKey) return;
-    resolvedRequestRef.current = requestedIdentityKey;
     const requested = request;
-
-    const controller = new AbortController();
-    const params = new URLSearchParams({
-      symbol: requested.tokenSymbol,
-      tokenName: requested.tokenName,
-    });
-    if (requested.tokenId) params.set("tokenId", String(requested.tokenId));
-    const trustedSavedExchange = requested.source === "browse"
-      || (
-        requested.exchangeVerified
-        && requested.preferredExchange?.toUpperCase() === "WEEX"
-      );
-    if (requested.exchangeSymbol && trustedSavedExchange) {
-      params.set("exchangeSymbol", requested.exchangeSymbol);
+    if (marketsLoading) {
+      setSelected(null);
+      setCandles([]);
+      setRequestedMarketState("resolving");
+      setRequestedMarketMessage("");
+      setRequestedAlternatives([]);
+      return;
     }
-    if (requested.preferredExchange) params.set("preferredExchange", requested.preferredExchange);
-    if (requested.chain) params.set("chain", requested.chain);
-    if (requested.contractAddress) params.set("contractAddress", requested.contractAddress);
-    if (requested.coingeckoId) params.set("coingeckoId", requested.coingeckoId);
 
-    setSelected(null);
-    setCandles([]);
-    setRequestedMarketState("resolving");
-    setRequestedMarketMessage("");
+    if (marketsError) {
+      resolvedRequestRef.current = requestedIdentityKey;
+      setRequestedMarketState("unavailable");
+      setRequestedMarketMessage("Unable to load WEEX markets. Try again from the Markets page.");
+      return;
+    }
+
+    const tokenSymbol = requested.tokenSymbol.trim().toUpperCase();
+    const requestedPair = requested.exchangeSymbol?.trim().toUpperCase();
+    const exactPair = requestedPair || `${tokenSymbol}USDT`;
+    const market = markets.find((item) => item.symbol === exactPair)
+      ?? markets.find((item) => item.baseAsset.toUpperCase() === tokenSymbol && item.quoteAsset === "USDT");
+
+    resolvedRequestRef.current = requestedIdentityKey;
+    setQuery(tokenSymbol);
+    if (market) {
+      mergeRequestedMarket(market);
+      setQuery(tokenSymbol);
+      return;
+    }
+
+    setRequestedMarketState("unavailable");
+    setRequestedMarketMessage(`${tokenSymbol}/USDT is not listed on WEEX.`);
     setRequestedAlternatives([]);
-
-    async function resolveRequestedMarket() {
-      try {
-        const response = await fetch(`/api/weex/resolve?${params}`, {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        const payload = await response.json() as MarketResolvePayload;
-        if (controller.signal.aborted) return;
-        if (response.ok && payload.resolved) {
-          mergeRequestedMarket(payload.resolved);
-          let exchangeVerified = requested.source === "browse";
-          if (requested.tokenId) {
-            try {
-              const persistResponse = await fetch(`/api/tracked/tokens/${requested.tokenId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  preferred_exchange: "WEEX",
-                  exchange_symbol: payload.resolved.symbol,
-                }),
-                signal: controller.signal,
-              });
-              if (controller.signal.aborted) return;
-              if (persistResponse.ok) {
-                const persisted = await persistResponse.json() as { exchange_symbol_verified_at?: string | null };
-                exchangeVerified = Boolean(persisted.exchange_symbol_verified_at);
-              }
-            } catch {
-              if (controller.signal.aborted) return;
-            }
-          }
-          onRequestChange({
-            ...requested,
-            exchangeVerified,
-            preferredExchange: exchangeVerified ? "WEEX" : undefined,
-            exchangeSymbol: exchangeVerified ? payload.resolved.symbol : undefined,
-            interval: intervalRef.current,
-          });
-          return;
-        }
-        setRequestedMarketState("unavailable");
-        setRequestedMarketMessage(payload.unavailable || payload.error || `${requested.tokenSymbol}/USDT is not available from the connected exchange.`);
-        setRequestedAlternatives(Array.isArray(payload.alternatives) ? payload.alternatives : []);
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        setRequestedMarketState("unavailable");
-        setRequestedMarketMessage(
-          `${requested.tokenSymbol}/USDT is not available from the connected exchange.`,
-        );
-      }
-    }
-
-    void resolveRequestedMarket();
-    return () => controller.abort();
-  }, [requestedIdentityKey, request, mergeRequestedMarket, onRequestChange]);
+  }, [requestedIdentityKey, request, markets, marketsLoading, marketsError, mergeRequestedMarket]);
 
   useEffect(() => {
     const controller = new AbortController();

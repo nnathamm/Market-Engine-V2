@@ -35,7 +35,11 @@ test("market handoff is refreshable and browser-back safe", async () => {
 
 test("requested markets load directly, merge without duplicates, scroll, and highlight", async () => {
   const [, markets] = await files;
-  assert.match(markets, /fetch\(`\/api\/weex\/resolve\?\$\{params\}`/);
+  assert.match(markets, /const exactPair = requestedPair \|\| `\$\{tokenSymbol\}USDT`/);
+  assert.match(markets, /markets\.find\(\(item\) => item\.symbol === exactPair\)/);
+  assert.match(markets, /item\.baseAsset\.toUpperCase\(\) === tokenSymbol && item\.quoteAsset === "USDT"/);
+  assert.match(markets, /setQuery\(tokenSymbol\)/);
+  assert.doesNotMatch(markets, /\/api\/weex\/resolve/);
   assert.match(markets, /findIndex\(\(item\) => item\.symbol === market\.symbol\)/);
   assert.match(markets, /existingIndex < 0\) return \[market, \.\.\.current\]/);
   assert.match(markets, /setVisibleCount\(selectedIndex \+ 1\)/);
@@ -70,7 +74,7 @@ test("tracked-token migration preserves strong identities and allows unrelated d
   assert.match(migration, /uidx_tracked_tokens_symbol_only[\s\S]*contract_address IS NULL AND coingecko_id IS NULL/);
 });
 
-test("only verified WEEX mappings bypass strong-identity resolution", async () => {
+test("saved WEEX metadata remains server-verified without adding a redirect resolver", async () => {
   const [, markets, tracking, resolver, navigation, migration, , tokenPatch, marketHelpers] = await files;
   assert.doesNotMatch(tracking, /exchange_symbol:\s*selectedCoin\.binancePair/);
   assert.doesNotMatch(tracking, /exchange_symbol:\s*t\.exchange_symbol\s*\|\|\s*t\.binance_pair/);
@@ -78,9 +82,8 @@ test("only verified WEEX mappings bypass strong-identity resolution", async () =
   assert.match(tracking, /exchangeVerified:\s*token\.exchange_symbol_verified/);
   assert.match(navigation, /exchangeVerified\?: boolean/);
   assert.match(navigation, /\["verified", request\.exchangeVerified \? "1" : undefined\]/);
-  assert.match(markets, /requested\.exchangeVerified[\s\S]*preferredExchange\?\.toUpperCase\(\) === "WEEX"/);
-  assert.match(markets, /params\.set\("tokenId", String\(requested\.tokenId\)\)/);
-  assert.match(markets, /const persistResponse = await fetch[\s\S]*persistResponse\.ok[\s\S]*exchange_symbol_verified_at/);
+  assert.match(markets, /const requestedPair = requested\.exchangeSymbol\?\.trim\(\)\.toUpperCase\(\)/);
+  assert.doesNotMatch(markets, /\/api\/weex\/resolve/);
   assert.doesNotMatch(markets, /verify_exchange_symbol/);
   assert.match(resolver, /SELECT symbol, chain, contract_address, coingecko_id,[\s\S]*exchange_symbol_verified_at[\s\S]*WHERE id = \$1/);
   assert.match(tokenPatch, /verifyWeexMarketForTokenIdentity/);
