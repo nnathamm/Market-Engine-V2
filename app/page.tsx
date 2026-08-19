@@ -346,16 +346,24 @@ function SidebarNavigation({ activeView, open, setView, access }: { activeView: 
               <Fragment key={section.heading}>
                 <h2>{section.heading}</h2>
                 {visibleItems.map(([icon, label, destination]) => (
-                  <button
-                    className={activeView === destination ? "active" : ""}
-                    type="button"
-                    tabIndex={tabIndex}
-                    aria-current={activeView === destination ? "page" : undefined}
-                    key={label}
-                    onClick={() => setView(destination)}
-                  >
-                    <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>
-                  </button>
+                  <Fragment key={label}>
+                    <button
+                      className={activeView === destination ? "active" : ""}
+                      type="button"
+                      tabIndex={tabIndex}
+                      aria-current={activeView === destination ? "page" : undefined}
+                      onClick={() => setView(destination)}
+                    >
+                      <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>
+                    </button>
+                    {label === "Algorithm Design" && isMasterOwner(access) ? (
+                      <div className="application-sidebar-subnav master-signal-subnav" aria-label="Master signal tools">
+                        <button className={activeView === "order-flow" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("order-flow")}>Order Flow Settings</button>
+                        <button className={activeView === "master-create" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("master-create")}>Create Master Signal</button>
+                        <button className={activeView === "master-signals" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("master-signals")}>View/Edit Master Signals</button>
+                      </div>
+                    ) : null}
+                  </Fragment>
                 ))}
               </Fragment>
             );
