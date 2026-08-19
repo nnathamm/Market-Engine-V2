@@ -65,6 +65,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /id="create-signal-under-signals"[\s\S]*Create Signal/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
   assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["markets", "Markets", "markets"\][\s\S]*\["admin", "Admin", "profile"\][\s\S]*Integrations/);
+  assert.doesNotMatch(systemNavigation, /Users/);
   assert.doesNotMatch(page, /adminExpanded|admin-subnav|users-under-admin/);
   assert.doesNotMatch(systemNavigation, /Alerts/);
   assert.doesNotMatch(page, /Data Feeds/);
