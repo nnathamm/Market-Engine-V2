@@ -1,41 +1,20 @@
 "use client";
 
 import { SignInButton, SignUpButton, UserButton, useClerk, useUser } from "@clerk/nextjs";
-import { Fragment, lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   readMarketRequest,
   writeMarketRequest,
   type MarketNavigationRequest,
 } from "@/lib/market-navigation";
 import { AccessManagementPanel } from "./access-management";
+import { SidebarNavigation, canOpenView, VIEWS, type View } from "./sidebar-navigation";
 import { useAppAccess } from "./use-app-access";
-import { hasPermission, isMasterOwner, type AppAccess, type AppPermission } from "@/lib/access-policy";
+import { hasPermission, type AppAccess } from "@/lib/access-policy";
 
 const MarketsView = lazy(() => import("./markets"));
 const AssetTrackingView = lazy(() => import("./asset-tracking"));
-
-type View = "create" | "signals" | "signal-library" | "master-create" | "master-signals" | "markets" | "asset-tracking" | "order-flow" | "notifications" | "profile";
 type DropdownOption = { value: string; label: string };
-
-const VIEWS = new Set<View>(["create", "signals", "signal-library", "master-create", "master-signals", "markets", "asset-tracking", "order-flow", "notifications", "profile"]);
-const VIEW_PERMISSIONS: Record<View, AppPermission> = {
-  create: "signals.create",
-  signals: "signals.view",
-  "signal-library": "signals.view",
-  "master-create": "signals.create",
-  "master-signals": "signals.view",
-  markets: "markets.view",
-  "asset-tracking": "asset_tracking.view",
-  "order-flow": "order_flow.view",
-  notifications: "notifications.view",
-  profile: "access.manage",
-};
-
-function canOpenView(access: AppAccess | null | undefined, view: View) {
-  return hasPermission(access, VIEW_PERMISSIONS[view]) &&
-    (!["master-create", "master-signals", "order-flow"].includes(view) || isMasterOwner(access));
-}
-
 const TIMEFRAME_OPTIONS: DropdownOption[] = [
   { value: "1s", label: "1 Second (1s)" },
   { value: "1m", label: "1 Minute (1m)" },
@@ -64,11 +43,6 @@ const TIMEFRAME_OPTIONS: DropdownOption[] = [
 ];
 
 const TRIGGER_OPTIONS = ["Bollinger Squeeze", "Bollinger Touch"];
-type SidebarIconName =
-  | "dashboard" | "signals" | "trades" | "markets" | "users" | "alerts" | "integrations"
-  | "general" | "trading" | "risk" | "order-flow" | "logs" | "asset-tracking" | "watchlists"
-  | "notifications" | "admin" | "create-signal" | "view-signals";
-
 const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = [
   ["create", "＋", "Create Signal", "Build a new trading signal"],
   ["signals", "☷", "View Signals", "Manage existing signals"],
@@ -81,60 +55,6 @@ const PAGE_NAVIGATION: ReadonlyArray<readonly [View, string, string, string]> = 
   ["notifications", "♢", "Notifications", "Choose where alerts are sent"],
   ["profile", "♛", "Master ADMIN Profile", "Executive account and site controls"],
 ];
-
-type SidebarSection = {
-  heading: string;
-  items: ReadonlyArray<readonly [SidebarIconName, string, View]>;
-};
-
-const SIDEBAR_SECTIONS: ReadonlyArray<SidebarSection> = [
-  { heading: "Build", items: [
-    ["create-signal", "Create Signal", "create"],
-    ["view-signals", "View/Edit Signals", "signals"],
-    ["watchlists", "Signal Library", "signal-library"],
-  ] },
-  { heading: "Monitor", items: [
-    ["markets", "Markets", "markets"],
-    ["asset-tracking", "Asset Tracking", "asset-tracking"],
-  ] },
-  { heading: "Alerts", items: [
-    ["notifications", "Notifications", "notifications"],
-  ] },
-  { heading: "Admin", items: [
-    ["order-flow", "Algorithm Design", "order-flow"],
-    ["admin", "Manage Access", "profile"],
-  ] },
-];
-
-const SIDEBAR_ICON_PATHS: Record<SidebarIconName, string> = {
-  dashboard: "M3 3h4v4H3zM13 3h4v4h-4zM3 13h4v4H3zM13 13h4v4h-4z",
-  signals: "M3 12a9 9 0 0 1 18 0M6 12a6 6 0 0 1 12 0M9 12a3 3 0 0 1 6 0M12 12h.01",
-  trades: "M4 7h12m0 0-3-3m3 3-3 3M20 17H8m0 0 3-3m-3 3 3 3",
-  markets: "M4 17V9m5 8V5m5 12v-4m5 4V3M2 20h20",
-  users: "M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm5-7a4 4 0 0 1 0 7.75",
-  alerts: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
-  integrations: "M8 12h8M12 8v8M7 3h3v4H7a3 3 0 0 0 0 6h3v4H7a7 7 0 0 1 0-14Zm10 0h-3v4h3a3 3 0 0 1 0 6h-3v4h3a7 7 0 0 0 0-14Z",
-  general: "M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-5 4v4",
-  trading: "M5 7h14M5 17h14M5 7l3-3m-3 3 3 3m11 7-3-3m3 3-3 3",
-  risk: "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Z",
-  "order-flow": "M4 18h4v-6h4V6h4V3h4",
-  logs: "M6 3h8l4 4v14H6zM14 3v5h5M9 12h6M9 16h6",
-  "asset-tracking": "M12 5c-5 0-9 7-9 7s4 7 9 7 9-7 9-7-4-7-9-7Zm0 10a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z",
-  watchlists: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3.1 9.6l6.1-.9L12 3Z",
-  notifications: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
-  admin: "M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3Zm-3 9 2 2 4-4",
-  "create-signal": "M12 5v14M5 12h14",
-  "view-signals": "M5 6h14M5 12h14M5 18h14",
-};
-
-function SidebarIcon({ name }: { name: SidebarIconName }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={SIDEBAR_ICON_PATHS[name]} />
-    </svg>
-  );
-}
-
 function cooldownSummaryLabel(value: string) {
   if (!value.startsWith("custom:")) return "not set";
 
@@ -328,53 +248,6 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function SidebarNavigation({ activeView, open, setView, access }: { activeView: View; open: boolean; setView: (view: View) => void; access: AppAccess }) {
-  const tabIndex = open ? 0 : -1;
-
-  return (
-    <aside className="application-sidebar" aria-hidden={!open}>
-      <div className="application-sidebar-scroll">
-        <button className="application-brand bg-[#060f1c] flex-col" type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
-          <img src="/logo.png" alt="Stop Loss" style={{ height: "73px", width: "auto", objectFit: "contain", margin: "0 auto", display: "block", padding: "12px 0" }} />
-        </button>
-
-        <nav className="application-sidebar-nav" aria-label="Main navigation">
-          {SIDEBAR_SECTIONS.map((section) => {
-            const visibleItems = section.items.filter(([, , destination]) => canOpenView(access, destination));
-            if (visibleItems.length === 0) return null;
-            return (
-              <Fragment key={section.heading}>
-                <h2>{section.heading}</h2>
-                {visibleItems.map(([icon, label, destination]) => (
-                  <Fragment key={label}>
-                    <button
-                      className={activeView === destination ? "active" : ""}
-                      type="button"
-                      tabIndex={tabIndex}
-                      aria-current={activeView === destination ? "page" : undefined}
-                      onClick={() => setView(destination)}
-                    >
-                      <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>
-                    </button>
-                    {label === "Algorithm Design" && isMasterOwner(access) ? (
-                      <div className="application-sidebar-subnav master-signal-subnav" aria-label="Master signal tools">
-                        <button className={activeView === "order-flow" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("order-flow")}>Order Flow Settings</button>
-                        <button className={activeView === "master-create" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("master-create")}>Create Master Signal</button>
-                        <button className={activeView === "master-signals" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("master-signals")}>View/Edit Master Signals</button>
-                      </div>
-                    ) : null}
-                  </Fragment>
-                ))}
-              </Fragment>
-            );
-          })}
-        </nav>
-
-      </div>
-    </aside>
-  );
-}
-
 function ApplicationTopbar({ activeView, sidebarOpen, toggleSidebar, setView, access }: { activeView: View; sidebarOpen: boolean; toggleSidebar: () => void; setView: (view: View) => void; access: AppAccess }) {
   const currentPage = PAGE_NAVIGATION.find(([view]) => view === activeView) ?? PAGE_NAVIGATION[0];
 
@@ -401,22 +274,48 @@ function SummaryIcon({ children, tone = "purple" }: { children: React.ReactNode;
   return <span className={`summary-icon ${tone}`} aria-hidden="true">{children}</span>;
 }
 
-function CreateView({ setView, openCondition }: { setView: (view: View) => void; openCondition: () => void }) {
+function CreateView({ setView, openCondition, master = false }: { setView: (view: View) => void; openCondition: () => void; master?: boolean }) {
   const [timeFrame, setTimeFrame] = useState("15m");
   const [cooldown, setCooldown] = useState("custom:0:0:5");
+  const [signalName, setSignalName] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function saveSignal(status: "draft" | "published") {
+    if (!master) {
+      setNotice("Personal signal form saved for this session.");
+      return;
+    }
+    if (!signalName.trim()) {
+      setNotice("Enter a signal name first.");
+      return;
+    }
+    const response = await fetch("/api/master-signals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: signalName,
+        status,
+        definition: { timeFrame, cooldown, source: "create-signal-builder" },
+      }),
+    });
+    const payload = await response.json() as { error?: string };
+    setNotice(response.ok
+      ? (status === "published" ? "Master Signal published to the Signal Library." : "Master Signal saved as a draft.")
+      : payload.error ?? "Unable to save Master Signal.");
+  }
 
   return (
     <div className="screen inner-screen create-screen">
       <header className="inner-header mt-[10px] mb-[10px]">
         <div className="inner-title">
           <div>
-            <h1>Create New Signal</h1>
-            <p>Build a new signal with your own rules, time frame, and trigger conditions.</p>
+            <h1>{master ? "Create Master Signal" : "Create New Signal"}</h1>
+            <p>{master ? "Build a system-wide signal with the same rules, time frame, and trigger conditions." : "Build a new signal with your own rules, time frame, and trigger conditions."}</p>
           </div>
         </div>
         <div className="header-actions">
-          <button className="outline-button" type="button">Save as Draft</button>
-          <button className="purple-button" type="button">Create Signal</button>
+          <button className="outline-button" type="button" onClick={() => void saveSignal("draft")}>Save as Draft</button>
+          <button className="purple-button" type="button" onClick={() => void saveSignal("published")}>{master ? "Publish Master Signal" : "Create Signal"}</button>
         </div>
       </header>
 
@@ -427,11 +326,12 @@ function CreateView({ setView, openCondition }: { setView: (view: View) => void;
             <div className="two-fields">
               <label className="form-field">
                 <span>Signal Name <b>*</b></span>
-                <input type="text" placeholder="e.g., Bollinger Squeeze 15 Minute" />
+                <input type="text" value={signalName} onChange={(event) => setSignalName(event.target.value)} placeholder={master ? "e.g., Master Momentum Confirmation" : "e.g., Bollinger Squeeze 15 Minute"} />
               </label>
               <UiDropdown label="Time Frame" required value={timeFrame} options={TIMEFRAME_OPTIONS} onChange={setTimeFrame} searchPlaceholder="Search timeframes..." />
             </div>
             <div className="info-strip"><span>ⓘ</span> Choose a name and time frame for your signal.</div>
+            {notice && <p className="master-builder-notice" role="status">{notice}</p>}
           </section>
 
           <section className="surface conditions-section">
@@ -528,6 +428,153 @@ function SignalsView() {
           <SignalRow glyph="◉" name="Volume Breakout 15 Minute" type="Volume" typeTone="blue" frame="15m" triggers="2 Active" status="Paused" modified="May 7, 2025  10:05 AM" />
         </div>
         <div className="table-footer"><span>Showing 1 to 8 of 8 signals</span><div><button type="button" aria-label="Previous page">‹</button><button className="current" type="button">1</button><button type="button" aria-label="Next page">›</button></div></div>
+      </main>
+    </div>
+  );
+}
+
+type MasterSignalRecord = {
+  id: number;
+  name: string;
+  description: string;
+  status: "draft" | "published" | "paused" | "archived";
+  version: number;
+  updatedAt: string;
+};
+
+function MasterSignalLibraryView() {
+  const [signals, setSignals] = useState<MasterSignalRecord[]>([]);
+  const [linked, setLinked] = useState<Set<number>>(new Set());
+  const [notice, setNotice] = useState("Published master signals are available here.");
+
+  useEffect(() => {
+    void fetch("/api/master-signals", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) throw new Error("Unable to load the signal library");
+      const payload = await response.json() as { library: MasterSignalRecord[]; linked: MasterSignalRecord[] };
+      setSignals(payload.library);
+      setLinked(new Set(payload.linked.map((signal) => signal.id)));
+    }).catch((error) => setNotice(error instanceof Error ? error.message : "Unable to load the signal library"));
+  }, []);
+
+  async function addCopy(id: number) {
+    const response = await fetch(`/api/master-signals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "copy" }),
+    });
+    if (!response.ok) {
+      setNotice("Unable to add that master signal.");
+      return;
+    }
+    setLinked((current) => new Set(current).add(id));
+    setNotice("Linked copy added to My Signals. Master updates will continue automatically.");
+  }
+
+  return (
+    <div className="screen inner-screen signals-screen">
+      <header className="list-header"><div><h1>Signal Library</h1><p>Browse published Master Signals and add linked copies to My Signals.</p></div></header>
+      <main className="signals-panel surface master-library-panel">
+        <div className="signals-toolbar"><div className="toolbar-title"><span className="toolbar-icon">▣</span><div><h2>Published Master Signals <b>{signals.length}</b></h2><p>Master Admin definitions stay authoritative and update linked copies automatically.</p></div></div></div>
+        <p className="master-library-notice" role="status">{notice}</p>
+        {signals.length === 0 ? <div className="master-library-empty">No Master Signals have been published yet.</div> : (
+          <div className="master-library-list">
+            {signals.map((signal) => (
+              <article className="master-library-card" key={signal.id}>
+                <div><span className="row-icon">✦</span><div><h2>{signal.name}</h2><p>{signal.description || "System-wide strategy published by the Master Admin."}</p><small>Version {signal.version} · {signal.status}</small></div></div>
+                <button className="purple-button" type="button" disabled={linked.has(signal.id)} onClick={() => void addCopy(signal.id)}>{linked.has(signal.id) ? "Added to My Signals" : "Add a copy to My Signals"}</button>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function MasterSignalBuilderView() {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [publish, setPublish] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  async function save() {
+    if (!name.trim()) {
+      setNotice("Enter a Master Signal name first.");
+      return;
+    }
+    const response = await fetch("/api/master-signals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description, status: publish ? "published" : "draft", definition: { source: "master-signal-builder" } }),
+    });
+    const payload = await response.json() as { error?: string };
+    setNotice(response.ok ? (publish ? "Master Signal published to the Signal Library." : "Master Signal saved as a draft.") : payload.error ?? "Unable to save Master Signal.");
+    if (response.ok) {
+      setName("");
+      setDescription("");
+    }
+  }
+
+  return (
+    <div className="screen inner-screen master-builder-screen">
+      <header className="inner-header"><div className="inner-title"><span className="profile-hero-icon" aria-hidden="true">✦</span><div><h1>Create Master Signal</h1><p>Build an authoritative strategy for the system-wide Signal Library.</p></div></div></header>
+      <main className="master-builder-layout">
+        <section className="surface master-builder-card">
+          <div className="section-row"><div><h2>Master Signal Definition</h2><p>This signal is separate from personal signals and remains owned by the Master Admin.</p></div><span className="profile-role-badge">MASTER</span></div>
+          <label className="form-field"><span>Name <b>*</b></span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Momentum Confirmation Master" /></label>
+          <label className="form-field"><span>Description</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Explain what this system-wide strategy is intended to do." /></label>
+          <label className="toggle-row master-publish-toggle"><input type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} /><em>Publish to the Signal Library immediately</em></label>
+          <button className="purple-button" type="button" onClick={() => void save()}>{publish ? "Publish Master Signal" : "Save Draft"}</button>
+          {notice && <p className="master-builder-notice" role="status">{notice}</p>}
+        </section>
+        <aside className="surface master-builder-note"><span>ⓘ</span><div><h2>Linked copies stay current</h2><p>When you publish an update, every user copy in My Signals receives the new Master Signal version automatically. Users cannot edit the master definition.</p></div></aside>
+      </main>
+    </div>
+  );
+}
+
+function MasterSignalsView() {
+  const [signals, setSignals] = useState<MasterSignalRecord[]>([]);
+  const [notice, setNotice] = useState("Loading Master Signals…");
+
+  const load = useCallback(async () => {
+    const response = await fetch("/api/master-signals", { cache: "no-store" });
+    if (!response.ok) {
+      setNotice("Unable to load Master Signals.");
+      return;
+    }
+    const payload = await response.json() as { managed: MasterSignalRecord[] };
+    setSignals(payload.managed);
+    setNotice(payload.managed.length ? "" : "No Master Signals created yet.");
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function updateStatus(id: number, status: MasterSignalRecord["status"]) {
+    const response = await fetch(`/api/master-signals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (response.ok) void load();
+    else setNotice("Unable to update that Master Signal.");
+  }
+
+  return (
+    <div className="screen inner-screen signals-screen">
+      <header className="list-header"><div><h1>View / Edit Master Signals</h1><p>Publish and manage the authoritative strategies available in the Signal Library.</p></div></header>
+      <main className="signals-panel surface master-library-panel">
+        <div className="signals-toolbar"><div className="toolbar-title"><span className="toolbar-icon">✦</span><div><h2>Your Master Signals <b>{signals.length}</b></h2><p>Changes propagate to all linked copies.</p></div></div></div>
+        {notice && <p className="master-library-notice" role="status">{notice}</p>}
+        <div className="master-library-list">{signals.map((signal) => (
+          <article className="master-library-card" key={signal.id}>
+            <div><span className="row-icon">✦</span><div><h2>{signal.name}</h2><p>{signal.description || "No description provided."}</p><small>Version {signal.version} · {signal.status}</small></div></div>
+            <div className="master-status-actions">
+              {signal.status === "published" ? <button type="button" onClick={() => void updateStatus(signal.id, "paused")}>Pause</button> : <button type="button" onClick={() => void updateStatus(signal.id, "published")}>Publish</button>}
+              {signal.status !== "archived" && <button type="button" onClick={() => void updateStatus(signal.id, "archived")}>Archive</button>}
+            </div>
+          </article>
+        ))}</div>
       </main>
     </div>
   );
@@ -1056,6 +1103,9 @@ export default function Home() {
             {!viewAllowed && <AccessLoadingScreen error="Your account does not have access to this area." />}
             {viewAllowed && view === "create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} />}
             {viewAllowed && view === "signals" && <SignalsView />}
+            {viewAllowed && view === "signal-library" && <MasterSignalLibraryView />}
+            {viewAllowed && view === "master-create" && <CreateView setView={navigate} openCondition={() => setConditionOpen(true)} master />}
+            {viewAllowed && view === "master-signals" && <MasterSignalsView />}
             {viewAllowed && view === "markets" && <Suspense fallback={<div className="page-loading">Loading markets…</div>}><MarketsView request={marketRequest} onRequestChange={updateMarketRequest} onBackToMonitor={() => navigate("asset-tracking")} /></Suspense>}
             {viewAllowed && view === "asset-tracking" && <Suspense fallback={<div className="page-loading">Loading asset tracking…</div>}><AssetTrackingView onOpenInMarkets={openTokenInMarkets} /></Suspense>}
             {viewAllowed && view === "order-flow" && <OrderFlowView />}

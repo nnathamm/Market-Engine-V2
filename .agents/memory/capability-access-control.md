@@ -26,3 +26,9 @@ Basic, Pro, and Elite are membership tiers for entitlement decisions, separate f
 **Why:** The owner chose to establish tier-based access now while postponing subscription payments.
 
 **How to apply:** Store tier entitlements independently from capabilities and roles so future billing can change a user’s tier without changing their identity or administrative authority.
+
+Master Signals live in a system-wide Signal Library. Users add a linked copy to My Signals; it remains non-editable and receives Master Admin updates automatically.
+
+**Why:** The owner rejected a separate follow action and chose a library-to-linked-copy experience that keeps personal signals in their existing workspace.
+
+**How to apply:** Keep Master Signal authoring and management exclusive to the master owner, while the library is available to permitted users. A copied item must retain its source identity rather than fork the definition.
