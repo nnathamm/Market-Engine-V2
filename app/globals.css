@@ -34,7 +34,7 @@ body {
 nextjs-portal { display: none !important; }
 
 .authentication-screen { position: relative; isolation: isolate; overflow: hidden; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: linear-gradient(145deg, #020a15, #071525 62%, #020a14); }
-.authentication-screen::before { content: ""; position: absolute; z-index: -1; inset: -30%; background: radial-gradient(circle at 35% 42%, rgba(109, 62, 190, .28), transparent 28%), radial-gradient(circle at 70% 58%, rgba(46, 105, 176, .16), transparent 25%); filter: blur(32px); animation: authentication-ambient-drift 18s ease-in-out infinite alternate; pointer-events: none; }
+.authentication-screen::before { content: ""; position: absolute; z-index: -1; inset: -30%; background: radial-gradient(circle at 35% 42%, rgba(109, 62, 190, .28), transparent 28%), radial-gradient(circle at 70% 58%, rgba(46, 105, 176, .16), transparent 25%); filter: blur(32px); animation: authentication-ambient-drift 9s ease-in-out infinite alternate; pointer-events: none; }
 .authentication-card { position: relative; z-index: 1; width: min(460px, 100%); padding: 42px; border: 1px solid #273952; border-radius: 18px; background: rgba(7, 17, 30, .9); box-shadow: 0 28px 80px rgba(0, 0, 0, .3); text-align: center; }
 @keyframes authentication-ambient-drift {
   0% { transform: translate3d(-3%, -2%, 0) scale(1); }
