@@ -55,12 +55,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           },
           socialButtonsBlockButton: {
             backgroundColor: "#0b1625",
-            border: "1px solid #31405a",
+            border: "1px solid #b1b1bd",
             color: "#f7f8fb",
           },
           formFieldInput: {
-            backgroundColor: "#0b1625",
-            border: "1px solid #31405a",
+            backgroundColor: "#000000",
+            border: "1px solid rgba(255, 255, 255, .278)",
             color: "#f7f8fb",
           },
           formButtonPrimary: {
