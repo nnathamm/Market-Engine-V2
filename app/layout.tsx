@@ -67,7 +67,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           },
           formFieldInput: {
             backgroundColor: "#000000",
-            border: "1px solid rgba(255, 255, 255, .278)",
+            border: "1px solid rgba(177, 177, 189, .5)",
             color: "#f7f8fb",
           },
           formFieldLabel: {

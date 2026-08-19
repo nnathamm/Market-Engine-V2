@@ -59,6 +59,15 @@ nextjs-portal { display: none !important; }
   opacity: 1 !important;
 }
 
+.cl-formFieldInput {
+  border: 1px solid rgba(177, 177, 189, .5) !important;
+}
+
+.cl-formFieldInput:hover {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, .45) inset !important;
+}
+
 .cl-headerSubtitle::before {
   content: "";
   width: 190px;
