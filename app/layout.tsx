@@ -37,15 +37,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <ClerkProvider
       publishableKey={process.env.VITE_CLERK_PUBLISHABLE_KEY}
       appearance={{
-        variables: {
-          colorPrimary: "#a855f7",
-          colorBackground: "#091421",
-          colorInputText: "#f7f8fb",
-          colorText: "#f7f8fb",
-          colorTextSecondary: "#a8b4c6",
-          colorNeutral: "#273952",
-          borderRadius: "10px",
-        },
         elements: {
           modalContent: {
             backgroundColor: "#091421",
