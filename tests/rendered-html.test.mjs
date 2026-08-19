@@ -50,9 +50,12 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(styles, /\.notifications-layout\s*\{[^}]*grid-template-columns:/s);
   assert.match(styles, /\.notification-switch input:checked \+ span/s);
   assert.match(page, /const PAGE_NAVIGATION:[\s\S]*Create Signal[\s\S]*View Signals[\s\S]*Markets[\s\S]*Asset Tracking[\s\S]*Order Flow[\s\S]*Notifications[\s\S]*Master ADMIN Profile/);
-  assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Create Signal[\s\S]*Signals[\s\S]*Backtesting[\s\S]*Trades[\s\S]*Analytics/);
+  assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Create Signal[\s\S]*Signals[\s\S]*Trades/);
+  assert.doesNotMatch(page, /Backtesting/);
+  assert.doesNotMatch(page, /Analytics/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
-  assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["◉", "Markets", "markets"\][\s\S]*Data Feeds[\s\S]*Users[\s\S]*Alerts[\s\S]*Integrations/);
+  assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["◉", "Markets", "markets"\][\s\S]*Users[\s\S]*Alerts[\s\S]*Integrations/);
+  assert.doesNotMatch(page, /Data Feeds/);
   assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
   assert.match(page, /const SIDEBAR_MONITORING_NAV:[\s\S]*Asset Tracking[\s\S]*Watchlists[\s\S]*Notifications/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);

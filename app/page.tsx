@@ -58,14 +58,11 @@ const SIDEBAR_PRIMARY_NAV: ReadonlyArray<readonly [string, string, View | null]>
   ["⌂", "Dashboard", null],
   ["＋", "Create Signal", "create"],
   ["◇", "Signals", "signals"],
-  ["⊗", "Backtesting", null],
   ["▣", "Trades", null],
-  ["▥", "Analytics", null],
 ];
 
 const SIDEBAR_SYSTEM_NAV: ReadonlyArray<readonly [string, string, View | null]> = [
   ["◉", "Markets", "markets"],
-  ["▤", "Data Feeds", null],
   ["♧", "Users", null],
   ["♢", "Alerts", null],
   ["⌘", "Integrations", null],
