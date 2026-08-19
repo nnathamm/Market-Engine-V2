@@ -44,6 +44,11 @@ nextjs-portal { display: none !important; }
 .authentication-actions button { min-height: 42px; padding: 0 18px; color: #fff; border: 0; border-radius: 9px; background: linear-gradient(135deg, #a550ff, #6f36da); cursor: pointer; font-weight: 750; }
 .authentication-actions button.secondary { border: 1px solid #31405a; background: transparent; color: #d8deeb; }
 
+.cl-socialButtonsBlockButton {
+  border: 1px solid #b1b1bd !important;
+  box-shadow: 0 0 0 1px rgba(177, 177, 189, .35) inset !important;
+}
+
 button, input, select { font: inherit; }
 button { color: inherit; }
 
