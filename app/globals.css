@@ -45,8 +45,8 @@ nextjs-portal { display: none !important; }
 .authentication-actions button.secondary { border: 1px solid #31405a; background: transparent; color: #d8deeb; }
 
 .cl-socialButtonsBlockButton {
-  border: 1px solid rgba(177, 177, 189, .5) !important;
-  box-shadow: 0 0 0 1px rgba(177, 177, 189, .175) inset !important;
+  border: 0.6px solid rgba(177, 177, 189, .5) !important;
+  box-shadow: 0 0 0 0.6px rgba(177, 177, 189, .175) inset !important;
 }
 
 .cl-headerSubtitle::before {
