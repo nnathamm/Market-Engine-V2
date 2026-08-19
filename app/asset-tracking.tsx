@@ -344,7 +344,6 @@ function TokenIntelligence({ token, priceLoading, onLinkMarketData }: { token: T
           <span><small>Status</small><strong>Watching</strong></span>
         </div>
         <section className="tracking-side-card">
-          <h3>Monitoring Summary</h3>
           <p>This interface is ready to show price moves, holder activity, and alerts after an asset-intelligence provider is connected.</p>
           <div className="tracking-side-list">
             <span><AssetBadge label="24H" tone="violet" /><b>Price movement<small>24h change from market data</small></b><Change value={token.change} /></span>
