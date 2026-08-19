@@ -16,6 +16,7 @@ type AccessRow = {
   clerk_user_id: string;
   role: string;
   permissions: unknown;
+  is_master_owner: boolean;
 };
 
 let schemaPromise: Promise<void> | null = null;
@@ -27,10 +28,25 @@ async function ensureAccessSchema() {
         clerk_user_id TEXT PRIMARY KEY,
         role TEXT NOT NULL CHECK (role IN ('admin', 'member')) DEFAULT 'member',
         permissions TEXT[] NOT NULL DEFAULT '{}',
+        is_master_owner BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
-    `).then(() => undefined).catch((error) => {
+    `).then(async () => {
+      await pool.query("ALTER TABLE app_user_access ADD COLUMN IF NOT EXISTS is_master_owner BOOLEAN NOT NULL DEFAULT FALSE");
+      await pool.query(`
+        UPDATE app_user_access
+        SET is_master_owner = TRUE
+        WHERE clerk_user_id = (
+          SELECT clerk_user_id
+          FROM app_user_access
+          WHERE role = 'admin'
+          ORDER BY created_at ASC
+          LIMIT 1
+        )
+        AND NOT EXISTS (SELECT 1 FROM app_user_access WHERE is_master_owner = TRUE)
+      `);
+    }).catch((error) => {
       schemaPromise = null;
       throw error;
     });
@@ -43,6 +59,7 @@ function toAccess(row: AccessRow): AppAccess {
   return {
     role,
     permissions: permissionsFor(role, normalizeGrantedPermissions(row.permissions)),
+    isMasterOwner: Boolean(row.is_master_owner),
   };
 }
 
@@ -54,7 +71,7 @@ async function ensureUserAccess(userId: string): Promise<AppAccess> {
     await client.query("SELECT pg_advisory_xact_lock(hashtext('signal-control:access-bootstrap'))");
 
     const existing = await client.query<AccessRow>(
-      "SELECT clerk_user_id, role, permissions FROM app_user_access WHERE clerk_user_id = $1",
+      "SELECT clerk_user_id, role, permissions, is_master_owner FROM app_user_access WHERE clerk_user_id = $1",
       [userId],
     );
     if (existing.rows[0]) {
@@ -65,10 +82,10 @@ async function ensureUserAccess(userId: string): Promise<AppAccess> {
     const countResult = await client.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM app_user_access");
     const role: AppRole = Number(countResult.rows[0]?.count ?? "0") === 0 ? "admin" : "member";
     const inserted = await client.query<AccessRow>(
-      `INSERT INTO app_user_access (clerk_user_id, role)
-       VALUES ($1, $2)
-       RETURNING clerk_user_id, role, permissions`,
-      [userId, role],
+      `INSERT INTO app_user_access (clerk_user_id, role, is_master_owner)
+       VALUES ($1, $2, $3)
+       RETURNING clerk_user_id, role, permissions, is_master_owner`,
+      [userId, role, role === "admin" && Number(countResult.rows[0]?.count ?? "0") === 0],
     );
     await client.query("COMMIT");
     return toAccess(inserted.rows[0]);
@@ -106,7 +123,7 @@ export async function authorize(permission: AppPermission) {
 export async function listAccessRecords() {
   await ensureAccessSchema();
   const { rows } = await pool.query<AccessRow>(
-    "SELECT clerk_user_id, role, permissions FROM app_user_access ORDER BY created_at ASC",
+    "SELECT clerk_user_id, role, permissions, is_master_owner FROM app_user_access ORDER BY created_at ASC",
   );
   return new Map(rows.map((row) => [row.clerk_user_id, toAccess(row)]));
 }

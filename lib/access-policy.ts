@@ -16,6 +16,7 @@ export type AppRole = "admin" | "member";
 export type AppAccess = {
   role: AppRole;
   permissions: AppPermission[];
+  isMasterOwner: boolean;
 };
 
 const MEMBER_PERMISSIONS: AppPermission[] = [
@@ -43,4 +44,8 @@ export function permissionsFor(role: AppRole, granted: AppPermission[] = []): Ap
 
 export function hasPermission(access: AppAccess | null | undefined, permission: AppPermission): boolean {
   return Boolean(access?.permissions.includes(permission));
+}
+
+export function isMasterOwner(access: AppAccess | null | undefined): boolean {
+  return Boolean(access?.isMasterOwner);
 }
