@@ -87,19 +87,6 @@ nextjs-portal { display: none !important; }
   background: #091421 !important;
 }
 
-.cl-rootBox.cl-signIn-root,
-.cl-rootBox.cl-signUp-root {
-  min-height: 100dvh !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.cl-rootBox.cl-signIn-root .cl-cardBox,
-.cl-rootBox.cl-signUp-root .cl-cardBox {
-  margin: 0 auto !important;
-}
-
 .cl-headerSubtitle::before {
   content: "";
   width: 190px;
