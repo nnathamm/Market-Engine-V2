@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton, useClerk, useUser } from "@clerk/nextjs";
 import { Fragment, lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   readMarketRequest,
@@ -1028,11 +1028,15 @@ function AccessLoadingScreen({ error }: { error?: string | null }) {
 
 export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerk();
   const [view, setView] = useState<View>("create");
   const [marketRequest, setMarketRequest] = useState<MarketNavigationRequest | null>(null);
   const [conditionOpen, setConditionOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { access, isLoading: accessLoading, error: accessError } = useAppAccess(isSignedIn);
+  const clearStaleSession = useCallback(async () => {
+    await signOut();
+  }, [signOut]);
+  const { access, isLoading: accessLoading, error: accessError } = useAppAccess(isSignedIn, clearStaleSession);
 
   const applyLocation = useCallback(() => {
     const params = new URLSearchParams(window.location.search);

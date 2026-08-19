@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppAccess } from "@/lib/access-policy";
 
-export function useAppAccess(isSignedIn: boolean | undefined) {
+export function useAppAccess(
+  isSignedIn: boolean | undefined,
+  onSessionInvalid?: () => void | Promise<void>,
+) {
   const [access, setAccess] = useState<AppAccess | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(isSignedIn));
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +22,11 @@ export function useAppAccess(isSignedIn: boolean | undefined) {
     setError(null);
     try {
       const response = await fetch("/api/access/me");
+      if (response.status === 401) {
+        setAccess(null);
+        await onSessionInvalid?.();
+        return;
+      }
       if (!response.ok) throw new Error("Unable to load your access permissions");
       setAccess(await response.json() as AppAccess);
     } catch (cause) {
@@ -27,7 +35,7 @@ export function useAppAccess(isSignedIn: boolean | undefined) {
     } finally {
       setIsLoading(false);
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, onSessionInvalid]);
 
   useEffect(() => {
     void refresh();
