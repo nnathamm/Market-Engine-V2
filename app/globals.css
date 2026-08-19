@@ -75,7 +75,7 @@ nextjs-portal { display: none !important; }
 }
 
 .cl-footer {
-  background: #091421 !important;
+  display: none !important;
 }
 
 .cl-footerPages {

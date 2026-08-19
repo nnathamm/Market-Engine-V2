@@ -89,8 +89,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             color: "#a8b4c6",
           },
           footer: {
-            backgroundColor: "#091421",
-            borderTop: "1px solid #273952",
+            display: "none",
           },
           footerActionText: {
             color: "#a8b4c6",
