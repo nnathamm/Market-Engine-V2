@@ -1007,6 +1007,7 @@ export default function AssetTrackingView() {
 
   return (
     <div className="tracking-page">
+      <div className="tracking-scroll-area">
       <header className="tracking-page-header">
         <div><p className="tracking-breadcrumb">Asset Tracking <b>›</b> <strong>Overview</strong></p><h1>Monitor Center</h1><p>Track watched tokens and wallets from one focused workspace.</p><small>Interface preview · External asset intelligence is not connected yet.</small></div>
         <div className="tracking-header-actions"><button className="tracking-primary" type="button" onClick={() => setDialog("tokens")}>＋ Add Token</button><button type="button" onClick={() => setDialog("wallets")}>＋ Add Wallet</button><button type="button" onClick={() => fileInput.current?.click()}>⇧ Import List</button><input ref={fileInput} type="file" accept=".csv,.txt" aria-label="Import asset list" hidden onChange={() => setToast("Import selected for this interface preview.")} /></div>
@@ -1129,6 +1130,7 @@ export default function AssetTrackingView() {
           ? selectedToken ? <TokenIntelligence token={selectedToken} priceLoading={livePriceFetching} onLinkMarketData={() => setLinkTokenSymbol(selectedToken.symbol)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>
           : selectedWallet ? <WalletIntelligence wallet={selectedWallet} portfolioWallet={portfolioWallets.find(pw => pw.id === selectedWallet.portfolio_id)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a wallet to see intelligence here.</p></aside>}
       </div>
+      </div>{/* end tracking-scroll-area */}
       {toast && <div className="tracking-toast" role="status">✓ {toast}</div>}
       {dialog && <TrackingDialog kind={dialog} close={() => setDialog(null)} finish={finishDialog} onSave={dialog === "tokens" ? saveToken : saveWallet} />}
       {walletDeletePending && (
