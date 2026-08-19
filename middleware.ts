@@ -1,6 +1,17 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
+import { NextResponse } from "next/server";
 
-export default clerkMiddleware();
+export default clerkMiddleware(
+  () => NextResponse.next(),
+  (request) => ({
+    publishableKey: publishableKeyFromHost(
+      request.headers.get("x-forwarded-host")?.replace(/:\d+$/, "") ?? request.nextUrl.hostname,
+      process.env.CLERK_PUBLISHABLE_KEY,
+    ),
+    proxyUrl: process.env.CLERK_PROXY_URL,
+  }),
+);
 
 export const config = {
   matcher: [

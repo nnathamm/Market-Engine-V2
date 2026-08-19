@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
 import { Geist } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -32,10 +33,20 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const requestHeaders = await headers();
+  const forwardedHost = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost";
+  const hostname = forwardedHost.replace(/:\d+$/, "");
+  const clerkPubKey = publishableKeyFromHost(
+    hostname,
+    process.env.VITE_CLERK_PUBLISHABLE_KEY,
+  );
+  const clerkProxyUrl = process.env.CLERK_PROXY_URL;
+
   return (
     <ClerkProvider
-      publishableKey={process.env.VITE_CLERK_PUBLISHABLE_KEY}
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
       localization={{
         signIn: {
           start: {
