@@ -71,7 +71,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             color: "#f7f8fb",
           },
           formFieldLabel: {
-            color: "#ffffff",
+            color: "#a8b4c6",
           },
           formButtonPrimary: {
             background: "linear-gradient(135deg, #a550ff, #6f36da)",
