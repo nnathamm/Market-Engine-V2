@@ -64,6 +64,9 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.doesNotMatch(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*Alerts/);
   assert.doesNotMatch(page, /Data Feeds/);
   assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
+  assert.match(page, /className="application-settings-label"[\s\S]*aria-expanded=\{settingsExpanded\}[\s\S]*aria-controls="settings-subnav"/);
+  assert.match(page, /\{settingsExpanded && \([\s\S]*className="application-settings-nav"[\s\S]*id="settings-subnav"/);
+  assert.doesNotMatch(page, /SIDEBAR_SETTINGS_NAV\.map\(\(\[icon, label, destination\]\)/);
   assert.match(page, /const SIDEBAR_MONITORING_NAV:[\s\S]*Asset Tracking[\s\S]*Watchlists[\s\S]*Notifications/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);
   assert.match(page, /function ProfileView[\s\S]*Master ADMIN Profile[\s\S]*Executive control account[\s\S]*Full site configuration control[\s\S]*Override lower-tier permissions[\s\S]*Modify, suspend, or delete accounts[\s\S]*Notification Settings[\s\S]*Manage Accounts/);

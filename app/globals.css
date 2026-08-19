@@ -107,7 +107,8 @@ button { color: inherit; }
 .application-sidebar-nav > button.active .application-sidebar-icon { color: #b45dff; }
 .application-sidebar-nav button small { color: #596679; text-transform: uppercase; font-size: 8px; font-weight: 700; letter-spacing: .06em; }
 .application-sidebar-nav > h2 { margin: 22px 18px 9px; color: #93a0b3; text-transform: uppercase; font-size: 11px; letter-spacing: .12em; }
-.application-settings-label { min-height: 52px; margin-top: 7px; padding: 0 13px; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 10px; color: #bf61ff; border-radius: 9px; background: #152033; }
+.application-settings-label { width: 100%; min-height: 52px; margin-top: 7px; padding: 0 13px; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 10px; color: #bf61ff; border: 0; border-radius: 9px; background: #152033; cursor: pointer; text-align: left; }
+.application-settings-label:hover, .application-settings-label:focus-visible { color: #f3f5f8; background: #1a2940; outline: 0; }
 .application-settings-label strong { font-size: 16px; font-weight: 550; }
 .application-settings-label .application-sidebar-icon { color: #bd61ff; }
 .application-settings-nav { position: relative; margin: 9px 0 0 42px; padding-left: 19px; display: grid; }

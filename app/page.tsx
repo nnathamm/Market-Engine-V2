@@ -308,6 +308,7 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
 function SidebarNavigation({ activeView, open, setView }: { activeView: View; open: boolean; setView: (view: View) => void }) {
   const tabIndex = open ? 0 : -1;
   const [expandedSection, setExpandedSection] = useState<"signals" | null>(null);
+  const [settingsExpanded, setSettingsExpanded] = useState(true);
 
   function selectPrimary(label: string, destination: View | null) {
     if (!destination) return;
@@ -360,14 +361,25 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
             <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}><span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}</button>
           ))}
 
-          <div className="application-settings-label"><span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong></div>
-          <div className="application-settings-nav">
-            {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
-              <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-                {label}{!destination ? <small>Soon</small> : null}
-              </button>
-            ))}
-          </div>
+          <button
+            className="application-settings-label"
+            type="button"
+            tabIndex={tabIndex}
+            aria-expanded={settingsExpanded}
+            aria-controls="settings-subnav"
+            onClick={() => setSettingsExpanded(current => !current)}
+          >
+            <span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong>
+          </button>
+          {settingsExpanded && (
+            <div className="application-settings-nav" id="settings-subnav">
+              {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
+                <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
+                  {label}{!destination ? <small>Soon</small> : null}
+                </button>
+              ))}
+            </div>
+          )}
 
           <h2>Monitoring</h2>
           {SIDEBAR_MONITORING_NAV.map(([icon, label, destination]) => (
