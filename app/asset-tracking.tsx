@@ -569,6 +569,9 @@ export default function AssetTrackingView() {
   const [tab, setTab] = useState<TrackingTab>("tokens");
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(8);
+  const [perPageOpen, setPerPageOpen] = useState(false);
   const [dbTokens, setDbTokens] = useState<DbToken[]>([]);
   const [portfolioWallets, setPortfolioWallets] = useState<PortfolioWallet[]>([]);
   const [alchemyConfigured, setAlchemyConfigured] = useState(true);
@@ -765,6 +768,12 @@ export default function AssetTrackingView() {
 
   const tokens = useMemo(() => allTokens.filter(t => `${t.name} ${t.symbol} ${t.pair}`.toLowerCase().includes(query.toLowerCase())), [allTokens, query]);
   const wallets = useMemo(() => allWallets.filter(w => `${w.name} ${w.address} ${w.chain}`.toLowerCase().includes(query.toLowerCase())), [allWallets, query]);
+
+  // Reset to page 1 whenever the search query changes
+  useEffect(() => { setPage(1); }, [query]);
+
+  const pagedTokens = useMemo(() => tokens.slice((page - 1) * perPage, page * perPage), [tokens, page, perPage]);
+  const pagedWallets = useMemo(() => wallets.slice((page - 1) * perPage, page * perPage), [wallets, page, perPage]);
 
   useEffect(() => {
     if (!selectedToken) {
@@ -1001,7 +1010,7 @@ export default function AssetTrackingView() {
     setOpenMenu(null);
   }, []);
 
-  const switchTab = (nextTab: TrackingTab) => { setTab(nextTab); setQuery(""); };
+  const switchTab = (nextTab: TrackingTab) => { setTab(nextTab); setQuery(""); setPage(1); };
 
   const finishDialog = (message: string) => {
     setDialog(null);
@@ -1032,7 +1041,7 @@ export default function AssetTrackingView() {
               <div className="tracking-table token-table">
                 <div className="tracking-table-head"><span>Token / Pair</span><span>Networks</span><span>Price</span><span>24H Change</span><span>Last Activity</span><span>Actions</span></div>
                 <div className="tracking-table-body">
-                {tokens.map((token) => {
+                {pagedTokens.map((token) => {
                   const geckoUrl = `https://www.coingecko.com/en/coins/${token.coingecko_id ?? token.symbol.toLowerCase()}`;
                   const menuKey = `t-${token.symbol}`;
                   return (
@@ -1092,7 +1101,7 @@ export default function AssetTrackingView() {
                 )}
                 <div className="tracking-table-head"><span>Wallet / Label</span><span>Chain</span><span>Holdings (USD)</span><span>Status</span><span>Last Activity</span><span>Actions</span></div>
                 <div className="tracking-table-body">
-                {wallets.map((wallet) => {
+                {pagedWallets.map((wallet) => {
                   const explorerUrl = wallet.addressType === "solana" || wallet.chain === "Solana"
                     ? `https://solscan.io/account/${wallet.address}`
                     : `https://etherscan.io/address/${wallet.address}`;
@@ -1132,7 +1141,35 @@ export default function AssetTrackingView() {
               </div>
             )}
           </div>
-          <footer className="tracking-table-footer"><span>Showing 1 to {tab === "tokens" ? tokens.length : wallets.length} of {tab === "tokens" ? allTokens.length : allWallets.length} {tab}</span><div><button type="button">‹</button><button className="active" type="button">1</button><button type="button">2</button><button type="button">›</button></div><button type="button">Show 8 per page ⌄</button></footer>
+          {(() => {
+            const totalItems = tab === "tokens" ? tokens.length : wallets.length;
+            const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+            const firstItem = totalItems === 0 ? 0 : (page - 1) * perPage + 1;
+            const lastItem = Math.min(page * perPage, totalItems);
+            const label = tab === "tokens" ? "tokens" : "wallets";
+            return (
+              <footer className="tracking-table-footer">
+                <span>Showing {firstItem}–{lastItem} of {totalItems} {label}</span>
+                <div>
+                  <button type="button" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹</button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                    <button key={p} className={p === page ? "active" : ""} type="button" onClick={() => setPage(p)}>{p}</button>
+                  ))}
+                  <button type="button" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>›</button>
+                </div>
+                <div className="tracking-perpage-wrap">
+                  <button type="button" onClick={() => setPerPageOpen(o => !o)}>Show {perPage} per page ⌄</button>
+                  {perPageOpen && (
+                    <div className="tracking-perpage-menu">
+                      {[8, 16, 24, 50].map(n => (
+                        <button key={n} type="button" className={n === perPage ? "active" : ""} onClick={() => { setPerPage(n); setPage(1); setPerPageOpen(false); }}>{n} per page</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </footer>
+            );
+          })()}
         </main>
         {tab === "tokens"
           ? selectedToken ? <TokenIntelligence token={selectedToken} priceLoading={livePriceFetching} onLinkMarketData={() => setLinkTokenSymbol(selectedToken.symbol)} /> : <aside className="tracking-intelligence tracking-intelligence-empty"><p>Add a token to see intelligence here.</p></aside>

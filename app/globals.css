@@ -653,7 +653,10 @@ button { color: inherit; }
 .tracking-table-footer > div { display: flex; gap: 5px; }
 .tracking-table-footer button { height: 33px; min-width: 33px; padding: 0 9px; color: #8d9aac; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 10px; }
 .tracking-table-footer button.active { color: #fff; border-color: #7441ae; background: linear-gradient(145deg, #6f2bc1, #321963); }
-.tracking-table-footer > button { justify-self: end; border-color: #253348; background: #0c1624; }
+.tracking-perpage-wrap { justify-self: end; position: relative; }
+.tracking-perpage-wrap > button { border-color: #253348; background: #0c1624; }
+.tracking-perpage-menu { position: absolute; right: 0; bottom: calc(100% + 6px); display: flex; flex-direction: column; gap: 2px; padding: 5px; background: #0d1927; border: 1px solid #253348; border-radius: 7px; z-index: 10; }
+.tracking-perpage-menu button { width: 100%; justify-content: flex-start; white-space: nowrap; text-align: left; }
 .tracking-intelligence { align-self: start; max-height: calc(100vh - 250px); overflow: hidden; display: flex; flex-direction: column; }
 .tracking-intelligence-sticky { flex-shrink: 0; }
 .tracking-intelligence-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
