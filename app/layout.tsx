@@ -34,7 +34,63 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider publishableKey={process.env.VITE_CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider
+      publishableKey={process.env.VITE_CLERK_PUBLISHABLE_KEY}
+      appearance={{
+        variables: {
+          colorPrimary: "#a855f7",
+          colorBackground: "#091421",
+          colorInputText: "#f7f8fb",
+          colorText: "#f7f8fb",
+          colorTextSecondary: "#a8b4c6",
+          colorNeutral: "#273952",
+          borderRadius: "10px",
+        },
+        elements: {
+          modalContent: {
+            backgroundColor: "#091421",
+            border: "1px solid #273952",
+            boxShadow: "0 28px 80px rgba(0, 0, 0, .45)",
+          },
+          card: {
+            backgroundColor: "#091421",
+            boxShadow: "none",
+          },
+          headerTitle: {
+            color: "#f7f8fb",
+          },
+          headerSubtitle: {
+            color: "#a8b4c6",
+          },
+          socialButtonsBlockButton: {
+            backgroundColor: "#0b1625",
+            border: "1px solid #31405a",
+            color: "#f7f8fb",
+          },
+          formFieldInput: {
+            backgroundColor: "#0b1625",
+            border: "1px solid #31405a",
+            color: "#f7f8fb",
+          },
+          formButtonPrimary: {
+            background: "linear-gradient(135deg, #a550ff, #6f36da)",
+            color: "#ffffff",
+          },
+          dividerLine: {
+            backgroundColor: "#273952",
+          },
+          dividerText: {
+            color: "#8794a7",
+          },
+          footerActionLink: {
+            color: "#c17cff",
+          },
+          modalCloseButton: {
+            color: "#a8b4c6",
+          },
+        },
+      }}
+    >
       <html lang="en">
         <body className={geist.variable}>{children}</body>
       </html>
