@@ -53,6 +53,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /const SIDEBAR_PRIMARY_NAV:[\s\S]*Dashboard[\s\S]*Create Signal[\s\S]*Signals[\s\S]*Trades/);
   assert.doesNotMatch(page, /Backtesting/);
   assert.doesNotMatch(page, /Analytics/);
+  assert.match(page, /id=\{label === "Signals" \? "signals-nav-button" : undefined\}/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
   assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["◉", "Markets", "markets"\][\s\S]*Users[\s\S]*Alerts[\s\S]*Integrations/);
   assert.doesNotMatch(page, /Data Feeds/);
