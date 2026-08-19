@@ -1029,7 +1029,7 @@ export default function AssetTrackingView() {
       <div className="tracking-workspace">
         <main className="tracking-main-panel">
           <div className="tracking-tabs" role="tablist" aria-label="Asset tracking views"><button className={tab === "tokens" ? "active" : ""} type="button" role="tab" aria-selected={tab === "tokens"} onClick={() => switchTab("tokens")}>◎ Watched Tokens</button><button className={tab === "wallets" ? "active" : ""} type="button" role="tab" aria-selected={tab === "wallets"} onClick={() => switchTab("wallets")}>▱ Watched Wallets</button></div>
-          <div className="tracking-toolbar"><label><span aria-hidden="true">⌕</span><input type="search" placeholder={tab === "tokens" ? "Search tokens..." : "Search wallets..."} value={query} onChange={(event) => setQuery(event.target.value)} /></label><div><button type="button">All Chains ⌄</button><button type="button">Status: Active ⌄</button><button type="button">☷ Filters</button><button className="tracking-view-toggle" type="button" aria-label="List view">☷</button></div></div>
+          <div className="tracking-toolbar"><label><span aria-hidden="true">⌕</span><input type="search" placeholder={tab === "tokens" ? "Search tokens..." : "Search wallets..."} value={query} onChange={(event) => setQuery(event.target.value)} /></label><div><button type="button">All Chains ⌄</button><button type="button">☷ Filters</button></div></div>
 
           {tab === "tokens" && secondsSinceUpdate !== null && (
             <p className="tracking-last-updated" aria-live="polite">

@@ -602,7 +602,6 @@ button { color: inherit; }
 .tracking-toolbar input::placeholder { color: #728095; }
 .tracking-toolbar > div { display: flex; gap: 8px; }
 .tracking-toolbar > div button { height: 40px; padding: 0 12px; color: #b7c1cf; border: 1px solid #28364a; border-radius: 7px; background: #0b1523; cursor: pointer; font-size: 10px; transition: border-color .15s; }
-.tracking-toolbar > div button.tracking-view-toggle { width: 40px; padding: 0; color: #b15cff; }
 .tracking-table-wrap { min-width: 0; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; }
 .tracking-table { min-width: 850px; display: flex; flex-direction: column; height: 100%; }
 .tracking-table-body { flex: 1; min-height: 0; max-height: 276px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #3a3a3a #07111e; }
