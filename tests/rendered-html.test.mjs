@@ -66,7 +66,8 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.doesNotMatch(page, /Data Feeds/);
   assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
   assert.match(page, /className="application-settings-label"[\s\S]*aria-expanded=\{settingsExpanded\}[\s\S]*aria-controls="settings-subnav"/);
-  assert.match(page, /\{settingsExpanded && \([\s\S]*className="application-settings-nav"[\s\S]*id="settings-subnav"/);
+  assert.match(page, /\{settingsExpanded && \([\s\S]*className="application-sidebar-subnav settings-subnav"[\s\S]*id="settings-subnav"/);
+  assert.doesNotMatch(styles, /\.application-settings-nav/);
   assert.doesNotMatch(page, /SIDEBAR_SETTINGS_NAV\.map\(\(\[icon, label, destination\]\)/);
   assert.match(page, /const SIDEBAR_MONITORING_NAV:[\s\S]*Asset Tracking[\s\S]*Watchlists[\s\S]*Notifications/);
   assert.match(page, /className=\{`application-menu-trigger \$\{sidebarOpen \? "open" : ""\}`\}[\s\S]*aria-expanded=\{sidebarOpen\}/);

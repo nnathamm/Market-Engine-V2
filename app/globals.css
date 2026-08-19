@@ -100,6 +100,7 @@ button { color: inherit; }
 .application-sidebar-subnav button { min-height: 34px; padding: 0 10px; display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 7px; color: #7f8da2; border: 0; border-left: 1px solid #26354a; background: transparent; cursor: pointer; text-align: left; font-size: 12px; }
 .application-sidebar-subnav-icon { display: grid; place-items: center; }
 .application-sidebar-subnav-icon svg { width: 16px; height: 16px; display: block; }
+.settings-subnav button { grid-template-columns: 1fr auto; }
 .application-sidebar-subnav button:hover, .application-sidebar-subnav button:focus-visible, .application-sidebar-subnav button.active { color: #f3f5f8; background: #111d2e; outline: 0; }
 .application-sidebar-subnav button.active { border-left-color: #b45dff; }
 .application-sidebar-icon { width: 28px; color: #aab6c8; display: grid; place-items: center; }
@@ -111,13 +112,6 @@ button { color: inherit; }
 .application-settings-label:hover, .application-settings-label:focus-visible { color: #f3f5f8; background: #1a2940; outline: 0; }
 .application-settings-label strong { font-size: 16px; font-weight: 550; }
 .application-settings-label .application-sidebar-icon { color: #bd61ff; }
-.application-settings-nav { position: relative; margin: 9px 0 0 42px; padding-left: 19px; display: grid; }
-.application-settings-nav::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: #334258; }
-.application-settings-nav button { position: relative; width: 100%; min-height: 45px; padding: 0 9px; display: grid; grid-template-columns: 1fr auto; align-items: center; color: #8290a4; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 14px; }
-.application-settings-nav button::before { content: ""; position: absolute; left: -19px; top: 22px; width: 14px; height: 1px; background: #334258; }
-.application-settings-nav button.active { color: #bd61ff; font-weight: 650; }
-.application-settings-nav button.active i { position: absolute; left: -23px; top: 18px; width: 8px; height: 8px; border-radius: 50%; background: #ad4cf6; box-shadow: 0 0 10px rgba(173, 76, 246, .55); }
-.application-settings-nav button:disabled { cursor: default; opacity: .82; }
 .application-sidebar-footnote { margin: 4px 20px 24px; color: #5f6d81; font-size: 10px; line-height: 1.5; }
 .master-profile-trigger { min-width: 190px; height: 46px; padding: 0 10px; display: grid; grid-template-columns: 34px 1fr 15px; align-items: center; gap: 9px; color: #eef1f6; border: 1px solid #2b3a4e; border-radius: 10px; background: #0c1725; cursor: pointer; text-align: left; }
 .master-profile-trigger:hover, .master-profile-trigger:focus-visible, .master-profile-trigger[aria-current="page"] { border-color: #7542aa; outline: 0; background: #151b2e; }

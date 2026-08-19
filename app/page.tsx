@@ -372,10 +372,10 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
             <span className="application-sidebar-icon"><SidebarIcon name="general" /></span><strong>Settings</strong>
           </button>
           {settingsExpanded && (
-            <div className="application-settings-nav" id="settings-subnav">
+            <div className="application-sidebar-subnav settings-subnav" id="settings-subnav">
               {SIDEBAR_SETTINGS_NAV.map(([label, destination]) => (
                 <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-                  {label}{!destination ? <small>Soon</small> : null}
+                  <span>{label}</span>{!destination ? <small>Soon</small> : null}
                 </button>
               ))}
             </div>
