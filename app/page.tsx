@@ -1013,7 +1013,6 @@ function AuthenticationScreen() {
     <main className="authentication-screen">
       <section className="authentication-card">
         <img className="authentication-logo" src="/signal-loss.png" alt="Stop Loss" />
-        <p>Sign in to open the features your account has been assigned.</p>
         <div className="authentication-actions">
           <SignInButton mode="modal"><button type="button">Sign in</button></SignInButton>
           <SignUpButton mode="modal"><button className="secondary" type="button">Create account</button></SignUpButton>
