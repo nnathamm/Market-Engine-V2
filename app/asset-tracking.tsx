@@ -341,7 +341,6 @@ function TokenIntelligence({ token, priceLoading, onLinkMarketData }: { token: T
           <span><small>Networks</small><strong>{token.networks}</strong></span>
           <span><small>Pair</small><strong>{token.pair}</strong></span>
           {token.rank != null && <span><small>Rank</small><strong>#{token.rank}</strong></span>}
-          <span><small>Status</small><strong>Watching</strong></span>
         </div>
         <section className="tracking-side-card">
           <p>This interface is ready to show price moves, holder activity, and alerts after an asset-intelligence provider is connected.</p>
