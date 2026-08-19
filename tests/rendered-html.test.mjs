@@ -55,6 +55,9 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.doesNotMatch(page, /Analytics/);
   assert.match(page, /id=\{label === "Signals" \? "signals-nav-button" : label === "Create Signal" \? "create-signal-nav-button" : undefined\}/);
   assert.match(page, /label === "Create Signal" \? "create-signal-nav-button" : undefined/);
+  assert.match(page, /aria-expanded=\{label === "Create Signal" \? expandedSection === "create" : label === "Signals" \? expandedSection === "signals" : undefined\}/);
+  assert.match(page, /id="view-edit-signals-nav-button"[\s\S]*View\/Edit Signals/);
+  assert.match(page, /id="create-signal-under-signals"[\s\S]*Create Signal/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
   assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["◉", "Markets", "markets"\][\s\S]*Users[\s\S]*Alerts[\s\S]*Integrations/);
   assert.doesNotMatch(page, /Data Feeds/);

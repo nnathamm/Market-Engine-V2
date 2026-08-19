@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import { Fragment, lazy, Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   readMarketRequest,
   writeMarketRequest,
@@ -277,6 +277,18 @@ function SignalMark({ compact = false }: { compact?: boolean }) {
 
 function SidebarNavigation({ activeView, open, setView }: { activeView: View; open: boolean; setView: (view: View) => void }) {
   const tabIndex = open ? 0 : -1;
+  const [expandedSection, setExpandedSection] = useState<"create" | "signals" | null>(null);
+
+  function selectPrimary(label: string, destination: View | null) {
+    if (!destination) return;
+    if (label === "Create Signal" || label === "Signals") {
+      const section = label === "Create Signal" ? "create" : "signals";
+      setExpandedSection(current => current === section ? null : section);
+      setView("signals");
+      return;
+    }
+    setView(destination);
+  }
 
   return (
     <aside className="application-sidebar" aria-hidden={!open}>
@@ -287,9 +299,38 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
 
         <nav className="application-sidebar-nav" aria-label="Main navigation">
           {SIDEBAR_PRIMARY_NAV.map(([icon, label, destination]) => (
-            <button id={label === "Signals" ? "signals-nav-button" : label === "Create Signal" ? "create-signal-nav-button" : undefined} className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}>
-              <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
-            </button>
+            <Fragment key={label}>
+              <button
+                id={label === "Signals" ? "signals-nav-button" : label === "Create Signal" ? "create-signal-nav-button" : undefined}
+                className={destination && (activeView === destination || (label === "Create Signal" && expandedSection === "create") || (label === "Signals" && expandedSection === "signals")) ? "active" : ""}
+                type="button"
+                tabIndex={tabIndex}
+                disabled={!destination}
+                aria-current={destination && activeView === destination ? "page" : undefined}
+                aria-expanded={label === "Create Signal" ? expandedSection === "create" : label === "Signals" ? expandedSection === "signals" : undefined}
+                key={label}
+                onClick={() => selectPrimary(label, destination)}
+              >
+                <span className="application-sidebar-icon" aria-hidden="true">{icon}</span><span>{label}</span>{!destination ? <small>Soon</small> : null}
+              </button>
+              {expandedSection === "create" && label === "Create Signal" && (
+                <div className="application-sidebar-subnav">
+                  <button id="view-edit-signals-from-create" className={activeView === "signals" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("signals")}>
+                    <span aria-hidden="true">◇</span><span>View/Edit Signals</span>
+                  </button>
+                </div>
+              )}
+              {expandedSection === "signals" && label === "Signals" && (
+                <div className="application-sidebar-subnav">
+                  <button id="create-signal-under-signals" className={activeView === "create" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("create")}>
+                    <span aria-hidden="true">＋</span><span>Create Signal</span>
+                  </button>
+                  <button id="view-edit-signals-nav-button" className={activeView === "signals" ? "active" : ""} type="button" tabIndex={tabIndex} onClick={() => setView("signals")}>
+                    <span aria-hidden="true">◇</span><span>View/Edit Signals</span>
+                  </button>
+                </div>
+              )}
+            </Fragment>
           ))}
 
           <h2>System</h2>
