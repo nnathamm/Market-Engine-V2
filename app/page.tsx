@@ -309,7 +309,6 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
   const tabIndex = open ? 0 : -1;
   const [expandedSection, setExpandedSection] = useState<"dashboard" | "signals" | null>(null);
   const [settingsExpanded, setSettingsExpanded] = useState(true);
-  const [adminExpanded, setAdminExpanded] = useState(true);
 
   function selectPrimary(label: string, destination: View | null) {
     if (label === "Dashboard") {
@@ -370,30 +369,7 @@ function SidebarNavigation({ activeView, open, setView }: { activeView: View; op
 
           <h2>System</h2>
           {SIDEBAR_SYSTEM_NAV.map(([icon, label, destination]) => (
-            <Fragment key={label}>
-              <button
-                className={destination && activeView === destination ? "active" : ""}
-                type="button"
-                tabIndex={tabIndex}
-                disabled={!destination}
-                aria-current={destination && activeView === destination ? "page" : undefined}
-                aria-expanded={label === "Admin" ? adminExpanded : undefined}
-                aria-controls={label === "Admin" ? "admin-subnav" : undefined}
-                onClick={() => {
-                  if (label === "Admin") setAdminExpanded(current => !current);
-                  if (destination) setView(destination);
-                }}
-              >
-                <span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}
-              </button>
-              {label === "Admin" && adminExpanded && (
-                <div className="application-sidebar-subnav admin-subnav" id="admin-subnav">
-                  <button id="users-under-admin" type="button" tabIndex={tabIndex} disabled>
-                    <span className="application-sidebar-subnav-icon"><SidebarIcon name="users" /></span><span>Users</span><small>Soon</small>
-                  </button>
-                </div>
-              )}
-            </Fragment>
+            <button className={destination && activeView === destination ? "active" : ""} type="button" tabIndex={tabIndex} disabled={!destination} aria-current={destination && activeView === destination ? "page" : undefined} key={label} onClick={() => destination && setView(destination)}><span className="application-sidebar-icon"><SidebarIcon name={icon} /></span><span>{label}</span>{!destination ? <small>Soon</small> : null}</button>
           ))}
 
           <button

@@ -65,10 +65,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /id="create-signal-under-signals"[\s\S]*Create Signal/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
   assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["markets", "Markets", "markets"\][\s\S]*\["admin", "Admin", "profile"\][\s\S]*Integrations/);
-  assert.match(page, /aria-expanded=\{label === "Admin" \? adminExpanded : undefined\}/);
-  assert.match(page, /aria-controls=\{label === "Admin" \? "admin-subnav" : undefined\}/);
-  assert.match(page, /id="users-under-admin"[\s\S]*SidebarIcon name="users"[\s\S]*Users[\s\S]*Soon/);
-  assert.match(styles, /\.dashboard-subnav button small, \.admin-subnav button small \{[^}]*white-space:\s*nowrap;[^}]*justify-self:\s*end;/s);
+  assert.doesNotMatch(page, /adminExpanded|admin-subnav|users-under-admin/);
   assert.doesNotMatch(systemNavigation, /Alerts/);
   assert.doesNotMatch(page, /Data Feeds/);
   assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
