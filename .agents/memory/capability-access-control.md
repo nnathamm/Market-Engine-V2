@@ -8,3 +8,9 @@ Use capabilities, not only a role name, for access decisions. Navigation visibil
 **Why:** The application has restricted operational areas and mutable tracked-market data; client-only role checks or an all-or-nothing admin flag can be bypassed through direct URLs and API requests.
 
 **How to apply:** New restricted features need a named capability, UI gating, and server enforcement. The first authenticated account is the initial administrator; preserve at least one administrator when changing roles.
+
+Algorithm-design controls such as Order Flow belong under Admin and are owner-only; ordinary Admin access must not imply permission to edit them.
+
+**Why:** The owner confirmed that Order Flow variables define core algorithm behavior and must be controlled by a single master account.
+
+**How to apply:** Model owner-only algorithm editing as a distinct capability and enforce it in navigation, page access, and API routes. Identify the owner through controlled access data, never a hardcoded email or bypass.
