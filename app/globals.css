@@ -69,8 +69,13 @@ nextjs-portal { display: none !important; }
 }
 
 .cl-cardBox {
+  background-color: #091421 !important;
   border-radius: 18px !important;
   overflow: hidden !important;
+}
+
+.cl-footer {
+  background-color: #091421 !important;
 }
 
 .cl-headerSubtitle::before {
