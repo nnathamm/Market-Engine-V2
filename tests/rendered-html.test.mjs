@@ -13,6 +13,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
+  const systemNavigation = page.match(/const SIDEBAR_SYSTEM_NAV:[\s\S]*?\];/)?.[0] ?? "";
 
   assert.doesNotMatch(page, /fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|indexedDB/);
   assert.doesNotMatch(page, /decision engine|order execution|market feed/i);
@@ -61,7 +62,7 @@ test("keeps exchange access read-only and loads charts on demand", async () => {
   assert.match(page, /id="create-signal-under-signals"[\s\S]*Create Signal/);
   assert.doesNotMatch(page, /\["⌁", "Chart", null\]/);
   assert.match(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*\["markets", "Markets", "markets"\][\s\S]*Users[\s\S]*Integrations/);
-  assert.doesNotMatch(page, /const SIDEBAR_SYSTEM_NAV:[\s\S]*Alerts/);
+  assert.doesNotMatch(systemNavigation, /Alerts/);
   assert.doesNotMatch(page, /Data Feeds/);
   assert.match(page, /const SIDEBAR_SETTINGS_NAV:[\s\S]*General[\s\S]*Trading[\s\S]*Risk[\s\S]*Order Flow[\s\S]*Logs/);
   assert.match(page, /className="application-settings-label"[\s\S]*aria-expanded=\{settingsExpanded\}[\s\S]*aria-controls="settings-subnav"/);
